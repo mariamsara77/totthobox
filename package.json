@@ -1,0 +1,25 @@
+{
+    "private": true,
+    "type": "module",
+    "name": "totthobox",
+    "version": "1.0.0",
+    "scripts": {
+        "build": "vite build",
+        "dev": "vite"
+    },
+    "dependencies": {
+        "@tailwindcss/vite": "^4.0.0",
+        "apexcharts": "^5.3.6",
+        "dexie": "^4.2.1",
+        "laravel-echo": "^2.2.7",
+        "pell": "^1.0.6",
+        "pusher-js": "^8.4.0",
+        "quill": "^2.0.3",
+        "trix": "^2.1.16",
+        "viewerjs": "^1.11.7"
+    },
+    "devDependencies": {
+        "laravel-vite-plugin": "^1.0.0",
+        "vite": "^6.0.0"
+    }
+}

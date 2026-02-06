@@ -1,0 +1,255 @@
+@import 'tailwindcss';
+@import '../../vendor/livewire/flux/dist/flux.css';
+
+@source '../views';
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../vendor/livewire/flux-pro/stubs/**/*.blade.php';
+@source '../../vendor/livewire/flux/stubs/**/*.blade.php';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+
+    --color-zinc-50: #fafafa;
+    --color-zinc-100: #f5f5f5;
+    --color-zinc-200: #e5e5e5;
+    --color-zinc-300: #d4d4d4;
+    --color-zinc-400: #a3a3a3;
+    --color-zinc-500: #737373;
+    --color-zinc-600: #525252;
+    --color-zinc-700: #404040;
+    --color-zinc-800: #262626;
+    --color-zinc-900: #171717;
+    --color-zinc-950: #0a0a0a;
+
+    --color-accent: var(--color-neutral-800);
+    --color-accent-content: var(--color-neutral-800);
+    --color-accent-foreground: var(--color-white);
+}
+
+@layer theme {
+    .dark {
+        --color-accent: var(--color-white);
+        --color-accent-content: var(--color-white);
+        --color-accent-foreground: var(--color-neutral-800);
+    }
+}
+
+@layer base {
+
+    *,
+    ::after,
+    ::before,
+    ::backdrop,
+    ::file-selector-button {
+        border-color: var(--color-gray-200, currentColor);
+    }
+}
+
+[data-flux-field]:not(ui-radio, ui-checkbox) {
+    @apply grid gap-2;
+}
+
+[data-flux-label] {
+    @apply  !mb-0 !leading-tight;
+}
+
+body{
+   font-family: 'SolaimanLipi', sans-serif;
+}
+
+/* input:focus[data-flux-control],
+textarea:focus[data-flux-control],
+select:focus[data-flux-control] {
+    @apply outline-hidden ring-2 ring-accent ring-offset-2 ring-offset-accent-foreground;
+}
+
+ [data-flux-modal-close] {
+    display: none !important;
+} */
+
+/* সব ইনপুট, টেক্সটএরিয়া, সিলেক্টের জন্য focus ring disable */
+input:focus,
+textarea:focus,
+select:focus,
+button:focus {
+    outline: none !important;
+    box-shadow: none !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+    --tw-ring-color: transparent !important;
+    --tw-ring-offset-shadow: 0 0 #0000 !important;
+}
+
+.install-btn-mobile-only {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        @media (max-width: 768px) {
+            .install-btn-mobile-only {
+                display: block;
+            }
+        }
+
+/*
+ [disabled][wire\:loading] {
+     pointer-events: auto !important;
+     opacity: 1 !important;
+ } */
+
+
+/* \[:where(&)\]:size-4 {
+    @apply size-4;
+} */
+
+
+
+
+
+/* ১. আধুনিক ব্রাউজারে লেআউট শিফট রোধ করতে */
+html {
+    scrollbar-gutter: stable;
+}
+
+/* ২. শুধুমাত্র ডেস্কটপ বা মাউস ব্যবহারকারী ডিভাইসের জন্য স্ক্রলবার কাস্টমাইজেশন */
+@media (hover: hover) and (pointer: fine) {
+
+    /* গ্লোবাল স্ক্রলবার এরিয়া */
+    ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+        background: transparent;
+    }
+
+    /* ট্র্যাক (ব্যাকগ্রাউন্ড) ইনভিজিবল */
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    /* ডিফল্ট অবস্থায় হ্যান্ডেলটি স্বচ্ছ থাকবে */
+    ::-webkit-scrollbar-thumb {
+        background-color: transparent;
+        border-radius: 10px;
+        border: 2px solid transparent;
+        background-clip: padding-box;
+        transition: background-color 0.3s ease;
+    }
+
+    /* যখন স্ক্রল করা হবে বা হোভার করা হবে */
+    html:hover ::-webkit-scrollbar-thumb,
+    body:hover ::-webkit-scrollbar-thumb {
+        background-color: rgba(150, 150, 150, 0.2);
+        /* হালকা কালার */
+    }
+
+    /* সরাসরি হ্যান্ডেলের ওপর মাউস নিলে আরও গাঢ় হবে */
+    ::-webkit-scrollbar-thumb:hover {
+        background-color: rgba(150, 150, 150, 0.4) !important;
+    }
+
+    /* ডার্ক মোড সাপোর্ট (যদি আপনার প্রজেক্টে থাকে) */
+    .dark html:hover ::-webkit-scrollbar-thumb {
+        background-color: rgba(255, 255, 255, 0.2);
+    }
+}
+
+
+
+
+
+@layer base {
+
+    /* ১. লিস্টের সাধারণ সেটিং (Padding & Layout) */
+    .ql-text-fromat ol li,
+    .ql-text-fromat ul li {
+        display: block;
+        position: relative;
+        padding-left: 1.5rem;
+        line-height: 1.625;
+        @apply text-zinc-800 dark:text-zinc-200;
+    }
+
+    /* ২. নম্বরওয়ালা লিস্ট (শুধুমাত্র ol এর জন্য) */
+    .ql-text-fromat ol {
+        counter-reset: flux-list;
+        /* কাউন্টার রিসেট */
+    }
+
+    .ql-text-fromat ol li {
+        counter-increment: flux-list;
+    }
+
+    .ql-text-fromat ol li::before {
+        content: counter(flux-list) ".";
+        position: absolute;
+        left: 0;
+        @apply font-medium text-zinc-500 dark:text-zinc-400;
+    }
+
+    /* ৩. বুলেট লিস্ট (শুধুমাত্র ul এর জন্য) */
+    .ql-text-fromat ul li::before {
+        content: "•";
+        position: absolute;
+        left: 0;
+        @apply font-bold text-zinc-400 dark:text-zinc-500;
+        font-size: 1.25rem;
+    }
+
+    /* ৪. লিঙ্কের স্টাইল */
+    .ql-text-fromat a {
+        @apply text-blue-600 dark:text-blue-400 underline underline-offset-4;
+        text-decoration-color: rgba(59, 130, 246, 0.3);
+    }
+
+    .ql-text-fromat a:hover {
+        text-decoration-color: rgb(59, 130, 246);
+    }
+
+    /* ৫. বোল্ড, ইটালিক, আন্ডারলাইন ও প্যারাগ্রাফ */
+    .ql-text-fromat strong {
+        @apply font-bold text-zinc-900 dark:text-white;
+    }
+
+    .ql-text-fromat em {
+        @apply italic;
+    }
+
+    .ql-text-fromat u {
+        @apply underline underline-offset-2;
+    }
+
+    .ql-text-fromat p {
+        @apply mb-4 leading-relaxed;
+    }
+
+    /* ৬. Quill এর অনাকাঙ্ক্ষিত UI এলিমেন্ট (যেমন সেই ০ বা ডিফল্ট ডট) হাইড করা */
+    .ql-text-fromat .ql-ui {
+        display: none !important;
+    }
+}
+
+
+
+/* গুগল ট্রান্সলেট টপবার এবং ব্যানার হাইড */
+.goog-te-banner-frame,
+.goog-te-balloon-frame,
+#goog-gt-tt,
+.skiptranslate,
+.goog-te-gadget-icon {
+    display: none !important;
+}
+
+body {
+    top: 0px !important;
+    position: static !important;
+}
+
+/* টেক্সট হাইলাইট রিমুভ */
+.goog-text-highlight {
+    background-color: transparent !important;
+    box-shadow: none !important;
+}
