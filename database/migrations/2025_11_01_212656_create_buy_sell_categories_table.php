@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     /**
      * Run the migrations.
      */
@@ -40,7 +39,7 @@ return new class extends Migration
             // Analytics
             $table->unsignedBigInteger('view_count')->default(0);
 
-            // Audit Fields (Modern Laravel Style)
+            // Audit Fields
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('deleted_by')->nullable()->constrained('users')->nullOnDelete();
@@ -54,9 +53,24 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            // Compound Indexes for Performance
-            $table->index(['is_active', 'status', 'order']);
-            $table->index(['slug', 'status']);
+            // --- ADVANCED INDEXING (Maximum Efficiency) ---
+
+            // ১. নেভিগেশন ও মেনু সর্টিং এর জন্য (সবচেয়ে বেশি ব্যবহৃত হবে)
+            // এটি WHERE is_active = 1 AND status = 'published' ORDER BY order ASC কোডকে অপ্টিমাইজ করবে
+            $table->index(['is_active', 'status', 'order'], 'idx_buy_sell_cat_nav');
+
+            // ২. হোমপেজ বা ফিচারড ক্যাটাগরির জন্য
+            $table->index(['is_featured', 'is_active', 'status'], 'idx_buy_sell_cat_featured');
+
+            // ৩. নাম ভিত্তিক সার্চ অপ্টিমাইজেশন
+            $table->index('name');
+
+            // ৪. জনপ্রিয় ক্যাটাগরি সর্টিং (Analytics based)
+            $table->index(['view_count', 'status'], 'idx_buy_sell_cat_popular');
+
+            // ৫. অডিট এবং ডিলিট ট্র্যাকিং
+            $table->index('deleted_at');
+            $table->index('published_at');
         });
     }
 

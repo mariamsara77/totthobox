@@ -4,436 +4,269 @@ use Livewire\Volt\Component;
 use App\Models\Dowa;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
-use Flux\Flux;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
+use Livewire\Attributes\{Computed, Validate, On};
 
-new class extends Component
-{
+new class extends Component {
     use WithFileUploads, WithPagination;
 
-    // Form fields
     public $dowaId;
+
+    #[Validate('required|min:3')]
     public $bangla_name = '';
+
+    #[Validate('nullable|string')]
     public $arabic_name = '';
+
+    #[Validate('nullable|string')]
     public $arabic_text = '';
+
+    #[Validate('required|string')]
     public $bangla_text = '';
+
+    #[Validate('nullable|string')]
     public $bangla_meaning = '';
+
+    #[Validate('nullable|string')]
     public $bangla_fojilot = '';
-    public $audio;
-    public $audioPreview;
-    public $others = '';
-    public $type = '';
-    public $tagsInput = '';
-    public $status = 1;
+
+    #[Validate('boolean')]
+    public $is_active = true;
+
+    #[Validate('boolean')]
     public $is_featured = false;
-    public $meta_title = '';
-    public $meta_description = '';
-    public $meta_keywords = '';
-    public $published_at;
-    
-    // UI states
-    public $showForm = false;
-    public $formType = 'create'; // 'create' or 'edit'
-    public $viewType = 'active'; // 'active', 'trashed'
+
+    // অডিও হ্যান্ডলিং
+    public $audio;
+    public $existingAudio;
+
+    public $viewType = 'active';
     public $search = '';
-    
-    // Pagination
-    public $perPage = 10;
-    public $sortField = 'bangla_name';
-    public $sortDirection = 'asc';
 
-    // Available types
-    public $types = [];
-
-    public function mount()
+    public function updatedSearch()
     {
-        $this->published_at = now();
-        $this->types = Dowa::TYPES;
-    }
-
-    public function getDowasProperty()
-    {
-        $query = $this->viewType === 'trashed' 
-            ? Dowa::onlyTrashed() 
-            : Dowa::query();
-            
-        if ($this->search) {
-            $query->where(function($q) {
-                $q->where('bangla_name', 'like', '%'.$this->search.'%')
-                  ->orWhere('arabic_name', 'like', '%'.$this->search.'%')
-                  ->orWhere('bangla_text', 'like', '%'.$this->search.'%')
-                  ->orWhere('bangla_meaning', 'like', '%'.$this->search.'%');
-            });
-        }
-        
-        return $query->with(['user', 'creator', 'editor'])
-                    ->orderBy($this->sortField, $this->sortDirection)
-                    ->paginate($this->perPage);
-    }
-
-    public function sortBy($field)
-    {
-        if ($this->sortField === $field) {
-            $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
-        } else {
-            $this->sortField = $field;
-            $this->sortDirection = 'asc';
-        }
-    }
-
-    public function toggleView($type)
-    {
-        $this->viewType = $type;
         $this->resetPage();
+    }
+
+    public function updatedViewType()
+    {
+        $this->resetPage();
+    }
+
+    #[Computed]
+    public function dowas()
+    {
+        return ($this->viewType === 'trashed' ? Dowa::onlyTrashed() : Dowa::query())
+            ->with(['creator'])
+            ->when($this->search, function ($q) {
+                $q->where('bangla_name', 'like', "%{$this->search}%")
+                    ->orWhere('arabic_name', 'like', "%{$this->search}%");
+            })
+            ->latest()
+            ->paginate(10);
     }
 
     public function showCreateForm()
     {
-        $this->resetForm();
-        $this->formType = 'create';
-        $this->showForm = true;
+        $this->resetValidation();
+        $this->reset(['dowaId', 'bangla_name', 'arabic_name', 'arabic_text', 'bangla_text', 'bangla_meaning', 'bangla_fojilot', 'is_active', 'is_featured', 'audio', 'existingAudio']);
+        $this->dispatch('modal-show', name: 'dowa-form');
     }
 
-    public function showEditForm($dowaId)
+    public function showEditForm($id)
     {
-        $dowa = $this->viewType === 'trashed' 
-            ? Dowa::withTrashed()->find($dowaId) 
-            : Dowa::find($dowaId);
-        
-        $this->dowaId = $dowa->id;
-        $this->bangla_name = $dowa->bangla_name;
-        $this->arabic_name = $dowa->arabic_name;
-        $this->arabic_text = $dowa->arabic_text;
-        $this->bangla_text = $dowa->bangla_text;
-        $this->bangla_meaning = $dowa->bangla_meaning;
-        $this->bangla_fojilot = $dowa->bangla_fojilot;
-        $this->others = $dowa->others;
-        $this->type = $dowa->type;
-        $this->tagsInput = is_array($dowa->tags) ? implode(', ', $dowa->tags) : $dowa->tags;
-        $this->status = $dowa->is_active;
-        $this->is_featured = $dowa->is_featured;
-        $this->meta_title = $dowa->meta_title;
-        $this->meta_description = $dowa->meta_description;
-        $this->meta_keywords = is_array($dowa->meta_keywords) 
-            ? implode(', ', $dowa->meta_keywords) 
-            : $dowa->meta_keywords;
-        $this->published_at = $dowa->published_at ? $dowa->published_at->format('Y-m-d\TH:i') : null;
-        $this->audioPreview = $dowa->audio ? Storage::url($dowa->audio) : null;
-        
-        $this->formType = 'edit';
-        $this->showForm = true;
-    }
+        $this->resetValidation();
+        $item = Dowa::withTrashed()->findOrFail($id);
 
-    public function resetForm()
-    {
-        $this->reset([
-            'dowaId', 'bangla_name', 'arabic_name', 'arabic_text', 'bangla_text', 
-            'bangla_meaning', 'bangla_fojilot', 'audio', 'audioPreview', 'others',
-            'type', 'tagsInput', 'status', 'is_featured', 'meta_title', 
-            'meta_description', 'meta_keywords', 'published_at'
-        ]);
-        $this->resetErrorBag();
+        $this->dowaId = $item->id;
+        $this->bangla_name = $item->bangla_name;
+        $this->arabic_name = $item->arabic_name;
+        $this->arabic_text = $item->arabic_text;
+        $this->bangla_text = $item->bangla_text;
+        $this->bangla_meaning = $item->bangla_meaning;
+        $this->bangla_fojilot = $item->bangla_fojilot;
+        $this->is_active = (bool) $item->is_active;
+        $this->is_featured = (bool) $item->is_featured;
+        $this->existingAudio = $item->audio ? Storage::url($item->audio) : null;
+
+        $this->dispatch('modal-show', name: 'dowa-form');
     }
 
     public function save()
     {
-        $validated = $this->validate([
-            'bangla_name' => 'required|min:3',
-            'arabic_name' => 'nullable|string',
-            'arabic_text' => 'nullable|string',
-            'bangla_text' => 'required|string',
-            'bangla_meaning' => 'nullable|string',
-            'bangla_fojilot' => 'nullable|string',
-            'status' => 'nullable|in:0,1',
-            'is_featured' => 'nullable|in:0,1',
-            'published_at' => 'nullable|date',
-        ]);
+        $this->validate();
 
-        // Handle audio upload
+        $data = [
+            'bangla_name' => $this->bangla_name,
+            'slug' => Str::slug($this->bangla_name),
+            'arabic_name' => $this->arabic_name,
+            'arabic_text' => $this->arabic_text,
+            'bangla_text' => $this->bangla_text,
+            'bangla_meaning' => $this->bangla_meaning,
+            'bangla_fojilot' => $this->bangla_fojilot,
+            'is_active' => $this->is_active,
+            'is_featured' => $this->is_featured,
+            'updated_by' => auth()->id(),
+        ];
+
+        if (!$this->dowaId) {
+            $data['created_by'] = auth()->id();
+            $data['user_id'] = auth()->id();
+        }
+
         if ($this->audio) {
-            $audioPath = $this->audio->store('dowa-audio', 'public');
-            $validated['audio'] = $audioPath;
-
-            // Delete old audio if exists
-            if ($this->formType === 'edit' && $this->audioPreview) {
-                Storage::disk('public')->delete(
-                    str_replace('/storage/', '', $this->audioPreview)
-                );
+            if ($this->existingAudio) {
+                Storage::disk('public')->delete(str_replace('/storage/', '', $this->existingAudio));
             }
+            $data['audio'] = $this->audio->store('dowa-audios', 'public');
         }
 
-        // Process tags as array
-        if (!empty($validated['tagsInput'])) {
-            $validated['tags'] = array_map('trim', explode(',', $validated['tagsInput']));
-        }
-        unset($validated['tagsInput']);
+        Dowa::updateOrCreate(['id' => $this->dowaId], $data);
 
-        // Process meta keywords as array
-        if (!empty($validated['meta_keywords'])) {
-            $validated['meta_keywords'] = array_map('trim', explode(',', $validated['meta_keywords']));
-        }
-
-        $validated['user_id'] = auth()->id();
-        $validated['slug'] = \Str::slug($this->bangla_name);
-        $validated['created_by'] = auth()->id();
-        $validated['updated_by'] = auth()->id();
-        
-        // Use the correct column name based on your database
-        $validated['status'] = $validated['status'];
-        unset($validated['status']);
-
-        if ($this->formType === 'edit') {
-            $dowa = Dowa::withTrashed()->find($this->dowaId);
-            $dowa->update($validated);
-            $message = 'Dowa updated successfully!';
-        } else {
-            Dowa::create($validated);
-            $message = 'Dowa created successfully!';
-        }
-
-        $this->showForm = false;
-        $this->resetForm();
-        
-        session()->flash('message', $message);
-        Flux::toast($message);
+        $this->dispatch('modal-close', name: 'dowa-form');
+        $this->dispatch('toast', variant: 'success', heading: 'সফল', text: 'দোয়াটি সংরক্ষিত হয়েছে।');
+        $this->reset(['audio', 'dowaId']);
     }
 
-    public function deleteDowa($dowaId)
+    public function delete($id)
     {
-        $dowa = Dowa::find($dowaId);
-        $dowa->deleted_by = auth()->id();
-        $dowa->save();
-        $dowa->delete();
-        session()->flash('message', 'Dowa moved to trash!');
-        $this->resetPage();
+        $item = Dowa::find($id);
+        $item->deleted_by = auth()->id();
+        $item->save();
+        $item->delete();
+        $this->dispatch('toast', variant: 'warning', text: 'আইটেমটি ট্র্যাশে পাঠানো হয়েছে।');
     }
 
-    public function restoreDowa($dowaId)
+    public function restore($id)
     {
-        $dowa = Dowa::onlyTrashed()->find($dowaId);
-        $dowa->restore();
-        $dowa->deleted_by = null;
-        $dowa->save();
-        session()->flash('message', 'Dowa restored successfully!');
-        $this->resetPage();
+        $item = Dowa::onlyTrashed()->findOrFail($id);
+        $item->restore();
+        $item->deleted_by = null;
+        $item->save();
+        $this->dispatch('toast', variant: 'success', text: 'আইটেমটি রিস্টোর করা হয়েছে।');
     }
 
-    public function forceDeleteDowa($dowaId)
+    public function forceDelete($id)
     {
-        $dowa = Dowa::onlyTrashed()->find($dowaId);
-        
-        // Delete associated files
-        if ($dowa->audio) {
-            Storage::disk('public')->delete($dowa->audio);
+        $item = Dowa::onlyTrashed()->findOrFail($id);
+        if ($item->audio) {
+            Storage::disk('public')->delete($item->audio);
         }
-        
-        $dowa->forceDelete();
-        session()->flash('message', 'Dowa permanently deleted!');
-        $this->resetPage();
+        $item->forceDelete();
+        $this->dispatch('toast', variant: 'error', text: 'আইটেমটি স্থায়ীভাবে ডিলিট করা হয়েছে।');
     }
 }; ?>
 
-<section class="">
-    <div class="flex flex-col space-y-6">
-
-        <!-- Dowa Form -->
-        @if($showForm)
-        <div class="">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-semibold ">
-                    {{ $formType === 'create' ? 'Create New Dowa' : 'Edit Dowa' }}
-                </h3>
-                <flux:button wire:click="$set('showForm', false)" size="sm">
-                    Back
-                </flux:button>
-            </div>
-
-            <form wire:submit.prevent="save">
-                <div class="grid grid-cols-1 gap-6">
-                    <!-- Basic Info -->
-                    <div class="space-y-4">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <flux:input type="text" wire:model.live="bangla_name" label="Bangla Name" required />
-                                @error('bangla_name') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                            </div>
-                            <div>
-                                <flux:input type="text" wire:model.live="arabic_name" label="Arabic Name" />
-                                @error('arabic_name') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                            </div>
-                        </div>
-
-                        <div>
-                            <flux:textarea wire:model.live="arabic_text" label="Arabic Text" rows="3" />
-                            @error('arabic_text') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                        </div>
-
-                        <div>
-                            <flux:textarea wire:model.live="bangla_text" label="Bangla Text" rows="3" required />
-                            @error('bangla_text') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                        </div>
-
-                        <div>
-                            <flux:textarea wire:model.live="bangla_meaning" label="Bangla Meaning" rows="3" />
-                            @error('bangla_meaning') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                        </div>
-
-                        <div>
-                            <flux:textarea wire:model.live="bangla_fojilot" label="Bangla Fojilot (Benefits)" rows="3" />
-                            @error('bangla_fojilot') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                        </div>
-
-
-
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
-                                <flux:select wire:model.live="status" label="Status" required>
-                                    <option value="1">Active</option>
-                                    <option value="0">Inactive</option>
-                                </flux:select>
-                                @error('status') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                            </div>
-
-                            <div class="flex items-center">
-                                <flux:checkbox wire:model.live="is_featured" label="Featured Dowa" />
-                                @error('is_featured') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                            </div>
-
-                            <div>
-                                <flux:input type="datetime-local" wire:model.live="published_at" label="Publish Date/Time" />
-                                @error('published_at') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
-
-                <div class="mt-6 flex justify-end space-x-3">
-                    <flux:button type="button" wire:click="$set('showForm', false)">
-                        Cancel
-                    </flux:button>
-                    <flux:button type="submit">
-                        {{ $formType === 'create' ? 'Create' : 'Update' }}
-                    </flux:button>
-                </div>
-            </form>
+<div>
+    {{-- Header Section --}}
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div>
+            <flux:heading size="xl">Dowa Management</flux:heading>
+            <flux:subheading>Manage your supplications (Dowa) database.</flux:subheading>
         </div>
-        @else
-
-        <!-- Header and Actions -->
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
-            <h2 class="text-2xl font-bold ">Dowa Management</h2>
-
-            <div class="flex space-x-2">
-                <flux:button wire:click="showCreateForm">
-                    Create New
-                </flux:button>
-
-                <flux:button wire:click="toggleView('active')" variant="{{ $viewType === 'active' ? 'primary' : 'filled' }}">
-                    Active
-                </flux:button>
-
-                <flux:button wire:click="toggleView('trashed')" variant="{{ $viewType === 'trashed' ? 'primary' : 'filled' }}">
-                    Trashed
-                </flux:button>
-            </div>
+        <div class="flex items-center gap-2">
+            <flux:radio.group wire:model.live="viewType" variant="segmented" size="sm">
+                <flux:radio value="active" label="Active" />
+                <flux:radio value="trashed" label="Trash" />
+            </flux:radio.group>
+            <flux:button wire:click="showCreateForm" icon="plus" variant="primary" size="sm">Create New</flux:button>
         </div>
-
-        <!-- Search -->
-        <div class="">
-            <flux:input type="text" wire:model.live.debounce.300ms="search" placeholder="Search by name or text..." class="" />
-        </div>
-
-        <!-- Dowa Table - Simplified View -->
-        <div class="overflow-x-auto rounded-lg shadow">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="">
-                    <tr>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-200 uppercase tracking-wider cursor-pointer" wire:click="sortBy('bangla_name')">
-                            Bangla Name
-                            @if($sortField === 'bangla_name')
-                            @if($sortDirection === 'asc')
-                            ↑
-                            @else
-                            ↓
-                            @endif
-                            @endif
-                        </th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-200 uppercase tracking-wider">
-                            Arabic Name
-                        </th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-200 uppercase tracking-wider">
-                            Bangla Text
-                        </th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-200 uppercase tracking-wider cursor-pointer" wire:click="sortBy('is_active')">
-                            Status
-                            @if($sortField === 'is_active')
-                            @if($sortDirection === 'asc')
-                            ↑
-                            @else
-                            ↓
-                            @endif
-                            @endif
-                        </th>
-                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-200 uppercase tracking-wider">
-                            Actions
-                        </th>
-                    </tr>
-                </thead>
-                <tbody class=" divide-y divide-gray-200">
-                    @forelse ($this->dowas as $dowa)
-                    <tr>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-medium text-gray-200">{{ $dowa->bangla_name }}</div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm text-gray-200">{{ $dowa->arabic_name }}</div>
-                        </td>
-                        <td class="px-6 py-4">
-                            <div class="text-sm text-gray-200 max-w-xs">{{ Str::limit($dowa->bangla_text, 100) }}</div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                {{ $dowa->is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
-                                {{ $dowa->is_active ? 'Active' : 'Inactive' }}
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            @if($viewType === 'active')
-                            <button wire:click="showEditForm({{ $dowa->id }})" class="text-blue-600 hover:text-blue-900 mr-3">
-                                Edit
-                            </button>
-                            <button wire:click="deleteDowa({{ $dowa->id }})" class="text-red-600 hover:text-red-900">
-                                Delete
-                            </button>
-                            @else
-                            <button wire:click="restoreDowa({{ $dowa->id }})" class="text-green-600 hover:text-green-900 mr-3">
-                                Restore
-                            </button>
-                            <button wire:click="forceDeleteDowa({{ $dowa->id }})" class="text-red-600 hover:text-red-900">
-                                Permanently Delete
-                            </button>
-                            @endif
-                        </td>
-                    </tr>
-                    @empty
-                    <tr>
-                        <td colspan="5" class="px-6 py-4 text-center text-sm text-gray-200">
-                            No {{ $viewType === 'trashed' ? 'trashed' : 'active' }} dowas found.
-                        </td>
-                    </tr>
-                    @endforelse
-                </tbody>
-            </table>
-
-            <!-- Pagination -->
-            @if($this->dowas->hasPages())
-            <div class="px-6 py-3 bg-white border-t border-gray-200">
-                {{ $this->dowas->links() }}
-            </div>
-            @endif
-        </div>
-        @endif
-
     </div>
-</section>
+
+    {{-- Search Filter --}}
+    <div class="mb-4">
+        <flux:input wire:model.live.debounce.400ms="search" placeholder="Search by name..." icon="magnifying-glass" />
+    </div>
+
+    {{-- Table Section --}}
+    <flux:table :paginate="$this->dowas">
+        <flux:table.columns>
+            <flux:table.column>Bangla Name</flux:table.column>
+            <flux:table.column>Arabic Name</flux:table.column>
+            <flux:table.column>Status</flux:table.column>
+            <flux:table.column align="end">Action</flux:table.column>
+        </flux:table.columns>
+
+        <flux:table.rows>
+            @forelse ($this->dowas as $item)
+                <flux:table.row :key="$item->id">
+                    <flux:table.cell class="font-medium">
+                        <div class="flex flex-col">
+                            <span>{{ $item->bangla_name }}</span>
+                            @if($item->is_featured)
+                                <span class="text-[10px] text-amber-600 font-bold uppercase tracking-tighter">Featured</span>
+                            @endif
+                        </div>
+                    </flux:table.cell>
+                    <flux:table.cell class="text-zinc-500 italic">{{ $item->arabic_name ?: 'N/A' }}</flux:table.cell>
+                    <flux:table.cell>
+                        <flux:badge size="sm" :color="$item->is_active ? 'green' : 'red'" inset="top bottom">
+                            {{ $item->is_active ? 'Active' : 'Inactive' }}
+                        </flux:badge>
+                    </flux:table.cell>
+                    <flux:table.cell align="end">
+                        @if($viewType === 'active')
+                            <flux:button variant="ghost" size="sm" icon="pencil-square" wire:click="showEditForm({{ $item->id }})" />
+                            <flux:button variant="ghost" size="sm" icon="trash" color="red" wire:confirm="Are you sure?" wire:click="delete({{ $item->id }})" />
+                        @else
+                            <flux:button variant="ghost" size="sm" icon="arrow-path" color="green" wire:click="restore({{ $item->id }})" />
+                            <flux:button variant="ghost" size="sm" icon="x-mark" color="red" wire:confirm="Permanent delete?" wire:click="forceDelete({{ $item->id }})" />
+                        @endif
+                    </flux:table.cell>
+                </flux:table.row>
+            @empty
+                <flux:table.row>
+                    <flux:table.cell colspan="4" class="text-center py-10 text-zinc-400">No records found.</flux:table.cell>
+                </flux:table.row>
+            @endforelse
+        </flux:table.rows>
+    </flux:table>
+
+    {{-- Modal Form --}}
+    <flux:modal name="dowa-form" class="md:w-[50rem]">
+        <form wire:submit="save" class="space-y-6">
+            <div>
+                <flux:heading size="lg">{{ $dowaId ? 'Edit Dowa' : 'Add New Dowa' }}</flux:heading>
+                <flux:subheading>Update supplication details, text, and audio.</flux:subheading>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <flux:input wire:model="bangla_name" label="Bangla Name" required />
+                <flux:input wire:model="arabic_name" label="Arabic Name" />
+            </div>
+
+            <flux:textarea wire:model="arabic_text" label="Arabic Text (Original)" rows="3" class="font-arabic text-right" dir="rtl" />
+            
+            <flux:textarea wire:model="bangla_text" label="Bangla Transliteration" rows="2" />
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <flux:textarea wire:model="bangla_meaning" label="Bangla Meaning" rows="3" />
+                <flux:textarea wire:model="bangla_fojilot" label="Fojilot / Benefits" rows="3" />
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <flux:checkbox wire:model="is_active" label="Active" />
+                <flux:checkbox wire:model="is_featured" label="Featured" />
+            </div>
+
+            {{-- Audio Upload --}}
+            <div class="space-y-2 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg">
+                <flux:label>Audio Recitation</flux:label>
+                @if($existingAudio)
+                    <audio controls class="h-8 mb-2 w-full">
+                        <source src="{{ $existingAudio }}" type="audio/mpeg">
+                    </audio>
+                @endif
+                <flux:input type="file" wire:model="audio" accept="audio/*" />
+            </div>
+
+            <div class="flex justify-end gap-3 pt-6 border-t border-zinc-100 dark:border-zinc-800">
+                <flux:modal.close>
+                    <flux:button variant="ghost">Cancel</flux:button>
+                </flux:modal.close>
+                <flux:button type="submit" variant="primary">Save Changes</flux:button>
+            </div>
+        </form>
+    </flux:modal>
+</div>

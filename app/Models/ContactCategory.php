@@ -34,6 +34,11 @@ class ContactCategory extends Model
         'extra_attributes' => SchemalessAttributes::class, // অথবা 'array'
     ];
 
+    protected static function booted()
+    {
+        static::saved(fn() => cache()->forget('home_first_contact'));
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Relationships

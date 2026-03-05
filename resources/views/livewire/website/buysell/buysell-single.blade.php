@@ -56,7 +56,7 @@ new class extends Component {
 }; ?>
 
 <div class="max-w-2xl mx-auto space-y-4">
-    @include('partials.toast')
+    
     
     <!-- Breadcrumb -->
     <div class="mb-6">

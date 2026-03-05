@@ -129,10 +129,11 @@ new class extends Component {
         }
 
         if ($this->avatar) {
-            $user->addMedia($this->avatar->getRealPath())
+            $user->addMedia($this->avatar->getRealPath()) // সরাসরি path ব্যবহার করা ভালো
                 ->usingFileName(Str::slug($this->name) . '-' . time() . '.' . $this->avatar->getClientOriginalExtension())
                 ->toMediaCollection('avatars');
-            $this->avatar = null;
+
+            $this->avatar = null; // ক্লিয়ার করা
             $this->currentAvatarUrl = $user->fresh()->getFirstMediaUrl('avatars', 'thumb');
         }
 
@@ -150,11 +151,19 @@ new class extends Component {
 
     public function removeAvatar(): void
     {
+        $user = Auth::user();
+
         if ($this->avatar) {
             $this->avatar = null;
             return;
         }
-        Auth::user()->clearMediaCollection('avatars');
+
+        // মিডিয়া লাইব্রেরি থেকে ডিলিট
+        $user->clearMediaCollection('avatars');
+
+        // যদি ডাটাবেসের avatar কলামে কিছু থাকে তাও মুছে দিন
+        $user->update(['avatar' => null]);
+
         $this->currentAvatarUrl = null;
     }
 }; ?>
@@ -268,17 +277,9 @@ new class extends Component {
         </div>
 
         <div class="flex items-center justify-between pt-4">
-            @if($selected_role !== 'user')
-                <flux:button variant="ghost" wire:click="removeCurrentRole" class="text-red-500">রোল রিমুভ করুন
-                </flux:button>
-            @else
-                <div></div>
-            @endif
-
             <flux:button variant="primary" type="submit" wire:loading.attr="disabled">
                 <span>সংরক্ষণ করুন</span>
             </flux:button>
         </div>
     </form>
-
 </section>

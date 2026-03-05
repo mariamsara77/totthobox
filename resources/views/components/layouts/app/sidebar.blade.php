@@ -21,7 +21,7 @@
 
         <flux:sidebar.header>
             <flux:sidebar.brand href="/" name="Totthobox" wire:navigate.hover>
-                <flux:icon name="brand" />
+                <flux:icon name="brand" class="w-8 h-8" />
             </flux:sidebar.brand>
 
             <flux:sidebar.collapse
@@ -90,7 +90,7 @@
         <a href="{{ route('home') }}" class="flex items-center space-x-2 rtl:space-x-reverse lg:ms-0"
             wire:navigate.hover>
             <div class="flex aspect-square size-14 items-center justify-center rounded-md ">
-                <x-app-logo-icon class="size-8 fill-current" />
+                <flux:icon name="brand" class="w-8 h-8" />
             </div>
             <div class="hidden lg:flex ms-1 flex-1 text-start text-sm ">
                 <span class="mb-0.5 font-bold text-4xl text-[#6B747D]">Totthobox</span>
@@ -116,7 +116,26 @@
             </flux:menu>
         </flux:dropdown>
 
-        <x-auth-header-dropdown />
+        @auth
+            <flux:dropdown position="top" align="end">
+                <flux:profile
+                    :avatar="auth()->user()->getFirstMediaUrl('avatars', 'thumb') ? auth()->user()->getFirstMediaUrl('avatars', 'thumb') : null"
+                    class="cursor-pointer" :initials="auth()->user()->initials()">
+                </flux:profile>
+
+                <flux:menu class="w-[220px]">
+                    <x-auth-dropdown />
+                </flux:menu>
+            </flux:dropdown>
+        @else
+            <flux:modal.trigger name="settings">
+                <flux:button icon="cog" variant="subtle" size="sm" tooltip="Settings" />
+            </flux:modal.trigger>
+            <flux:button variant="subtle" size="sm" icon="arrow-right-start-on-rectangle" wire:navigate
+                href="{{ route('login') }}" tooltip="Login & Register">
+                {{ __('Login') }}
+            </flux:button>
+        @endauth
     </flux:header>
 
     {{ $slot }}

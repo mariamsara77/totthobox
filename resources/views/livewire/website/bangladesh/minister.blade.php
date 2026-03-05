@@ -59,27 +59,26 @@ new class extends Component {
 };
 
 ?>
-
-<section class="max-w-2xl mx-auto">
-    <div class="mb-8">
+<section class="max-w-2xl mx-auto space-y-4">
+    <div class="">
         <flux:heading level="1" size="xl" class="text-center">বাংলাদেশের মন্ত্রী পরিষদ আর্কাইভ</flux:heading>
         <flux:text class="text-center text-base">স্বাধীনতার পর থেকে অদ্যবধি সকল মন্ত্রীগণের তথ্যাদি</flux:text>
     </div>
 
     <div class="flex gap-3 items-center justify-between p-2 overflow-x-auto">
-        <div class="flex-1 min-w-[200px]">
-            <flux:input icon='search' wire:model.live.debounce.300ms="search" placeholder="নাম দিয়ে খুজুন..." size="sm"
+        <div class="flex-1 min-w-50">
+            <flux:input icon='search' wire:model.live.debounce.300ms="search" placeholder="নাম দিয়ে খুজুন..." size="sm"
                 clearable />
         </div>
 
-        <flux:select wire:model.live="partyFilter" size="sm" class="min-w-[150px]">
+        <flux:select wire:model.live="partyFilter" size="sm" class="min-w-30">
             <option value="">সকল রাজনৈতিক দল</option>
             @foreach ($parties as $party)
                 <option value="{{ $party }}">{{ $party }}</option>
             @endforeach
         </flux:select>
 
-        <flux:select wire:model.live="designationFilter" size="sm" class="min-w-[150px]">
+        <flux:select wire:model.live="designationFilter" size="sm" class="min-w-30">
             <option value="">সকল পদবী</option>
             @foreach ($designations as $designation)
                 <option value="{{ $designation }}">{{ $designation }}</option>
@@ -115,7 +114,7 @@ new class extends Component {
                                         <div @click="open = !open; if(open) $wire.incrementView({{ $minister->id }})"
                                             class="p-5 flex flex-col md:flex-row items-center gap-6 cursor-pointer">
 
-                                            <div class="relative flex-shrink-0">
+                                            <div class="relative shrink-0">
                                         {{-- Grid Gallery --}}
                                         @if($minister->hasMedia('minister_images'))
                                             <flux:media :media="$minister->getMedia('minister_images')" class="max-w-20 max-h-20"/>
@@ -150,7 +149,7 @@ new class extends Component {
                                                 </div>
                                             </div>
 
-                                            <div class="flex-shrink-0">
+                                            <div class="shrink-0">
                                                 <flux:icon.chevron-down size="sm" class="transition-transform duration-300"
                                                     ::class="open ? 'rotate-180 text-primary' : 'text-slate-400'" />
                                             </div>
@@ -248,7 +247,7 @@ new class extends Component {
         @endforelse
     </div>
 
-    <div class="mt-10">
+    <div>
         {{ $ministersList->links() }}
     </div>
 </section>

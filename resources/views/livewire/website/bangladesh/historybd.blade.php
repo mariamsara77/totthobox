@@ -80,11 +80,11 @@ new class extends Component {
 
 
             <flux:input wire:model.live.debounce.300ms="search" placeholder="ইতিহাসের পাতা খুঁজুন..."
-                icon="magnifying-glass" clearable size="sm" class="!rounded-xl min-w-[200px]" />
+                icon="magnifying-glass" clearable size="sm" class="rounded-xl! min-w-50" />
 
 
             <flux:select variant="listbox" placeholder="বিভাগ" wire:model.live="selectedDivision" size="sm"
-                class="min-w-[120px]">
+                class="min-w-30">
                 @foreach ($divisions as $division)
                     <flux:select.option value="{{ $division->id }}">{{ $division->name }}</flux:select.option>
                 @endforeach
@@ -92,7 +92,7 @@ new class extends Component {
 
 
             <flux:select variant="listbox" placeholder="জেলা" wire:model.live="selectedDistrict" size="sm"
-                :disabled="!$selectedDivision" class="min-w-[120px]">
+                :disabled="!$selectedDivision" class="min-w-30">
                 @foreach ($districts as $district)
                     <flux:select.option value="{{ $district->id }}">{{ $district->name }}</flux:select.option>
                 @endforeach
@@ -100,7 +100,7 @@ new class extends Component {
 
 
             <flux:select variant="listbox" placeholder="থানা" wire:model.live="selectedThana" size="sm"
-                :disabled="!$selectedDistrict" class="min-w-[120px]">
+                :disabled="!$selectedDistrict" class="min-w-30">
                 @foreach ($thanas as $thana)
                     <flux:select.option value="{{ $thana->id }}">{{ $thana->name }}</flux:select.option>
                 @endforeach

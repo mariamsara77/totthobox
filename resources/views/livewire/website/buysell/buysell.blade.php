@@ -192,17 +192,16 @@ new class extends Component {
 };
 ?>
 
-<section class="">
-    <div class="max-w-2xl mx-auto">
-        <!-- Header Section -->
-        @include('partials.buy-sell.header')
+<section class="max-w-2xl mx-auto space-y-4">
 
-        <!-- Filters Section -->
-        @include('partials.buy-sell.filters')
+    <!-- Header Section -->
+    @include('partials.buy-sell.header')
 
-        <!-- Results Section -->
-        @include('partials.buy-sell.results')
-    </div>
+    <!-- Filters Section -->
+    @include('partials.buy-sell.filters')
+
+    <!-- Results Section -->
+    @include('partials.buy-sell.results')
 
     <!-- Contact Modal -->
     {{-- @include('partials.buy-sell.contact-modal') --}}

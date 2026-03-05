@@ -189,7 +189,7 @@ new class extends Component {
     }
 }; ?>
 
-<div class="p-6">
+<div class="">
     {{-- Header Section --}}
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div>

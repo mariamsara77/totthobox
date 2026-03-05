@@ -42,11 +42,23 @@ new class extends Component {
     public function getUsersProperty()
     {
         $query = $this->viewType === 'trashed' ? User::onlyTrashed() : User::query();
+
         return $query->with(['roles', 'division', 'district'])
+            ->when($this->sortField === 'role', function ($q) {
+                $q->leftJoin('model_has_roles', function ($join) {
+                    $join->on('users.id', '=', 'model_has_roles.model_id')
+                        ->where('model_has_roles.model_type', '=', User::class);
+                })
+                    ->leftJoin('roles', 'model_has_roles.role_id', '=', 'roles.id')
+                    ->select('users.*')
+                    ->orderBy('roles.name', $this->sortDirection);
+            }, function ($q) {
+                // Normal sorting (name, email, etc.)
+                $q->orderBy($this->sortField, $this->sortDirection);
+            })
             ->when($this->search, fn($q) => $q->search($this->search))
             ->when($this->roleFilter, fn($q) => $q->role($this->roleFilter))
             ->when($this->statusFilter, fn($q) => $q->where('status', $this->statusFilter))
-            ->orderBy($this->sortField, $this->sortDirection)
             ->paginate(10);
     }
 
@@ -120,10 +132,18 @@ new class extends Component {
         $this->showForm = false;
         $this->dispatch('notify', ['message' => 'User saved successfully!', 'type' => 'success']);
     }
-
     public function deleteUser($id)
     {
+        // Eti thik ache, eti user-ke Trash-e nibe (Soft Delete)
         User::findOrFail($id)->delete();
+        $this->dispatch('notify', ['message' => 'User moved to trash!', 'type' => 'warning']);
+    }
+
+    public function forceDeleteUser($id)
+    {
+        // Eti Trash ebong Active — shob jayga theke user khuje niye permanent delete korbe
+        User::withTrashed()->findOrFail($id)->forceDelete();
+        $this->dispatch('notify', ['message' => 'User permanently deleted!', 'type' => 'error']);
     }
     public function restoreUser($id)
     {
@@ -144,9 +164,19 @@ new class extends Component {
             'roles_list' => Role::all(),
         ];
     }
+
+    public function sortBy($field)
+    {
+        if ($this->sortField === $field) {
+            $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            $this->sortField = $field;
+            $this->sortDirection = 'asc';
+        }
+    }
 }; ?>
 
-<section class="p-4 lg:p-8">
+<section class="">
     @if ($showForm)
         <flux:card class="max-w-4xl mx-auto">
             <div class="flex justify-between items-center border-b pb-4 mb-6">
@@ -285,9 +315,10 @@ new class extends Component {
         <flux:table :paginate="$this->users">
             <flux:table.columns>
                 <flux:table.column sortable wire:click="sortBy('name')">Member</flux:table.column>
+                <flux:table.column sortable wire:click="sortBy('role')">Role</flux:table.column>
                 <flux:table.column>Location</flux:table.column>
                 <flux:table.column>Profession</flux:table.column>
-                <flux:table.column>Status</flux:table.column>
+                <flux:table.column sortable wire:click="sortBy('status')">Status</flux:table.column>
                 <flux:table.column align="end">Actions</flux:table.column>
             </flux:table.columns>
 
@@ -302,6 +333,35 @@ new class extends Component {
                                     <div class="font-medium">{{ $user->name }}</div>
                                     <div class="text-xs text-zinc-500">{{ $user->email }}</div>
                                 </div>
+                            </div>
+                        </flux:table.cell>
+                        @php
+                            // Role onusare color maping (Flux UI colors)
+                            $roleColors = [
+                                'super admin' => 'purple',
+                                'admin' => 'red',
+                                'user' => 'blue',
+                                'student' => 'green',
+                                'editor' => 'orange',
+                            ];
+                        @endphp
+
+                        <flux:table.cell>
+                            <div class="flex flex-wrap gap-1">
+                                @forelse ($user->roles as $role)
+                                    @php
+                                        // Jodi map-e color na thake, tobe default 'zinc' (gray) dekhabe
+                                        $badgeColor = $roleColors[strtolower($role->name)] ?? 'zinc';
+                                    @endphp
+
+                                    <flux:badge :color="$badgeColor" size="sm" inset="top bottom" class="capitalize">
+                                        {{ $role->name }}
+                                    </flux:badge>
+                                @empty
+                                    <flux:badge color="zinc" size="sm" inset="top bottom">
+                                        No Role
+                                    </flux:badge>
+                                @endforelse
                             </div>
                         </flux:table.cell>
                         <flux:table.cell>
@@ -326,6 +386,8 @@ new class extends Component {
                             @else
                                 <flux:button wire:click="restoreUser({{ $user->id }})" variant="ghost" size="sm" icon="arrow-path"
                                     color="green" />
+                                <flux:button wire:click="forceDeleteUser({{ $user->id }})" variant="ghost" size="sm" icon="trash"
+                                    color="red" />
                             @endif
                         </flux:table.cell>
                     </flux:table.row>

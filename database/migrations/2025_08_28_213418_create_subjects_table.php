@@ -4,8 +4,10 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
+    /**
+     * Run the migrations.
+     */
     public function up(): void
     {
         Schema::create('subjects', function (Blueprint $table) {
@@ -13,8 +15,8 @@ return new class extends Migration
             $table->foreignId('class_level_id')->constrained()->onDelete('cascade');
             $table->string('name');
             $table->text('description')->nullable();
-            $table->boolean('is_active')->default(true)->index();
-            $table->string('slug')->unique()->index();
+            $table->boolean('is_active')->default(true);
+            $table->string('slug')->unique();
             $table->unsignedBigInteger('user_id')->nullable();
             $table->string('status')->nullable();
 
@@ -37,15 +39,37 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            // Foreign keys
+            // Additional Foreign keys
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
             $table->foreign('created_by')->references('id')->on('users')->onDelete('set null');
             $table->foreign('updated_by')->references('id')->on('users')->onDelete('set null');
             $table->foreign('deleted_by')->references('id')->on('users')->onDelete('set null');
             $table->foreign('published_by')->references('id')->on('users')->onDelete('set null');
+
+            // --- ADVANCED INDEXING (Maximum Performance) ---
+
+            // ১. রিলেশনাল কোয়েরি অপ্টিমাইজেশন (নির্দিষ্ট ক্লাসের একটিভ সাবজেক্ট দ্রুত পাওয়ার জন্য)
+            // এটি WHERE class_level_id = ? AND is_active = 1 কোয়েরিকে সুপার ফাস্ট করবে
+            $table->index(['class_level_id', 'is_active'], 'idx_subject_class_active');
+
+            // ২. ফিচারড এবং ভিউ কাউন্ট সর্টিং
+            // হোমে বা লিস্টে জনপ্রিয় সাবজেক্ট দেখানোর জন্য
+            $table->index(['is_featured', 'is_active', 'view_count'], 'idx_subject_featured_stats');
+
+            // ৩. পাবলিশ ডেট এবং স্ট্যাটাস ইনডেক্স
+            $table->index(['status', 'published_at']);
+
+            // ৪. সফট ডিলিট এবং সার্চ অপ্টিমাইজেশন
+            $table->index(['deleted_at', 'is_active']);
+
+            // ৫. নাম ভিত্তিক সার্চের জন্য
+            $table->index('name');
         });
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
         Schema::dropIfExists('subjects');

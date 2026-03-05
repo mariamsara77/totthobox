@@ -38,8 +38,12 @@ const PWA_CORE = {
     },
 
     triggerUI() {
-        const bar = document.getElementById('pwa-smart-bar');
-        if (!bar) return;
+       const bar = document.getElementById('pwa-smart-bar');
+    if (!bar) {
+        // যদি লাইভওয়্যার নেভিগেশনের কারণে এলিমেন্ট না পায়, তবে একটু পর আবার ট্রাই করবে
+        console.warn('PWA: Smart bar element not found in DOM.');
+        return; 
+    }
 
         setTimeout(() => {
             bar.classList.remove('hidden');

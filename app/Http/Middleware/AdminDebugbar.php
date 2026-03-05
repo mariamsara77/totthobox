@@ -11,21 +11,14 @@ class AdminDebugbar
 {
     public function handle(Request $request, Closure $next): Response
     {
-        // ১. ডিফল্টভাবে ডিবাবার বন্ধ রাখুন
-        if (class_exists('\Debugbar')) {
-            \Debugbar::disable();
-        }
+        if (class_exists('\Barryvdh\Debugbar\Facades\Debugbar')) {
 
-        // ২. চেক করুন ইউজার লগইন আছে কিনা এবং সে আপনার মডেল অনুযায়ী Admin কিনা
-        if (Auth::check()) {
-            $user = Auth::user();
-
-            // আপনার মডেলের মেথডগুলো ব্যবহার করছি
-            if ( $user->id === 1) {
-                \Debugbar::enable();
+            if (Auth::check() && Auth::id() === 1) {
+                \Barryvdh\Debugbar\Facades\Debugbar::enable();
+            } else {
+                \Barryvdh\Debugbar\Facades\Debugbar::disable();
             }
         }
-
         return $next($request);
     }
 }

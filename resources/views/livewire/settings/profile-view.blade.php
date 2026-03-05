@@ -140,7 +140,7 @@ new class extends Component {
                             </div>
                             <div>
                                 <span class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block mb-0.5">নিবন্ধন তারিখ</span>
-                                <p class="text-sm font-semibold text-zinc-800 dark:text-zinc-200">{{ $user->created_at?->translatedFormat('d M Y') }}</p>
+                                <p class="text-sm font-semibold text-zinc-800 dark:text-zinc-200">{{ bn_date($user->created_at?->Format('d M Y')) }}</p>
                             </div>
                         </div>
                     </div>
@@ -181,7 +181,7 @@ new class extends Component {
                                     <span class="text-sm">ভেরিফিকেশন</span>
                                     <div class="flex items-center gap-1.5">
                                         <span class="text-sm font-bold {{ $user->email_verified_at ? 'text-green-400' : 'text-orange-400' }}">
-                                            {{ $user->email_verified_at ? 'প্রমাণিত' : 'অপ্রমাণিত' }}
+                                            {{ $user->email_verified_at ? 'Verified' : 'Not verified' }}
                                         </span>
                                         <flux:icon.check-badge class="size-5 {{ $user->email_verified_at ? 'text-green-400' : 'text-zinc-600' }}" variant="solid" />
                                     </div>

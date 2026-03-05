@@ -2,9 +2,12 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\Facades\URL;
-use Illuminate\Support\ServiceProvider; // <-- THIS LINE IS REQUIRED
-use Illuminate\Support\Facades\Blade;
+use App\Models\User;
+use App\Services\TranslationService;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -13,7 +16,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Singleton pattern for TranslationService
+        $this->app->singleton(TranslationService::class, fn () => new TranslationService);
     }
 
     /**
@@ -22,8 +26,26 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
 
-        // if (app()->environment('local')) {
-        //     URL::forceScheme('https');
-        // }
+        // Pulse Access Gate
+        Gate::define('viewPulse', fn (User $user) => $user->id === 1);
+
+        Auth::resolved(function ($auth) {
+            $auth->user()?->loadMissing(['roles', 'permissions', 'media']);
+        });
+
+        // Eloquent Strict Mode (Only for Non-Production)
+        $this->configureEloquent();
+    }
+
+    /**
+     * Configure Eloquent behavior for development.
+     */
+    private function configureEloquent(): void
+    {
+        if (! $this->app->isProduction()) {
+            Model::preventLazyLoading();
+            Model::preventSilentlyDiscardingAttributes();
+            Model::preventAccessingMissingAttributes(); // আরও সিকিউর করার জন্য এটি যোগ করা হয়েছে
+        }
     }
 }

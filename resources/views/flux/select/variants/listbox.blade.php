@@ -64,7 +64,7 @@ $classes = Flux::classes()
         this.open = false;
         this.search = '';
     }
-}" @click.outside="open = false" @keydown.escape="open = false" class="relative w-full">
+}" @click.outside="open = false" @keydown.escape="open = false" class="relative min-w-[150px]">
 
     {{-- বাটন বা ট্রিগার --}}
     <button type="button" x-ref="trigger"
@@ -81,18 +81,12 @@ $classes = Flux::classes()
         <div x-show="open" x-ref="optionsContainer" x-anchor.bottom-start.offset.4="$refs.trigger"
             x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 translate-y-1"
             x-transition:enter-end="opacity-100 translate-y-0"
-            class="fixed z-[9999] p-1.5 overflow-y-auto rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-700 shadow-xl"
-            {{-- width নিশ্চিত করা হয়েছে এবং max-height এর সাথে min-height কন্ট্রোল করা হয়েছে --}} :style="{ width: buttonWidth + 'px', maxHeight: '250px' }" style="display: none;">
-
-            @if ($searchable)
-                <div
-                    class="p-1 mb-1 border-b border-zinc-100 dark:border-white/5 sticky top-0 bg-white dark:bg-zinc-900 z-20">
-                    <input x-model="search" x-ref="searchInput" @click.stop type="text" placeholder="Filter..."
-                        class="w-full px-2 py-1.5 text-sm bg-zinc-50 dark:bg-white/5 border-none rounded-md focus:ring-0 text-zinc-800 dark:text-zinc-200 placeholder-zinc-400">
-                </div>
-            @endif
-
-            <div class="space-y-0.5">
+            class="fixed z-[9999]  overflow-y-auto rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-700 shadow-xl"
+           :style="{ width: buttonWidth + 'px' }">
+            <div class="space-y-0.5 p-1.5">
+                 @if ($searchable)           
+                    <flux:input x-model="search" x-ref="searchInput" @click.stop size="sm" icon="magnifying-glass" placeholder="Filter..." />
+                @endif
                 {{ $slot }}
 
                 {{-- No Results --}}

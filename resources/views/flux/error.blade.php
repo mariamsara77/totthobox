@@ -7,7 +7,9 @@
 ])
 
 @php
-$errorBag = $errors->getBag($bag);
+// ১. $errors ভেরিয়েবলটি আছে কি না আগে চেক করে নিচ্ছি
+$errorBag = isset($errors) ? $errors->getBag($bag) : new \Illuminate\Support\MessageBag;
+
 $message ??= $name ? $errorBag->first($name) : null;
 
 if ($name && (is_null($message) || $message === '') && filter_var($nested, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) !== false) {
@@ -19,11 +21,11 @@ $classes = Flux::classes('text-sm font-medium text-red-600')
 @endphp
 
 <div role="alert" aria-live="polite" aria-atomic="true" {{ $attributes->class($classes) }} data-flux-error>
-    <?php if ($message) : ?>
-        <?php if ($icon) : ?>
+    @if ($message)
+        @if ($icon)
             <flux:icon :name="$icon" variant="mini" class="inline" />
-        <?php endif; ?>
+        @endif
 
         {{ $message }}
-    <?php endif; ?>
+    @endif
 </div>

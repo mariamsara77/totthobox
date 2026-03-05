@@ -115,16 +115,22 @@ class BuySellPost extends Model implements HasMedia
     /**
      * Spatie Media Conversions
      */
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('images');
+    }
+
+    /**
+     * Spatie Image v3 অনুযায়ী ফিক্সড থাম্বনেইল কনভার্সন
+     */
     public function registerMediaConversions(?Media $media = null): void
     {
         $this->addMediaConversion('thumb')
-            ->fit(Fit::Contain, 300, 300)
-            ->nonQueued();
-
-        $this->addMediaConversion('large')
-            ->fit(Fit::Max, 1200, 1200)
+            ->fit(Fit::Crop, 300, 300) // ইমেজ ক্রপ করে সুন্দর থাম্বনেইল করবে
+            ->sharpen(10)
             ->nonQueued();
     }
+
 
     /**
      * -------------------------------------------------------------------------
@@ -284,27 +290,33 @@ class BuySellPost extends Model implements HasMedia
     // Primary image URL from Spatie Media Library (backward compatibility)
     public function getPrimaryImageUrl($conversion = 'thumb')
     {
-        // First check if we have images via BuySellImage model
-        if ($this->images()->exists()) {
-            $primaryImage = $this->images()->where('is_primary', true)->first();
-            if ($primaryImage) {
-                return $primaryImage->path ? asset($primaryImage->path) : null;
+        // Priority 1: Spatie Media Library
+        if ($this->relationLoaded('media') && $this->media->isNotEmpty()) {
+            $primaryMedia = $this->getMedia('images')->firstWhere('custom_properties.is_primary', true);
+            if ($primaryMedia) {
+                return $primaryMedia->getUrl($conversion);
             }
 
-            // If no primary image, get the first image
+            $firstMedia = $this->getFirstMedia('images');
+            if ($firstMedia) {
+                return $firstMedia->getUrl($conversion);
+            }
+        }
+
+        // Priority 2: Old BuySellImage model (backward compatibility)
+        if ($this->images()->exists()) {
+            $primaryImage = $this->images()->where('is_primary', true)->first();
+            if ($primaryImage && $primaryImage->path) {
+                return asset($primaryImage->path);
+            }
+
             $firstImage = $this->images()->first();
             if ($firstImage && $firstImage->path) {
                 return asset($firstImage->path);
             }
         }
 
-        // Fallback to Spatie Media Library
-        $media = $this->getFirstMedia('posts');
-        if ($media) {
-            return $media->getUrl($conversion);
-        }
-
-        // Return placeholder
+        // Default placeholder
         return asset('images/placeholder.png');
     }
 

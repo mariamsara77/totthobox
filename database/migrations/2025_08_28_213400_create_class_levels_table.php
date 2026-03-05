@@ -4,16 +4,18 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
+    /**
+     * Run the migrations.
+     */
     public function up(): void
     {
         Schema::create('class_levels', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('slug')->unique()->index();
-            $table->integer('order')->nullable()->index();
-            $table->boolean('is_active')->default(true)->index();
+            $table->string('slug')->unique(); // Unique index অটোমেটিক তৈরি হয়
+            $table->integer('order')->nullable();
+            $table->boolean('is_active')->default(true);
             $table->string('status')->nullable();
 
             // SEO fields
@@ -42,9 +44,27 @@ return new class extends Migration
             $table->foreign('updated_by')->references('id')->on('users')->onDelete('set null');
             $table->foreign('deleted_by')->references('id')->on('users')->onDelete('set null');
             $table->foreign('published_by')->references('id')->on('users')->onDelete('set null');
+
+            // --- ADVANCED INDEXING (Performance Optimization) ---
+
+            // ১. একটিভ ক্লাস লেভেল এবং সর্টিং এর জন্য (মেনু বা ড্রপডাউনের জন্য)
+            // এটি WHERE is_active = 1 ORDER BY order ASC কোয়েরিকে সুপার ফাস্ট করবে
+            $table->index(['is_active', 'order'], 'idx_class_active_order');
+
+            // ২. ফিচারড এবং স্ট্যাটাস ফিল্টারিং
+            $table->index(['is_featured', 'status']);
+
+            // ৩. সফট ডিলিট এবং টাইমস্ট্যাম্প অপ্টিমাইজেশন
+            $table->index(['deleted_at', 'is_active']);
+
+            // ৪. ইউজার এ্যাক্টিভিটি ট্র্যাক করার জন্য
+            $table->index('user_id');
         });
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
         Schema::dropIfExists('class_levels');

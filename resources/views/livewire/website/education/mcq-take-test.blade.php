@@ -6,7 +6,7 @@ use App\Models\UserTestAttempt;
 use Carbon\Carbon;
 
 new class extends Component {
-    public $testId;
+    public $testSlug;
     public $test;
     public $questions = [];
     public $currentIndex = 0;
@@ -17,12 +17,14 @@ new class extends Component {
     public $testCompleted = false;
     public $loading = true;
 
-    public function mount($testId)
+    public function mount($slug)
     {
-        $this->testId = $testId;
+        $this->testSlug = $slug;
         $this->loading = true;
 
-        $this->test = Test::with('questions')->find($this->testId);
+        $this->test = Test::with('questions')
+            ->where('slug', $this->testSlug)
+            ->first();
 
         if (!$this->test || !$this->test->is_published) {
             return redirect()->route('home');

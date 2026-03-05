@@ -7,10 +7,14 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Carbon\Carbon;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use Spatie\Image\Enums\Fit;
 
-class Holiday extends Model
+class Holiday extends Model implements HasMedia
 {
-    use HasFactory, SoftDeletes;
+    use SoftDeletes, HasFactory, InteractsWithMedia;
 
     /**
      * The attributes that are mass assignable.
@@ -71,6 +75,23 @@ class Holiday extends Model
         'seasonal' => 'Seasonal',
     ];
 
+
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('images');
+    }
+
+    /**
+     * Spatie Image v3 অনুযায়ী ফিক্সড থাম্বনেইল কনভার্সন
+     */
+    public function registerMediaConversions(?Media $media = null): void
+    {
+        $this->addMediaConversion('thumb')
+            ->fit(Fit::Crop, 300, 300) // ইমেজ ক্রপ করে সুন্দর থাম্বনেইল করবে
+            ->sharpen(10)
+            ->nonQueued();
+    }
+    
     /**
      * Get the division that owns the holiday.
      */

@@ -14,7 +14,7 @@ use Spatie\Image\Enums\Fit;
 class IntroBd extends Model implements HasMedia
 {
     use SoftDeletes, HasFactory, InteractsWithMedia;
-    
+
     protected $fillable = [
         'title',
         'intro_category',
@@ -70,7 +70,7 @@ class IntroBd extends Model implements HasMedia
     //     );
     // }
 
-       public function registerMediaCollections(): void
+    public function registerMediaCollections(): void
     {
         $this->addMediaCollection('images');
     }
@@ -85,7 +85,7 @@ class IntroBd extends Model implements HasMedia
             ->sharpen(10)
             ->nonQueued();
     }
-    
+
     // Constants for status
     const STATUS_DRAFT = 0;
     const STATUS_PUBLISHED = 1;
@@ -173,8 +173,8 @@ class IntroBd extends Model implements HasMedia
     public function scopePublished($query)
     {
         return $query->where('status', self::STATUS_PUBLISHED)
-                    ->whereNotNull('published_at')
-                    ->where('published_at', '<=', now());
+            ->whereNotNull('published_at')
+            ->where('published_at', '<=', now());
     }
 
     public function scopeFeatured($query)
@@ -195,20 +195,20 @@ class IntroBd extends Model implements HasMedia
     public function scopeSorted($query)
     {
         return $query->orderBy('sort_order')
-                    ->orderBy('created_at', 'desc');
+            ->orderBy('created_at', 'desc');
     }
 
     public function scopeFeaturedSorted($query)
     {
         return $query->where('is_featured', true)
-                    ->orderBy('featured_order')
-                    ->orderBy('sort_order');
+            ->orderBy('featured_order')
+            ->orderBy('sort_order');
     }
 
     public function scopeCategorySorted($query, $category = null)
     {
         $query = $query->orderBy('category_order')
-                      ->orderBy('sort_order');
+            ->orderBy('sort_order');
 
         if ($category) {
             $query->where('intro_category', $category);
@@ -241,7 +241,7 @@ class IntroBd extends Model implements HasMedia
 
     public function getStatusTextAttribute()
     {
-        return match($this->status) {
+        return match ($this->status) {
             self::STATUS_DRAFT => 'Draft',
             self::STATUS_PUBLISHED => 'Published',
             self::STATUS_ARCHIVED => 'Archived',
@@ -293,9 +293,12 @@ class IntroBd extends Model implements HasMedia
     {
         $location = [];
 
-        if ($this->thana) $location[] = $this->thana->name;
-        if ($this->district) $location[] = $this->district->name;
-        if ($this->division) $location[] = $this->division->name;
+        if ($this->thana)
+            $location[] = $this->thana->name;
+        if ($this->district)
+            $location[] = $this->district->name;
+        if ($this->division)
+            $location[] = $this->division->name;
 
         return implode(', ', $location);
     }
@@ -321,7 +324,7 @@ class IntroBd extends Model implements HasMedia
     }
 
     public function scopeActive($query)
-{
-    return $query->where('status', 1);
-}
+    {
+        return $query->where('status', 1);
+    }
 }

@@ -28,7 +28,6 @@ new class extends Component {
     {
         $this->isLoading = true;
 
-        // Use rememberMany for batch caching
         $cachedData = Cache::remember('live_analytics_dashboard', 5, function () {
             return [
                 'active_visitors' => $this->getActiveVisitorsCount(),
@@ -46,7 +45,6 @@ new class extends Component {
         $this->isLoading = false;
     }
 
-    // Add this temporary method to fix the error
     public function pollStats(): void
     {
         $this->loadStats();
@@ -54,19 +52,21 @@ new class extends Component {
 
     protected function getActiveVisitorsCount(): int
     {
-        return Visitor::where('last_seen_at', '>=', now()->subMinutes(5))->count();
+        // আপগ্রেড: bots বাদ দিয়ে last_seen_at চেক
+        return Visitor::where('is_bot', false)
+            ->where('last_seen_at', '>=', now()->subMinutes(5))
+            ->count();
     }
 
     protected function getActiveSessionsCount(): int
     {
-        return VisitorSession::whereNull('ended_at')
-            ->where('started_at', '>=', now()->subMinutes(30))
+        // আপগ্রেড: last_active_at কলাম ব্যবহার করে সক্রিয় সেশন চেক
+        return VisitorSession::where('last_active_at', '>=', now()->subMinutes(30))
             ->count();
     }
 
     protected function getCurrentPageViewsCount(): int
     {
-        // Use raw query for better performance
         return (int) DB::table('page_views')
             ->where('created_at', '>=', now()->subMinute())
             ->count();
@@ -74,11 +74,13 @@ new class extends Component {
 
     protected function getVisitorsByCountry(): array
     {
+        // আপগ্রেড: country এর বদলে country_code ব্যবহার
         return Visitor::query()
-            ->select('country', DB::raw('COUNT(*) as count'))
+            ->select('country_code as country', DB::raw('COUNT(*) as count'))
+            ->where('is_bot', false)
             ->where('last_seen_at', '>=', now()->subMinutes(5))
-            ->whereNotNull('country')
-            ->groupBy('country')
+            ->whereNotNull('country_code')
+            ->groupBy('country_code')
             ->orderByDesc('count')
             ->limit(5)
             ->get()
@@ -87,7 +89,6 @@ new class extends Component {
 
     public function updateStats(): void
     {
-        // Invalidate cache and reload
         Cache::forget('live_analytics_dashboard');
         $this->loadStats();
     }
@@ -105,9 +106,7 @@ new class extends Component {
         </div>
     </div>
 
-    <!-- Stats Grid -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <!-- Active Visitors -->
         <div
             class="relative bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-4 border border-blue-100 dark:border-blue-800 transition-all duration-300 hover:scale-105 hover:shadow-lg group">
             <div class="flex items-center justify-between">
@@ -125,7 +124,6 @@ new class extends Component {
             </div>
         </div>
 
-        <!-- Active Sessions -->
         <div
             class="relative bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl p-4 border border-green-100 dark:border-green-800 transition-all duration-300 hover:scale-105 hover:shadow-lg group">
             <div class="flex items-center justify-between">
@@ -143,13 +141,12 @@ new class extends Component {
             </div>
         </div>
 
-        <!-- Page Views/Min -->
         <div
             class="relative bg-gradient-to-br from-purple-50 to-violet-50 dark:from-purple-900/20 dark:to-violet-900/20 rounded-xl p-4 border border-purple-100 dark:border-purple-800 transition-all duration-300 hover:scale-105 hover:shadow-lg group">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm font-semibold text-purple-600 dark:text-purple-300">Page Views/Min</p>
-                    <p class="text-2xl font-bold text-purple-900 dark:text-purple-100 mt-1 transition-all duration-500">
+                    <p class="text-2xl font-bold text-purple-900 dark:text-blue-100 mt-1 transition-all duration-500">
                         {{ number_format($currentPageViews) }}
                     </p>
                     <p class="text-xs text-purple-500 dark:text-purple-400 mt-1">Last minute</p>

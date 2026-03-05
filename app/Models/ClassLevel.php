@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Cache;
 
 class ClassLevel extends Model
 {
@@ -48,6 +49,9 @@ class ClassLevel extends Model
                 $classLevel->slug = Str::slug($classLevel->name) . '-' . Str::random(5);
             }
         });
+
+        static::saved(fn() => Cache::forget('active_class_levels'));
+        static::deleted(fn() => Cache::forget('active_class_levels'));
     }
 
     // Relationships

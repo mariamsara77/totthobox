@@ -5,46 +5,56 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use App\Models\UserActivity; // আপনার যদি নির্দিষ্ট মডেল থাকে
+use App\Models\VisitorEvent; // আমি VisitorEvent মডেলটি ধরছি, আপনি আপনার মডেল নাম দিন
 
 class ActivitySyncController extends Controller
 {
     public function sync(Request $request)
     {
-        // ১. ডাটা ভ্যালিডেশন
+        // ১. ভ্যালিডেশন: 'activities' কী ব্যবহার করা হয়েছে যা নতুন JS থেকে আসবে
         $validated = $request->validate([
-            'data' => 'required|array',
-            'data.*.type' => 'required|string',
-            'data.*.key' => 'required|string',
-            'data.*.value' => 'nullable',
-            'data.*.timestamp' => 'required',
+            'activities' => 'required|array',
+            'activities.*.type' => 'required|string',
+            'activities.*.key' => 'required|string',
+            'activities.*.value' => 'nullable',
+            'activities.*.timestamp' => 'required',
+            'activities.*.id' => 'nullable'
         ]);
 
         try {
-            $activities = $validated['data'];
+            $activities = $validated['activities'];
+            $visitorId = $request->attributes->get('current_visitor')?->id;
 
             foreach ($activities as $item) {
-                // ২. ডাটাবেসে সেভ করার লজিক 
-                // আপনি চাইলে আলাদা টেবিলে রাখতে পারেন অথবা লগ ফাইল হিসেবে রাখতে পারেন
-                Log::info('Offline Activity Received:', $item);
+                // ২. মিলি-সেকেন্ড টাইমস্ট্যাম্পকে মানুষের পড়ার যোগ্য ফরমেটে রূপান্তর
+                // JS থেকে আসা ১০ বা ১৩ ডিজিটের টাইমস্ট্যাম্প হ্যান্ডেল করা
+                $timestamp = (int) ($item['timestamp'] / 1000);
+                $formattedDate = date('Y-m-d H:i:s', $timestamp);
 
-                /* // উদাহরণ: যদি ডাটাবেসে সেভ করতে চান
-                UserActivity::create([
-                    'user_id'   => auth()->id() ?? null, // লগইন করা থাকলে আইডি পাবে
-                    'type'      => $item['type'],
-                    'key'       => $item['key'],
-                    'value'     => $item['value'],
-                    'meta'      => json_encode($item),
-                    'created_at'=> date('Y-m-d H:i:s', $item['timestamp'] / 1000),
-                ]);
-                */
+                // ৩. ডাটাবেসে সেভ করা (VisitorEvent মডেলে)
+                // updateOrCreate ব্যবহার করা হয়েছে যাতে একই অফলাইন ডাটা বারবার না আসে
+                \App\Models\VisitorEvent::updateOrCreate(
+                    [
+                        'event_action' => $item['key'],
+                        'created_at' => $formattedDate
+                    ],
+                    [
+                        'event_category' => $item['type'],
+                        'event_label' => is_array($item['value']) ? json_encode($item['value']) : $item['value'],
+                        'payload' => $item, // পুরো ডাটা পেলোড হিসেবে থাকল
+                    ]
+                );
             }
 
-            return response()->json(['status' => 'success', 'message' => 'Data Synced!'], 200);
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Synced successfully',
+                'count' => count($activities)
+            ], 200);
 
         } catch (\Exception $e) {
-            Log::error('Sync Error: ' . $e->getMessage());
-            return response()->json(['status' => 'error', 'message' => 'Sync Failed'], 500);
+            Log::error('Sync Failed: ' . $e->getMessage());
+            return response()->json(['status' => 'error', 'message' => 'Sync failed'], 500);
         }
     }
 }

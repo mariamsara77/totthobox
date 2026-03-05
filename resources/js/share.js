@@ -1,38 +1,32 @@
-function initShareButtons() {
-    const buttons = document.querySelectorAll('[data-share-button]');
+const initShareButtons = () => {
+    // শুধুমাত্র সেই বাটনগুলো ধরবে যেগুলোতে এখনও ইভেন্ট বাইন্ড করা হয়নি
+    const buttons = document.querySelectorAll('[data-share-button]:not([data-bound])');
+
     buttons.forEach(btn => {
-        if (btn.dataset.bound) return; // Prevent duplicate binding
-        btn.dataset.bound = true;
+        btn.dataset.bound = true; // ডুপ্লিকেট বাইন্ডিং রোধ করতে
 
-        btn.addEventListener('click', async () => {
-            const url = btn.dataset.url || window.location.href;
-            const title = btn.dataset.title || document.title;
-            const text = btn.dataset.text || 'Check this out!';
+        btn.addEventListener('click', async (e) => {
+            e.preventDefault();
 
-            const shareData = { title, text, url };
+            const url = btn.getAttribute('data-url') || window.location.href;
+            const title = btn.getAttribute('data-title') || document.title;
+            const text = btn.getAttribute('data-text') || 'Check this out!';
 
             if (navigator.share) {
                 try {
-                    await navigator.share(shareData);
-                    console.log('Shared successfully');
+                    await navigator.share({ title, text, url });
                 } catch (err) {
-                    console.error('Error sharing:', err);
+                    if (err.name !== 'AbortError') console.error('Share failed:', err);
                 }
             } else {
-                // Desktop fallback (Facebook)
+                // Desktop Fallback
                 const fallbackUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
-                window.open(fallbackUrl, '_blank');
+                window.open(fallbackUrl, '_blank', 'width=600,height=400');
             }
         });
     });
-}
+};
 
-// Initialize on DOM ready
+// যখন পেজ লোড হবে বা Livewire নেভিগেট করবে
+document.addEventListener('livewire:navigated', initShareButtons);
 document.addEventListener('DOMContentLoaded', initShareButtons);
-
-// Re-initialize after Livewire updates
-if (window.Livewire) {
-    window.Livewire.hook('message.processed', () => {
-        initShareButtons();
-    });
-}

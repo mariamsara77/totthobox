@@ -1,4 +1,4 @@
-<div class="text-center mb-6">
+<div class="text-center">
     <flux:heading size="xl" class="mb-2">
         সহজেই বিক্রি করুন, মন ভরে কিনুন
     </flux:heading>

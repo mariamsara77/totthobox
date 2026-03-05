@@ -44,16 +44,16 @@
     </flux:menu.item>
 </flux:menu.radio.group>
 
-<flux:menu.separator />
-@can('')
-
+@can('view-dashboard')
+    <flux:menu.separator />
+    {{-- Dashboard --}}
+    <flux:menu.radio.group>
+        <flux:menu.item :href="route('admin.dashboard')" icon="home" wire:navigate.hover>
+            {{ __('Dashboard') }}
+        </flux:menu.item>
+    </flux:menu.radio.group>
 @endcan
-{{-- Dashboard --}}
-<flux:menu.radio.group>
-    <flux:menu.item :href="route('admin.dashboard')" icon="home" wire:navigate.hover>
-        {{ __('Dashboard') }}
-    </flux:menu.item>
-</flux:menu.radio.group>
+
 
 <flux:menu.separator />
 

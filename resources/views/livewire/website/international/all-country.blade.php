@@ -96,32 +96,27 @@ new class extends Component {
     }
 }; ?>
 
-<section class="max-w-2xl mx-auto">
+<section class="max-w-2xl mx-auto space-y-4">
     {{-- Header --}}
-    <div class="text-center mb-10">
+    <div class="text-center">
         <flux:heading size="xl" class="font-bold">বিশ্ব পরিভ্রমণ</flux:heading>
         <flux:text class="mt-2">পৃথিবীর সকল দেশের তথ্য এক নজরে</flux:text>
     </div>
 
     {{-- Sticky Filter Bar --}}
-    <div class="sticky top-0 z-10 backdrop-blur-md py-4 mb-8">
-        <div class="flex flex-wrap items-center gap-3">
-            <div class="flex-grow min-w-[200px]">
-                <flux:input wire:model.live.debounce.400ms="search" placeholder="দেশের নাম..." icon="magnifying-glass"
-                    clearable />
-            </div>
 
-            <div class="w-full sm:w-auto flex gap-2">
-                <flux:select wire:model.live="regionFilter" placeholder="অঞ্চল" class="min-w-[130px]">
-                    <flux:select.option value="">সব অঞ্চল</flux:select.option>
-                    @foreach ($this->regions as $region)
-                        <flux:select.option value="{{ $region }}">{{ $region }}</flux:select.option>
-                    @endforeach
-                </flux:select>
+    <div class="flex overflow-x-auto items-center gap-3">
+        <flux:input wire:model.live.debounce.400ms="search" size="sm" placeholder="দেশের নাম..." icon="magnifying-glass"
+            clearable />
 
-                <flux:button wire:click="resetFilters" variant="subtle" icon="arrow-path" class="shrink-0" />
-            </div>
-        </div>
+        <flux:select wire:model.live="regionFilter" placeholder="অঞ্চল" class="min-w-[130px]" size="sm">
+            <flux:select.option value="">সব অঞ্চল</flux:select.option>
+            @foreach ($this->regions as $region)
+                <flux:select.option value="{{ $region }}">{{ $region }}</flux:select.option>
+            @endforeach
+        </flux:select>
+
+        <flux:button wire:click="resetFilters" variant="subtle" icon="arrow-path" class="shrink-0" size="sm" />
     </div>
 
     {{-- Content Area --}}
@@ -194,11 +189,7 @@ new class extends Component {
                     </div>
                 </div>
             @empty
-                <div class="col-span-full py-20 text-center">
-                    <flux:icon.magnifying-glass size="xl" class="mx-auto text-zinc-300 mb-4" />
-                    <flux:heading>কোনো দেশ পাওয়া যায়নি</flux:heading>
-                    <flux:text>অনুগ্রহ করে অন্য নামে চেষ্টা করুন।</flux:text>
-                </div>
+                <livewire:global.nodata-message :title="'আন্তর্জাতিক দেশ'" :search="$search" />
             @endforelse
         </div>
 

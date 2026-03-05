@@ -16,10 +16,12 @@ new class extends Component {
     <!-- Mobile-First Header -->
     <header class="">
         <div class="">
-            <div class="flex items-center justify-between mb-2">
-                <div>
-                    <h1 class="text-lg sm:text-xl font-bold ">Writing Practice</h1>
-                    <p class="text-xs sm:text-sm text-gray-500 hidden sm:block">Advanced drawing & writing tool</p>
+            <div class="flex items-center justify-between mb-1">
+                <div class="">
+                    <flux:heading level="1">লেখা প্র্যাকটিস</flux:heading>
+                    <flux:text class="hidden sm:block">
+                        উন্নত ড্রয়িং এবং রাইটিং টুল
+                    </flux:text>
                 </div>
 
                 <!-- Header Actions -->
@@ -135,16 +137,14 @@ new class extends Component {
     </main>
 
     <flux:modal name="settings-writing-pad" variant="flyout" class="md:w-96">
-
         <div class="">
             <div class="flex items-center justify-between mb-6">
-                <h3 class="text-lg sm:text-xl font-bold">Settings</h3>
+                <h3 class="text-lg sm:text-xl font-bold">সেটিংস</h3>
             </div>
 
             <div class="space-y-6">
-                <!-- Color Picker -->
                 <div>
-                    <label class="block text-sm font-semibold mb-3">Pen Color</label>
+                    <label class="block text-sm font-semibold mb-3">কলমের রঙ</label>
                     <div class="flex items-center space-x-3">
                         <input type="color" x-model="currentColor"
                             class="w-12 h-12 rounded-xl cursor-pointer border-2 border-gray-200 shadow-sm">
@@ -153,8 +153,7 @@ new class extends Component {
                                 <button @click="currentColor = color"
                                     class="w-8 h-8 rounded-lg border-2 shadow-sm transition-all hover:scale-110"
                                     :style="`background-color: ${color}`" :class="{
-                                        'border-blue-500 scale-110': currentColor ===
-                                            color,
+                                        'border-blue-500 scale-110': currentColor === color,
                                         'border-gray-200': currentColor !== color
                                     }">
                                 </button>
@@ -163,36 +162,33 @@ new class extends Component {
                     </div>
                 </div>
 
-                <!-- Brush Size -->
                 <div>
                     <label class="block text-sm font-semibold mb-3">
-                        Brush Size: <span x-text="currentSize" class="text-blue-600"></span>px
+                        ব্রাশের সাইজ: <span x-text="currentSize" class="text-blue-600"></span>px
                     </label>
                     <input type="range" x-model="currentSize" min="1" max="30" class="modern-slider w-full">
                     <div class="flex justify-between text-xs mt-2">
-                        <span>Thin</span>
-                        <span>Medium</span>
-                        <span>Thick</span>
+                        <span>চিকন</span>
+                        <span>মাঝারি</span>
+                        <span>মোটা</span>
                     </div>
                 </div>
 
-                <!-- Opacity -->
                 <div>
-                    <label class="block text-sm font-semibold  mb-3">
-                        Opacity: <span x-text="Math.round(opacity * 100)" class="text-blue-600"></span>%
+                    <label class="block text-sm font-semibold mb-3">
+                        স্বচ্ছতা (Opacity): <span x-text="Math.round(opacity * 100)" class="text-blue-600"></span>%
                     </label>
                     <input type="range" x-model="opacity" min="0.1" max="1" step="0.1" class="modern-slider w-full">
                 </div>
 
-                <!-- Character Selection -->
                 <div>
-                    <label class="block text-sm font-semibold  mb-3">Practice Characters</label>
+                    <label class="block text-sm font-semibold mb-3">প্র্যাকটিস ক্যারেক্টার</label>
                     <div class="space-y-2">
                         <template x-for="(category, index) in characterCategories">
                             <div class="rounded-xl overflow-hidden">
                                 <button @click="toggleCategory(index)"
                                     class="w-full flex justify-between items-center p-4 bg-gray-50/25 hover:bg-gray-100/25 transition-colors">
-                                    <span x-text="category.name" class="font-medium "></span>
+                                    <span x-text="category.name" class="font-medium"></span>
                                     <svg class="w-5 h-5 text-gray-500 transition-transform duration-200"
                                         :class="{ 'rotate-180': category.open }" fill="currentColor"
                                         viewBox="0 0 24 24">
@@ -202,7 +198,7 @@ new class extends Component {
                                 <div x-show="category.open" x-collapse class="p-4 grid grid-cols-6 gap-2">
                                     <template x-for="char in category.characters">
                                         <button @click="setGuideText(char)"
-                                            class="h-10 flex items-center justify-center bg-gray-50/25 rounded-lg hover:bg-blue-50/25 transition-colors  font-medium"
+                                            class="h-10 flex items-center justify-center bg-gray-50/25 rounded-lg hover:bg-blue-50/25 transition-colors font-medium"
                                             x-text="char">
                                         </button>
                                     </template>
@@ -212,9 +208,8 @@ new class extends Component {
                     </div>
                 </div>
 
-                <!-- Paper Style -->
                 <div>
-                    <label class="block text-sm font-semibold  mb-3">Paper Style</label>
+                    <label class="block text-sm font-semibold mb-3">পেপারের স্টাইল</label>
                     <div class="grid grid-cols-3 gap-3">
                         <template x-for="paper in paperStyles">
                             <button @click="setPaperStyle(paper.id)" :class="{
@@ -222,24 +217,22 @@ new class extends Component {
                                     'border-gray-200 hover:border-gray-300': currentPaperStyle !== paper.id
                                 }" class="p-3 rounded-xl border-2 transition-all hover:shadow-md">
                                 <div class="h-12 rounded-lg mb-2" :class="paper.class"></div>
-                                <span class="text-xs font-medium " x-text="paper.name"></span>
+                                <span class="text-xs font-medium" x-text="paper.name"></span>
                             </button>
                         </template>
                     </div>
                 </div>
 
-                <!-- Advanced Options -->
                 <div>
-                    <label class="block text-sm font-semibold  mb-3">Advanced Options</label>
+                    <label class="block text-sm font-semibold mb-3">অ্যাডভান্সড অপশন</label>
                     <div class="space-y-3">
-                        <flux:checkbox x-model="pressureSensitivity" label="Pressure sensitivity" />
-                        <flux:checkbox x-model="smoothing" label="Line smoothing" />
-                        <flux:checkbox x-model="guideLines" label="Show guide lines" />
+                        <flux:checkbox x-model="pressureSensitivity" label="প্রেসার সেনসিটিভিটি" />
+                        <flux:checkbox x-model="smoothing" label="লাইন স্মুদিং" />
+                        <flux:checkbox x-model="guideLines" label="গাইড লাইন দেখান" />
                     </div>
                 </div>
             </div>
         </div>
-
     </flux:modal>
 
     <flux:modal name="canvas-clear-confirm" class="min-w-[22rem]">
@@ -299,102 +292,98 @@ new class extends Component {
 
     <flux:modal name="help" class="min-w-[22rem]">
         <div class="flex flex-col h-full">
-            <!-- Header -->
             <div class="flex items-center justify-between border-b border-gray-200 pb-4 mb-4">
-                <h3 class="text-lg font-semibold ">Help & Shortcuts</h3>
+                <h3 class="text-lg font-semibold">সহায়তা ও শর্টকাট</h3>
             </div>
 
-            <!-- Content -->
             <div class="flex-1 overflow-y-auto space-y-8 px-1">
 
-                <!-- Keyboard Shortcuts -->
                 <div>
-                    <h4 class="text-sm font-medium  mb-3">Keyboard Shortcuts</h4>
+                    <h4 class="text-sm font-medium mb-3">কীবোর্ড শর্টকাট</h4>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
 
                         <div class="flex items-center justify-between p-3 rounded-lg bg-zinc-400/10">
-                            <span class="">Undo</span>
+                            <span>আগের অবস্থায় ফেরা (Undo)</span>
                             <kbd class="kbd">Ctrl+Z</kbd>
                         </div>
 
                         <div class="flex items-center justify-between p-3 rounded-lg bg-zinc-400/10">
-                            <span class="">Redo</span>
+                            <span>পুনরায় করা (Redo)</span>
                             <kbd class="kbd">Ctrl+Y</kbd>
                         </div>
 
                         <div class="flex items-center justify-between p-3 rounded-lg bg-zinc-400/10">
-                            <span class="">Save</span>
+                            <span>সংরক্ষণ করুন (Save)</span>
                             <kbd class="kbd">Ctrl+S</kbd>
                         </div>
 
                         <div class="flex items-center justify-between p-3 rounded-lg bg-zinc-400/10">
-                            <span class="">Clear</span>
+                            <span>সব মুছে ফেলুন (Clear)</span>
                             <kbd class="kbd">Ctrl+Del</kbd>
                         </div>
 
                         <div class="flex items-center justify-between p-3 rounded-lg bg-zinc-400/10">
-                            <span class="">Toggle Tool</span>
+                            <span>টুল পরিবর্তন</span>
                             <kbd class="kbd">E</kbd>
                         </div>
 
                         <div class="flex items-center justify-between p-3 rounded-lg bg-zinc-400/10">
-                            <span class="">Settings</span>
+                            <span>সেটিংস</span>
                             <kbd class="kbd">S</kbd>
                         </div>
                     </div>
                 </div>
 
-                <!-- Tips & Features -->
                 <div>
-                    <h4 class="text-sm font-medium  mb-3">Tips & Features</h4>
+                    <h4 class="text-sm font-medium mb-3">টিপস ও ফিচারসমূহ</h4>
                     <div class="space-y-2">
                         <div class="flex items-start space-x-3 p-3 rounded-lg bg-blue-200/10">
                             <div class="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                            <span class="text-sm ">Select practice characters from settings to use as writing
-                                guides</span>
+                            <span class="text-sm">লেখার গাইড হিসেবে ব্যবহারের জন্য সেটিংস থেকে প্র্যাকটিস ক্যারেক্টার
+                                বেছে
+                                নিন।</span>
                         </div>
 
                         <div class="flex items-start space-x-3 p-3 rounded-lg bg-green-200/10">
                             <div class="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
-                            <span class="text-sm ">Choose different paper styles for various writing experiences</span>
+                            <span class="text-sm">বিভিন্ন ধরনের লেখার অভিজ্ঞতার জন্য আলাদা পেপার স্টাইল নির্বাচন
+                                করুন।</span>
                         </div>
 
                         <div class="flex items-start space-x-3 p-3 rounded-lg bg-purple-200/10">
                             <div class="w-2 h-2 bg-purple-500 rounded-full mt-2"></div>
-                            <span class="text-sm ">Adjust opacity for tracing practice over guide characters</span>
+                            <span class="text-sm">গাইড অক্ষরের ওপর ট্রেসিং বা হাত ঘুরানোর জন্য অপাসিটি (Opacity) কমিয়ে
+                                বা
+                                বাড়িয়ে নিন।</span>
                         </div>
 
                         <div class="flex items-start space-x-3 p-3 rounded-lg bg-orange-200/10">
                             <div class="w-2 h-2 bg-orange-500 rounded-full mt-2"></div>
-                            <span class="text-sm ">Enable pressure sensitivity when using a stylus for natural
-                                writing</span>
+                            <span class="text-sm">স্টাইলাস পেন ব্যবহার করলে স্বাভাবিক হাতের লেখার অনুভূতির জন্য
+                                'Pressure
+                                Sensitivity' চালু করুন।</span>
                         </div>
 
                         <div class="flex items-start space-x-3 p-3 rounded-lg bg-indigo-200/10">
                             <div class="w-2 h-2 bg-indigo-500 rounded-full mt-2"></div>
-                            <span class="text-sm ">Use guide lines to help maintain proper character alignment</span>
+                            <span class="text-sm">অক্ষরের সঠিক এলাইনমেন্ট বজায় রাখতে গাইড লাইন ব্যবহার করুন।</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Footer -->
             <div class="flex justify-end border-t border-gray-200 mt-6 pt-4">
                 <flux:button x-on:click="$flux.modal('help').close()" size="sm">
-
-                    Got it!
+                    বুঝেছি!
                 </flux:button>
             </div>
         </div>
 
-        <!-- Small helper for keyboard style -->
         <style>
             .kbd {
                 @apply px-2 py-1 text-xs font-semibold bg-gray-200 border border-gray-300 rounded;
             }
         </style>
-
-
     </flux:modal>
 
 

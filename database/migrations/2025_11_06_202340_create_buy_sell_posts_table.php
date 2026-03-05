@@ -14,8 +14,8 @@ return new class extends Migration
 
             // Core Product Info
             $table->string('title');
-            $table->string('slug')->unique()->index();
-            $table->text('description')->nullable();
+            $table->string('slug')->unique();
+            $table->longText('description')->nullable();
             $table->text('note')->nullable();
 
             // Product Classification
@@ -28,18 +28,18 @@ return new class extends Migration
             // Product Condition
             $table->enum('condition', [
                 'new','like_new','used_good','used_fair','refurbished','for_parts'
-            ])->default('used_good')->index();
+            ])->default('used_good');
 
             // Pricing
-            $table->decimal('price', 15, 2)->nullable()->index();
+            $table->decimal('price', 15, 2)->nullable();
             $table->decimal('discount_price', 15, 2)->nullable();
-            $table->string('currency', 3)->default('BDT')->index();
+            $table->string('currency', 3)->default('BDT');
             $table->boolean('is_negotiable')->default(false);
 
             // Inventory
-            $table->string('sku')->nullable()->index();
+            $table->string('sku')->nullable();
             $table->integer('stock')->default(1);
-            $table->boolean('is_available')->default(true)->index();
+            $table->boolean('is_available')->default(true);
 
             // Location
             $table->foreignId('division_id')->nullable()->constrained('divisions')->onDelete('set null');
@@ -56,17 +56,16 @@ return new class extends Migration
             $table->string('email')->nullable();
 
             // Image Count
-            $table->unsignedInteger('images_count')->default(0)->index();
+            $table->unsignedInteger('images_count')->default(0);
 
             // Flags
-            $table->boolean('is_active')->default(true)->index();
-            $table->boolean('is_featured')->default(false)->index();
-            $table->enum('status', ['draft','pending','published','rejected','archived'])
-                ->default('draft')->index();
+            $table->boolean('is_active')->default(true);
+            $table->boolean('is_featured')->default(false);
+            $table->enum('status', ['draft','pending','published','rejected','archived'])->default('draft');
 
             // Dates
-            $table->timestamp('published_at')->nullable()->index();
-            $table->timestamp('expires_at')->nullable()->index();
+            $table->timestamp('published_at')->nullable();
+            $table->timestamp('expires_at')->nullable();
 
             // SEO
             $table->string('meta_title')->nullable();
@@ -74,7 +73,7 @@ return new class extends Migration
             $table->text('meta_keywords')->nullable();
 
             // Analytics
-            $table->unsignedInteger('view_count')->default(0)->index();
+            $table->unsignedInteger('view_count')->default(0);
             $table->unsignedInteger('favourite_count')->default(0);
             $table->unsignedInteger('share_count')->default(0);
 
@@ -95,11 +94,34 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            // Indexing Fix
-            $table->index(['is_active', 'status']);
-            $table->index(['buy_sell_category_id', 'price']);
-            $table->index(['division_id', 'district_id']);
-            $table->index(['created_at', 'published_at']);
+            // --- ADVANCED COMPOUND INDEXING (Marketplace Optimization) ---
+
+            // ১. হোমপেজ এবং ক্যাটাগরি লিস্টিং ফিল্টার (সবচেয়ে বেশি ব্যবহৃত)
+            // এটি WHERE category_id = ? AND status = 'published' AND is_active = 1 ORDER BY published_at DESC কে অপ্টিমাইজ করবে
+            $table->index(['buy_sell_category_id', 'status', 'is_active', 'published_at'], 'idx_post_listing_main');
+
+            // ২. লোকেশন ভিত্তিক সার্চ (শহর বা বিভাগ অনুযায়ী ফিল্টার)
+            $table->index(['division_id', 'district_id', 'status', 'is_active'], 'idx_post_location_status');
+
+            // ৩. প্রাইস রেঞ্জ ফিল্টার (কম থেকে বেশি বা বেশি থেকে কম দাম)
+            $table->index(['status', 'is_active', 'price'], 'idx_post_price_filter');
+
+            // ৪. কন্ডিশন ভিত্তিক ফিল্টার (যেমন: শুধুমাত্র 'New' বা 'Used' পণ্য দেখা)
+            $table->index(['condition', 'status', 'is_active'], 'idx_post_condition_filter');
+
+            // ৫. ফিচারড পোস্ট এবং জনপ্রিয় পোস্টের ফিড
+            $table->index(['is_featured', 'status', 'view_count'], 'idx_post_featured_popular');
+
+            // ৬. ইউজার প্রোফাইল বা ড্যাশবোর্ড (আমার পোস্টগুলো দেখা)
+            $table->index(['user_id', 'status', 'created_at'], 'idx_post_user_history');
+
+            // ৭. এসকিউ (SKU) এবং টাইটেল লুকআপ
+            $table->index('sku');
+            $table->index('title');
+
+            // ৮. সফট ডিলিট এবং এক্সপায়ার ডেট অপ্টিমাইজেশন
+            $table->index('deleted_at');
+            $table->index('expires_at');
 
             // FK for audit trail
             $table->foreign('created_by')->references('id')->on('users')->onDelete('set null');

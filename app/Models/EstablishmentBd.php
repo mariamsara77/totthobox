@@ -153,7 +153,7 @@ class EstablishmentBd extends Model implements HasMedia
     public function scopePublished($query)
     {
         return $query->whereNotNull('published_at')
-                     ->where('published_at', '<=', now());
+            ->where('published_at', '<=', now());
     }
 
     // Filter by establishment type
@@ -169,7 +169,7 @@ class EstablishmentBd extends Model implements HasMedia
     // Image full URL accessor
     public function getImageUrlAttribute()
     {
-        return $this->image 
+        return $this->image
             ? asset('storage/' . $this->image)
             : asset('images/default-establishment.png');
     }

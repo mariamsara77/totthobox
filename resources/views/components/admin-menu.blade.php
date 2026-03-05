@@ -6,8 +6,12 @@
         <flux:sidebar.item icon="home" :href="route('admin.dashboard.session')"
             :current="request()->routeIs('admin.dashboard.session')" wire:navigate.hover>{{ __('Session Manage') }}
         </flux:sidebar.item>
+        <flux:sidebar.item icon="home" :href="url('/pulse')" :current="request()->routeIs('admin.dashboard.pulse')"
+            wire:navigate.hover>{{ __('Pule Manage') }}
+        </flux:sidebar.item>
         <flux:sidebar.item icon="home" :href="route('admin.dashboard.missing-data')"
-            :current="request()->routeIs('admin.dashboard.missing-data')" wire:navigate.hover>{{ __('Missing Data Manage') }}
+            :current="request()->routeIs('admin.dashboard.missing-data')" wire:navigate.hover>
+            {{ __('Missing Data Manage') }}
         </flux:sidebar.item>
     </flux:sidebar.group>
 @endcan

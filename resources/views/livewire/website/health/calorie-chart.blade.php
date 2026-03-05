@@ -47,29 +47,25 @@ new class extends Component {
 };
 ?>
 
-<section class="max-w-2xl mx-auto">
+<section class="max-w-2xl mx-auto space-y-4">
     {{-- Search + Category Filter --}}
-    <div class="mb-8">
-        <div class="mb-6 flex justify-center">
-            <div class="relative w-full max-w-md">
-                <flux:input wire:model.live.debounce.300ms="search" placeholder="খাবারের নাম দিয়ে খুঁজুন..."
-                    icon="magnifying-glass" />
-            </div>
+
+    <div class="flex justify-center gap-2 items-center">
+        <div class="">
+            <flux:input wire:model.live.debounce.300ms="search" placeholder="খাবারের নাম দিয়ে খুঁজুন..." size="sm"
+                icon="magnifying-glass" />
         </div>
 
-        <div class="flex flex-wrap justify-center gap-3">
-            <flux:button wire:click="filterByCategory(null)"
-                variant="{{ $selectedCategory === null ? 'filled' : 'subtle' }}"
-                class="px-4 py-2 rounded-full text-sm font-medium transition-all">সব</flux:button>
+        <flux:button wire:click="filterByCategory(null)" size="sm"
+            variant="{{ $selectedCategory === null ? 'filled' : 'subtle' }}"
+            class="px-4 py-2 rounded-full text-sm font-medium transition-all">সব</flux:button>
 
-            @foreach ($categories as $cat)
-                <flux:button wire:click="filterByCategory({{ $cat->id }})"
-                    variant="{{ $selectedCategory === $cat->id ? 'filled' : 'subtle' }}"
-                    class="px-4 py-2 rounded-full text-sm font-medium transition-all">
-                    {{ $cat->name_bn }}
-                </flux:button>
-            @endforeach
-        </div>
+        @foreach ($categories as $cat)
+            <flux:button wire:click="filterByCategory({{ $cat->id }})" size="sm"
+                variant="{{ $selectedCategory === $cat->id ? 'filled' : 'subtle' }}">
+                {{ $cat->name_bn }}
+            </flux:button>
+        @endforeach
     </div>
 
     {{-- Food Cards Grid --}}
@@ -180,10 +176,7 @@ new class extends Component {
                 </div>
             </div>
         @empty
-            <div class="text-center py-16">
-                <div class="text-6xl mb-4">🍽️</div>
-                <h3 class="text-lg font-semibold text-gray-600">কোনো খাবারের তথ্য পাওয়া যায়নি</h3>
-            </div>
+            <livewire:global.nodata-message :title="'ক্যালরী চার্ট'" :search="$search" />
         @endforelse
     </div>
 </section>

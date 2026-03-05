@@ -259,7 +259,7 @@ new class extends Component {
     }
 }; ?>
 
-<div class="p-6">
+<div class="">
     {{-- Header Section --}}
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div>
@@ -394,7 +394,7 @@ new class extends Component {
 
                 <div class="space-y-4">
                     <flux:heading size="sm">Map Upload</flux:heading>
-                    <flux:file-upload wire:model.live="map" accept="image/*,.pdf" />
+                    <flux:file-upload wire:model.live="map" multiple />
                 </div>
             </div>
 

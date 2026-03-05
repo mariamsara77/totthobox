@@ -40,17 +40,16 @@ return [
     ],
 
     'google' => [
-        'site_verification' => env('GOOGLE_SITE_VERIFICATION', ''),
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
         'redirect' => env('GOOGLE_REDIRECT'),
     ],
 
     'facebook' => [
-    'client_id' => env('FACEBOOK_CLIENT_ID'),
-    'client_secret' => env('FACEBOOK_CLIENT_SECRET'),
-    'redirect' => env('FACEBOOK_REDIRECT'),
-],
+        'client_id' => env('FACEBOOK_CLIENT_ID'),
+        'client_secret' => env('FACEBOOK_CLIENT_SECRET'),
+        'redirect' => env('FACEBOOK_REDIRECT'),
+    ],
 
 
 ];

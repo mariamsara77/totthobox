@@ -3,7 +3,7 @@
   "appName": "Totthobox",
   "webDir": "public",
   "server": {
-    "url": "https://192.168.0.102",
+    "url": "https://upper-sage-focus-namely.trycloudflare.com",
     "cleartext": true
   }
 }

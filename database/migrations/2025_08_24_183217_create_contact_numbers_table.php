@@ -4,8 +4,10 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
+    /**
+     * Run the migrations.
+     */
     public function up(): void
     {
         Schema::create('contact_numbers', function (Blueprint $table) {
@@ -28,11 +30,8 @@ return new class extends Migration
             $table->string('email')->nullable();
             $table->string('address')->nullable();
 
-
             $table->unsignedBigInteger('user_id')->nullable();
-
             $table->string('status')->default('active');
-
 
             $table->json('extra_attributes')->nullable();
 
@@ -59,9 +58,30 @@ return new class extends Migration
             $table->foreign('updated_by')->references('id')->on('users')->onDelete('set null');
             $table->foreign('deleted_by')->references('id')->on('users')->onDelete('set null');
             $table->foreign('published_by')->references('id')->on('users')->onDelete('set null');
+
+            // --- ADVANCED INDEXING (Optimized for Search) ---
+
+            // ১. ক্যাটাগরি এবং লোকেশন ভিত্তিক ফিল্টারিং (সবচেয়ে বেশি ব্যবহৃত কোয়েরি)
+            // WHERE contact_category_id = ? AND division_id = ? AND status = 'active'
+            $table->index(['contact_category_id', 'division_id', 'district_id', 'status'], 'idx_contact_geo_cat');
+
+            // ২. ফোন নম্বর দিয়ে দ্রুত সার্চ করার জন্য
+            $table->index('phone');
+
+            // ৩. নাম এবং ডেজিগনেশন দিয়ে সার্চের জন্য
+            $table->index(['name', 'status']);
+
+            // ৪. ফিচারড এবং পপুলারিটি (ভিউ কাউন্ট) এর জন্য
+            $table->index(['is_featured', 'is_active', 'view_count'], 'idx_contact_featured_stats');
+
+            // ৫. ইমেইল ইনডেক্স
+            $table->index('email');
         });
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
         Schema::dropIfExists('contact_numbers');

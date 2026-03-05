@@ -419,23 +419,23 @@ new class extends Component {
 
             <!-- Search -->
             <div>
-                <flux:input wire:model.live.debounce.300ms="search"
-                    placeholder="Search by name, slug, or short title..." class="w-full" />
+                <flux:input wire:model.live.debounce.300ms="search" placeholder="Search by name, slug, or short title..."
+                    class="w-full" />
             </div>
 
             <!-- Success/Error Messages -->
             {{-- @if (session()->has('success'))
-                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
-                    {{ session('success') }}
-                </div>
+            <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
+                {{ session('success') }}
+            </div>
             @endif
 
             @if (session()->has('error'))
-                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
-                    {{ session('error') }}
-                </div>
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+                {{ session('error') }}
+            </div>
             @endif --}}
-            @include('partials.toast')
+
 
             <!-- Categories Table -->
             <div class="overflow-x-auto">
@@ -482,8 +482,7 @@ new class extends Component {
                                     <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
                                 @endif
                             </th>
-                            <th scope="col"
-                                class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider">
+                            <th scope="col" class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider">
                                 Actions
                             </th>
                         </tr>
@@ -494,14 +493,11 @@ new class extends Component {
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center">
                                         @if ($cat->image)
-                                            <img src="{{ asset('storage/' . $cat->image) }}"
-                                                alt="{{ $cat->name }}"
+                                            <img src="{{ asset('storage/' . $cat->image) }}" alt="{{ $cat->name }}"
                                                 class="h-10 w-10 rounded-full mr-3 object-cover">
                                         @else
-                                            <div
-                                                class="h-10 w-10 rounded-full bg-gray-500 flex items-center justify-center mr-3">
-                                                <span
-                                                    class="text-white text-sm font-semibold">{{ substr($cat->name, 0, 1) }}</span>
+                                            <div class="h-10 w-10 rounded-full bg-gray-500 flex items-center justify-center mr-3">
+                                                <span class="text-white text-sm font-semibold">{{ substr($cat->name, 0, 1) }}</span>
                                             </div>
                                         @endif
                                         <div>
@@ -568,8 +564,7 @@ new class extends Component {
                                             class="text-blue-600 hover:text-blue-900 mr-3">
                                             Edit
                                         </button>
-                                        <button wire:click="deleteCategory({{ $cat->id }})"
-                                            class="text-red-600 hover:text-red-900"
+                                        <button wire:click="deleteCategory({{ $cat->id }})" class="text-red-600 hover:text-red-900"
                                             onclick="return confirm('Are you sure you want to move this category to trash?')">
                                             Delete
                                         </button>

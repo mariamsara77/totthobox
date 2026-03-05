@@ -2,149 +2,211 @@
 
 namespace App\Services;
 
-use App\Models\{Visitor, VisitorSession, PageView, VisitorEvent};
-use Illuminate\Support\Facades\{DB, Cache, Log};
+use App\Models\{Visitor, VisitorSession, PageView};
+use Illuminate\Support\Facades\{Log, DB, Auth, Cache};
 use Stevebauman\Location\Facades\Location;
 use Jenssegers\Agent\Agent;
 use Illuminate\Support\Str;
-use Illuminate\Database\QueryException;
+use Carbon\Carbon;
 
 class VisitorTrackingService
 {
-    protected $agent;
+    protected Agent $agent;
 
     public function __construct()
     {
         $this->agent = new Agent();
     }
 
+  public function forceSyncPwaStatus($request)
+{
+    $ip = $request->ip();
+    $ua = $request->userAgent();
+    $hash = hash('sha256', $ip . $ua);
+    
+    // বর্তমান রিকোয়েস্টটি PWA কি না (Header বা Query থেকে)
+    $isPwaNow = $request->header('X-App-Mode') === 'standalone' || 
+                 $request->query('utm_source') === 'pwa';
+
+    // ডাটাবেস থেকে ভিজিটর নিন
+    $visitor = Visitor::where('hash', $hash)->first();
+
+    if ($visitor && $visitor->is_pwa !== $isPwaNow) {
+        $visitor->update(['is_pwa' => $isPwaNow]);
+        
+        // সব ক্যাশ ক্লিয়ার করুন যাতে লাইভ আপডেট দেখা যায়
+        Cache::forget("v_active_{$hash}");
+        Cache::forget("visitor_v3_{$hash}");
+    }
+
+    session(['is_pwa' => $isPwaNow]);
+}
+
     public function trackRequest($request)
     {
-        if ($this->agent->isRobot()) {
-            return null;
+        // 1. Instant Bot Kill
+        if ($this->agent->isRobot()) return;
+
+        try {
+            // No DB::transaction here to avoid row locking across tables
+            $visitor = $this->getOrCreateVisitor($request);
+            $session = $this->getOrCreateSession($visitor, $request);
+            $this->recordPageView($visitor, $session, $request);
+        } catch (\Exception $e) {
+            Log::error("Tracking Error: " . $e->getMessage());
         }
+    }
 
-        $data = [
-            'ip' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-            'full_url' => $request->fullUrl(),
-            'route_name' => $request->route()?->getName(),
-            'method' => $request->method(),
-            'referer' => $request->headers->get('referer'),
-            'session_id' => session()->getId(),
-            'start_time' => defined('LARAVEL_START') ? LARAVEL_START : microtime(true),
-        ];
+    // ১. Visitor এবং Session হ্যান্ডলিং ঠিক করা
+    public function getOrCreateVisitor($request): Visitor
+    {
+        $ip = $request->ip();
+        $ua = $request->userAgent();
+        $hash = hash('sha256', $ip . $ua);
+        $cacheKey = "v_active_{$hash}";
 
-        $visitor = $this->getOrCreateVisitor($data);
-        $session = $this->getCurrentSession($visitor, $data);
+        // ক্যাশ থেকে ভিজিটর নিন
+        $visitor = Cache::get($cacheKey);
 
-        $this->trackPageView($visitor, $session, $data);
+        if (!$visitor) {
+            // লোকেশন ক্যাশ করা (আপনি অলরেডি করছেন, ভালো প্র্যাকটিস)
+            $location = Cache::remember(
+                "v_loc_{$ip}",
+                86400,
+                fn() =>
+                Location::get(in_array($ip, ['127.0.0.1', '::1']) ? '8.8.8.8' : $ip)
+            );
+
+            // লারাভেল ১২ স্ট্যান্ডার্ড: সরাসরি ডাটাবেসে হিট না করে আগে চেক বা অপ্টিমাইজড আপসার্ট
+            $visitor = Visitor::updateOrCreate(
+                ['hash' => $hash],
+                [
+                    'user_id' => Auth::id(),
+                    'ip_address' => $ip,
+                    'browser_family' => $this->agent->browser(),
+                    'os_family' => $this->agent->platform(),
+                    'device_type' => $this->getDeviceType(),
+                    'country_code' => $location->countryCode ?? null,
+                    'last_seen_at' => now(),
+                ]
+            );
+            Cache::put($cacheKey, $visitor, 300);
+        }
 
         return $visitor;
     }
 
-    protected function trackPageView($visitor, $session, $data)
+    protected function getOrCreateSession(Visitor $visitor, $request): VisitorSession
     {
-        try {
-            $loadTime = (microtime(true) - $data['start_time']) * 1000;
+        $cacheKey = "v_sess_id_{$visitor->id}";
+        $sessionId = Cache::get($cacheKey);
 
-            PageView::create([
-                'visitor_id' => $visitor->id,
-                'session_id' => $session->id,
-                'url' => $data['full_url'],
-                'route_name' => $data['route_name'],
-                'method' => $data['method'],
-                'status_code' => http_response_code() ?: 200,
-                'load_time' => round($loadTime, 2),
-                'is_ajax' => request()->ajax(),
-                'is_secure' => request()->secure(),
-            ]);
-
-            $visitor->update(['last_seen_at' => now()]);
-        } catch (\Exception $e) {
-            Log::error("Visitor Tracking PageView Error: " . $e->getMessage());
-        }
-    }
-
-    protected function getCurrentSession($visitor, $data = [])
-    {
-        // ১. আগে চেক করি কোনো একটিভ সেশন আছে কি না
-        $session = VisitorSession::where('visitor_id', $visitor->id)
-            ->whereNull('ended_at')
-            ->where('started_at', '>=', now()->subMinutes(30))
-            ->latest()
-            ->first();
-
-        if (!$session) {
-            // ২. সেশন হাশ তৈরি (এটি ইউনিক হতে হবে আজকের দিন বা নির্দিষ্ট উইন্ডোর জন্য)
-            $sessionHash = sha1($visitor->hash . ($data['session_id'] ?? Str::random(10)) . date('Y-m-d H'));
-
-            try {
-                // ৩. firstOrCreate সঠিক ভাবে ব্যবহার: প্রথম অ্যারে দিয়ে সার্চ করবে, না পেলে দ্বিতীয় অ্যারে সহ ইনসার্ট করবে
-                $session = VisitorSession::firstOrCreate(
-                    ['session_hash' => $sessionHash],
-                    [
-                        'id' => (string) Str::uuid(),
-                        'visitor_id' => $visitor->id,
-                        'started_at' => now(),
-                    ]
-                );
-            } catch (QueryException $e) {
-                // ৪. যদি Race Condition এর কারণে ইনসার্ট ফেইল করে, তবে দ্রুত বিদ্যমান সেশনটি খুঁজে নেবে
-                if ($e->getCode() === '23000') {
-                    $session = VisitorSession::where('session_hash', $sessionHash)->first();
-                } else {
-                    Log::error("Session Creation Error: " . $e->getMessage());
-                }
+        // যদি ক্যাশে সেশন আইডি থাকে, তবে ডাটাবেস থেকে শুধু ওই সেশনটি নিন
+        if ($sessionId) {
+            $session = VisitorSession::find($sessionId);
+            if ($session && $session->last_active_at > now()->subMinutes(30)) {
+                return $session;
             }
         }
 
+        // সেশন না থাকলে বা ৩০ মিনিট পার হলে নতুন তৈরি করুন
+        $referer = $request->headers->get('referer');
+        $source = $this->parseTrafficSource($referer);
+
+        $session = VisitorSession::create([
+            'id' => (string) Str::uuid(),
+            'visitor_id' => $visitor->id,
+            'origin_type' => $source['type'],
+            'origin_source' => $source['source'],
+            'entry_url' => Str::limit($request->fullUrl(), 500),
+            'started_at' => now(),
+            'last_active_at' => now(),
+        ]);
+
+        Cache::put($cacheKey, $session->id, 1800);
         return $session;
     }
 
-    public function trackEvent($visitor, $type, $name, $data = [], $timestamp = null)
+    protected function recordPageView($visitor, $session, $request)
     {
-        try {
-            $session = $this->getCurrentSession($visitor);
 
-            return VisitorEvent::create([
-                'visitor_id' => $visitor->id,
-                'session_id' => $session?->id,
-                'event_type' => $type,
-                'event_name' => $name,
-                'event_data' => $data,
-                'created_at' => $timestamp ? \Carbon\Carbon::createFromTimestampMs($timestamp) : now(),
-            ]);
-        } catch (\Exception $e) {
-            Log::error("Visitor Tracking Event Error: " . $e->getMessage());
-            return null;
-        }
+        $dynamicTitle = config('app.current_page_title')
+            ?? Str::headline($request->route()?->getName() ?? 'Home');
+        PageView::create([
+            'session_id'   => $session->id,
+            'visitor_id'   => $visitor->id,
+            'url'          => Str::limit($request->fullUrl(), 500),
+            'title' => $dynamicTitle,
+            'url_hash'     => sha1($request->fullUrl()),
+            'route_name'   => $request->route()?->getName(),
+            'load_time_ms' => defined('LARAVEL_START') ? round((microtime(true) - LARAVEL_START) * 1000) : 0,
+            'created_at'   => now(),
+        ]);
+
+        // Use increment without retrieving the model
+        VisitorSession::where('id', $session->id)->increment('hits_count');
     }
 
-    public function getOrCreateVisitor($data)
+    protected function parseTrafficSource($referer): array
     {
-        $hash = sha1($data['ip'] . $data['user_agent']);
+        if (!$referer)
+            return ['type' => 'direct', 'source' => 'Direct'];
 
-        return Visitor::firstOrCreate(
-            ['hash' => $hash],
-            [
-                'ip_address' => $data['ip'],
-                'user_agent' => $data['user_agent'],
-                'browser' => $this->agent->browser(),
-                'os' => $this->agent->platform(),
-                'device' => $this->getDeviceType(),
-                'last_seen_at' => now(),
-                'first_seen_at' => now(),
-            ]
-        );
+        $host = strtolower(parse_url($referer, PHP_URL_HOST));
+
+        if (str_contains($host, 'google') || str_contains($host, 'bing'))
+            return ['type' => 'organic', 'source' => $host];
+
+        if (str_contains($host, 'facebook') || str_contains($host, 't.co') || str_contains($host, 'instagram'))
+            return ['type' => 'social', 'source' => $host];
+
+        return ['type' => 'referral', 'source' => $host];
     }
 
-    protected function getDeviceType()
+    protected function getDeviceType(): string
     {
         if ($this->agent->isTablet())
             return 'tablet';
         if ($this->agent->isMobile())
             return 'mobile';
         return 'desktop';
+    }
+
+    public function trackEvent($visitor, $category, $action, $label = null, $payload = [])
+    {
+        try {
+            $cacheKey = "v_sess_obj_{$visitor->id}";
+            $session = Cache::get($cacheKey);
+
+            // সেশন না থাকলে নতুন তৈরি করুন
+            if (!$session) {
+                $session = VisitorSession::where('visitor_id', $visitor->id)
+                    ->where('last_active_at', '>', now()->subMinutes(30))
+                    ->orderByDesc('last_active_at')
+                    ->first();
+
+                if ($session) {
+                    Cache::put($cacheKey, $session, 1800);
+                }
+            }
+
+            // ইভেন্ট তৈরি করুন - session_id nullable হওয়ায় এখন error হবে না
+            \App\Models\VisitorEvent::create([
+                'session_id' => $session->id ?? null, // ✅ nullable
+                'event_category' => $category,
+                'event_action' => $action,
+                'event_label' => $label,
+                'payload' => $payload,
+                'created_at' => now(),
+            ]);
+
+        } catch (\Exception $e) {
+            // Error লগ করুন কিন্তু application crash করবেন না
+            Log::error('Event tracking failed', [
+                'error' => $e->getMessage(),
+                'category' => $category,
+                'action' => $action
+            ]);
+        }
     }
 }

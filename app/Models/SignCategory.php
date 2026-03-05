@@ -60,13 +60,18 @@ class SignCategory extends Model
         'is_featured' => false,
     ];
 
+    protected static function booted()
+    {
+        static::saved(fn($cat) => cache()->forget("sign_page_{$cat->slug}"));
+    }
+
     /**
      * Relationships
      */
 
     public function signs()
     {
-        return $this->hasMany(Sign::class, 'sign_category_id');
+        return $this->hasMany(Sign::class);
     }
 
 

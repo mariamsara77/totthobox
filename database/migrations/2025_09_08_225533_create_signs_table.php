@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     /**
      * Run the migrations.
      */
@@ -43,6 +42,22 @@ return new class extends Migration
             $table->foreign('created_by')->references('id')->on('users')->onDelete('set null');
             $table->foreign('updated_by')->references('id')->on('users')->onDelete('set null');
             $table->foreign('deleted_by')->references('id')->on('users')->onDelete('set null');
+
+            // --- ADVANCED INDEXING (Performance Boost) ---
+
+            // ১. নির্দিষ্ট ক্যাটাগরির অধীনে একটিভ চিহ্নগুলো দ্রুত পাওয়ার জন্য
+            // এটি WHERE sign_category_id = ? AND status = 1 কোয়েরিকে সুপার ফাস্ট করবে
+            $table->index(['sign_category_id', 'status'], 'idx_sign_cat_status');
+
+            // ২. বাংলা এবং ইংরেজি নাম দিয়ে সার্চ করার জন্য আলাদা ইনডেক্স
+            $table->index('name_bn');
+            $table->index('name_en');
+
+            // ৩. সফট ডিলিট এবং স্ট্যাটাস ফিল্টারিং অপ্টিমাইজেশন
+            $table->index(['deleted_at', 'status']);
+
+            // ৪. অডিট ট্রেইল এবং ইউজার ভিত্তিক ফিল্টারিং
+            $table->index('created_by');
         });
     }
 

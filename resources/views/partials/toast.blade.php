@@ -3,7 +3,7 @@
     $notifications = [
         'success' => ['icon' => 'check-circle', 'color' => 'text-green-500'],
         'error' => ['icon' => 'x-circle', 'color' => 'text-red-500'],
-        'status' => ['icon' => 'info', 'color' => 'text-blue-500'],
+        'status' => ['icon' => 'information-circle', 'color' => 'text-blue-500'],
         'message' => ['icon' => 'bell', 'color' => 'text-zinc-500'],
     ];
 @endphp

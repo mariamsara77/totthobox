@@ -178,27 +178,12 @@ new #[Layout('components.layouts.app.message')] class extends Component {
     {
         $authId = auth()->id();
 
-        $users = User::where(function ($query) use ($authId) {
-            $query
-                ->whereHas('sentMessages', function ($q) use ($authId) {
-                    $q->where('receiver_id', $authId);
-                })
-                ->orWhereHas('receivedMessages', function ($q) use ($authId) {
-                    $q->where('sender_id', $authId);
-                });
-        })
-            ->when($this->searchTerm, function ($query) {
-                $query->where('name', 'like', '%' . $this->searchTerm . '%');
+        $users = User::where('id', '!=', $authId)
+            ->where(function ($query) use ($authId) {
+                $query->whereHas('sentMessages', fn($q) => $q->where('receiver_id', $authId))
+                    ->orWhereHas('receivedMessages', fn($q) => $q->where('sender_id', $authId));
             })
-            ->where('id', '!=', $authId)
-            ->with([
-                'sentMessages' => function ($q) use ($authId) {
-                    $q->where('receiver_id', $authId)->latest();
-                },
-                'receivedMessages' => function ($q) use ($authId) {
-                    $q->where('sender_id', $authId)->latest();
-                },
-            ])
+            ->with(['sentMessages', 'receivedMessages', 'media']) // মিডিয়া এবং মেসেজ একসাথে লোড
             ->get();
 
         if ($this->user && $this->user->id != $authId && !$users->contains('id', $this->user->id)) {
@@ -229,39 +214,34 @@ new #[Layout('components.layouts.app.message')] class extends Component {
     public function loadOnlineUsers()
     {
         $this->onlineUsers = User::where('id', '!=', auth()->id())
-            ->where('role', '!=', 'Admin')
-            ->when($this->searchTerm, function ($query) {
-                $query->where('name', 'like', '%' . $this->searchTerm . '%');
+            ->with('roles') // রোল আগে থেকে লোড করুন
+            ->whereDoesntHave('roles', function ($query) {
+                $query->whereIn('name', ['Admin', 'Super Admin']);
             })
+            ->where('status', 'active')
             ->get()
-            ->filter(function ($user) {
-                return $user->isOnline();
-            })
-            ->sortBy('name')
-            ->values();
+            ->filter(fn($user) => $user->isOnline()); // এটা ঠিক আছে যদি cache ভিত্তিক হয়
     }
 
     public function markAllAsRead()
     {
-        if (!$this->selectedUser) {
+        if (!$this->selectedUser)
             return;
-        }
 
         Message::where('receiver_id', auth()->id())
             ->where('sender_id', $this->selectedUser)
             ->where('read', 0)
             ->update(['read' => 1, 'read_at' => now()]);
 
-        auth()
-            ->user()
+        // নোটিফিকেশন আপডেট করার সময় selectedUserModel ব্যবহার করুন
+        auth()->user()
             ->unreadNotifications()
             ->where('type', NewMessageNotification::class)
             ->where(function ($query) {
-                $query->where('data->sender_id', $this->selectedUser)->orWhere('data->url', route('messages', ['slug' => User::find($this->selectedUser)->slug]));
+                $query->where('data->sender_id', $this->selectedUser)
+                    ->orWhere('data->url', route('messages', ['slug' => $this->selectedUserModel->slug]));
             })
             ->update(['read_at' => now()]);
-
-        $this->dispatch('markedAsRead');
     }
 
     public function loadMessages()
@@ -577,7 +557,7 @@ new #[Layout('components.layouts.app.message')] class extends Component {
                     <div class="flex items-center gap-3">
                         <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" size="xs" />
                         <div>
-                            <flux:avatar src="{{ $selUser->avatar }}" name="{{ $selectedUserName }}" badge
+                            <flux:avatar src="{{ $selUser->getFirstMediaUrl('avatars', 'thumb') }}" name="{{ $selectedUserName }}" badge
                                 badge:color="{{ $selectedUserModel->isOnline() ? 'green' : 'zinc' }}" color="auto"
                                 color:seed="{{ $selectedUserModel->id }}" />
                         </div>
@@ -634,6 +614,7 @@ new #[Layout('components.layouts.app.message')] class extends Component {
                     </div>
 
                 </div>
+
                 <!-- Messages -->
                 <div x-ref="messagesContainer" class="flex-1 pt-8 pb-4 overflow-y-auto scroll-smooth relative overflow-x-hidden"
                     x-data="{
@@ -960,7 +941,7 @@ new #[Layout('components.layouts.app.message')] class extends Component {
 
                     @if ($replyMessage)
                         @php 
-                                                                                                                        $replyTo = $messages->firstWhere('id', $replyMessage);
+                                                                                                                                                                    $replyTo = $messages->firstWhere('id', $replyMessage);
                             $media = $replyTo->getFirstMedia('attachments'); 
                         @endphp
 
@@ -1106,27 +1087,33 @@ new #[Layout('components.layouts.app.message')] class extends Component {
                     </div>
                 </flux:callout>
     @else
-        <div class="flex-1 flex items-center justify-center p-4 md:p-6">
-            <div class="text-center max-w-md">
-                <flux:icon name="chat-bubble-left-right" class="mx-auto size-10 md:size-12 text-zinc-400" />
+           <flux:header sticky class="backdrop-blur-lg border-b border-zinc-400/10 !px-2">
+                    <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" size="xs" />
+                        <div class="w-full">
+                        @stack('chat-header')
+                  </div>
+                </flux:header>
+                <div class="flex-1 flex items-center justify-center p-4 md:p-6">
+                    <div class="text-center max-w-md">
+                        <flux:icon name="chat-bubble-left-right" class="mx-auto size-10 md:size-12 text-zinc-400" />
 
-                <flux:heading level="h3" size="lg" class="mt-4">
-                    No conversation selected
-                </flux:heading>
+                        <flux:heading level="h3" size="lg" class="mt-4">
+                            No conversation selected
+                        </flux:heading>
 
-                <flux:text size="base" class="mt-2">
-                    Select a conversation from the sidebar to start chatting.
-                </flux:text>
+                        <flux:text size="base" class="mt-2">
+                            Select a conversation from the sidebar to start chatting.
+                        </flux:text>
 
-                <div class="mt-6">
-                    <flux:modal.trigger name="open-conversations-modal">
-                        <flux:button variant="primary">
-                            Open Conversations
-                        </flux:button>
-                    </flux:modal.trigger>
+                        <div class="mt-6">
+                            <flux:modal.trigger name="open-conversations-modal">
+                                <flux:button variant="primary">
+                                    Open Conversations
+                                </flux:button>
+                            </flux:modal.trigger>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
     @endif
 
     @include('partials.toast')
@@ -1160,7 +1147,7 @@ new #[Layout('components.layouts.app.message')] class extends Component {
                         ])>
 
                             <div>
-                                <flux:avatar src="{{ $user->avatar }}" name="{{ $user->name }}" badge
+                                <flux:avatar src="{{ $user->getFirstMediaUrl('avatars', 'thumb') }}" name="{{ $user->name }}" badge
                                     badge:color="{{ $user->isOnline() ? 'green' : 'zinc' }}" color="auto"
                                     color:seed="{{ $user->id }}" />
                             </div>
@@ -1174,7 +1161,7 @@ new #[Layout('components.layouts.app.message')] class extends Component {
                                     <flux:text size="sm" color="green"
                                         class="text-xs text-zinc-500 dark:text-zinc-400 whitespace-nowrap ml-2">
                                         @if ($user->sentMessages->first() || $user->receivedMessages->first())
-                                                                                                                                                                                            {{ max(
+                                                                                                                                                                                                                                                                                    {{ max(
                                                 $user->sentMessages->first()->created_at ?? null,
                                                 $user->receivedMessages->first()->created_at ?? null,
                                             )?->shortRelativeDiffForHumans() }}
@@ -1228,7 +1215,7 @@ new #[Layout('components.layouts.app.message')] class extends Component {
                         ])>
 
                             <div>
-                                <flux:avatar src="{{ $user->avatar }}" name="{{ $user->name }}" badge
+                                <flux:avatar src="{{ $user->getFirstMediaUrl('avatars', 'thumb') }}" name="{{ $user->name }}" badge
                                     badge:color="{{ $user->isOnline() ? 'green' : 'zinc' }}" color="auto"
                                     color:seed="{{ $user->id }}" />
                             </div>

@@ -1152,7 +1152,7 @@ new #[Layout('components.layouts.app.message')] class extends Component {
             </div>
         </div>
     @enderror
-    @include('partials.toast')
+    
     <livewire:chat.user-list />
 
 

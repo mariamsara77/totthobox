@@ -21,7 +21,7 @@
 
         <flux:sidebar.header>
             <flux:sidebar.brand href="/" name="Totthobox" wire:navigate.hover>
-                <flux:icon name="brand" />
+                <flux:icon.brand class="w-8 h-8" />
             </flux:sidebar.brand>
 
         </flux:sidebar.header>
@@ -36,7 +36,8 @@
             <livewire:chat.notification-badge />
 
             <flux:dropdown position="top" align="start" class="max-lg:hidden ">
-                <flux:sidebar.profile :avatar="auth()->user()->avatar ? auth()->user()->avatar : null"
+                <flux:sidebar.profile
+                    :avatar="auth()->user()->getFirstMediaUrl('avatars', 'thumb') ? auth()->user()->getFirstMediaUrl('avatars', 'thumb') : null"
                     :name="auth()->user()->name" :initials="auth()->user()->initials()" icon:trailing="chevrons-up-down">
                 </flux:sidebar.profile>
 
@@ -47,7 +48,8 @@
         @else
             <flux:navlist.item icon="home" :href="route('login')" :current="request()->routeIs('login')"
                 wire:navigate.hover>
-                {{ __('Login') }}</flux:navlist.item>
+                {{ __('Login') }}
+            </flux:navlist.item>
         @endauth
 
 

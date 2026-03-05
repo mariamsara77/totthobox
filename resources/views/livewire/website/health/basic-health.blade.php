@@ -38,38 +38,35 @@ new class extends Component {
     }
 }; ?>
 
-<section class="">
+<section class="max-w-2xl mx-auto space-y-4">
     {{-- Search box --}}
-    <div class="mb-4">
-        <flux:input wire:model.live.debounce.300ms="search" icon="magnifying-glass"
+    <div class="">
+        <flux:input wire:model.live.debounce.300ms="search" icon="magnifying-glass" size="sm"
             placeholder="স্বাস্থ্য বিষয় লিখে খুঁজুন..." class="w-full" />
     </div>
 
     {{-- List --}}
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        @forelse($healths as $health)
-            <div class="border border-zinc-400/25 rounded-xl p-4">
-                <h3 class="font-semibold text-lg mb-1">
-                    {{ $health->title }}
-                </h3>
-                @if ($health->type)
-                    <p class="text-sm mb-2 text-gray-500">{{ $health->type }}</p>
-                @endif
-                <p class="text-sm mb-2">
-                    {{ Str::limit($health->summary ?? $health->description, 80) }}
-                </p>
-                <flux:modal.trigger name="details" wire:click="showHealth({{ $health->id }})">
-                    <flux:button class="" size="xs">
-                        বিস্তারিত দেখুন
-                    </flux:button>
-                </flux:modal.trigger>
-            </div>
-        @empty
-            <p class=" text-center col-span-full py-4">
-                কোনো স্বাস্থ্য বিষয় পাওয়া যায়নি
+
+    @forelse($healths as $health)
+        <div class="border border-zinc-400/25 rounded-xl p-4">
+            <h3 class="font-semibold text-lg mb-1">
+                {{ $health->title }}
+            </h3>
+            @if ($health->type)
+                <p class="text-sm mb-2 text-gray-500">{{ $health->type }}</p>
+            @endif
+            <p class="text-sm mb-2">
+                {{ Str::limit($health->summary ?? $health->description, 80) }}
             </p>
-        @endforelse
-    </div>
+            <flux:modal.trigger name="details" wire:click="showHealth({{ $health->id }})">
+                <flux:button class="" size="xs">
+                    বিস্তারিত দেখুন
+                </flux:button>
+            </flux:modal.trigger>
+        </div>
+    @empty
+        <livewire:global.nodata-message :title="'স্বাস্থ্য তথ্য'" :search="$search" />
+    @endforelse
 
     {{-- Modal --}}
     <flux:modal name="details" class="">
@@ -91,8 +88,7 @@ new class extends Component {
                         {{-- Image --}}
                         @if ($selectedHealth->image)
                             <div class="mb-4 text-center">
-                                <img src="{{ asset('storage/' . $selectedHealth->image) }}"
-                                    alt="{{ $selectedHealth->title }}"
+                                <img src="{{ asset('storage/' . $selectedHealth->image) }}" alt="{{ $selectedHealth->title }}"
                                     class="mx-auto h-32 w-auto object-cover rounded-md">
                             </div>
                         @endif

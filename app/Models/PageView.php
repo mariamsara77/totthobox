@@ -2,50 +2,38 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PageView extends Model
 {
-    use HasFactory;
+    public $timestamps = false; // যেহেতু শুধু created_at আছে
 
     protected $fillable = [
-        'visitor_id',
         'session_id',
+        'visitor_id',
+        'title',
         'url',
+        'url_hash',
         'route_name',
-        'method',
-        'status_code',
-        'query_params',
-        'headers',
-        'load_time',
-        'is_ajax',
-        'is_pjax',
-        'is_secure',
+        'load_time_ms',
+        'view_duration',
+        'created_at'
     ];
 
     protected $casts = [
-        'query_params' => 'array',
-        'headers' => 'array',
-        'is_ajax' => 'boolean',
-        'is_pjax' => 'boolean',
-        'is_secure' => 'boolean',
+        'created_at' => 'datetime',
+        'load_time_ms' => 'integer',
+        'view_duration' => 'integer',
     ];
+
+    public function session(): BelongsTo
+    {
+        return $this->belongsTo(VisitorSession::class, 'session_id');
+    }
 
     public function visitor(): BelongsTo
     {
         return $this->belongsTo(Visitor::class);
     }
-
-    public function session(): BelongsTo
-    {
-        return $this->belongsTo(VisitorSession::class);
-    }
-
-
-public function visitorSession()
-{
-    return $this->belongsTo(VisitorSession::class, 'session_id');
-}
 }

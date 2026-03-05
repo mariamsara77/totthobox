@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     /**
      * Run the migrations.
      */
@@ -36,7 +35,7 @@ return new class extends Migration
             $table->string('meta_description')->nullable();
             $table->string('meta_keywords')->nullable();
 
-            // Audit fields (as requested)
+            // Audit fields
             $table->foreignId('user_id')->nullable()->constrained('users')->cascadeOnDelete();
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
@@ -52,6 +51,28 @@ return new class extends Migration
 
             $table->timestamps();
             $table->softDeletes();
+
+            // --- ADVANCED INDEXING (Performance Boost) ---
+
+            // ১. ক্যাটাগরি অনুযায়ী একটিভ খাবারগুলো দ্রুত পাওয়ার জন্য
+            // WHERE food_category_id = ? AND status = 1
+            $table->index(['food_category_id', 'status'], 'idx_food_category_status');
+
+            // ২. ক্যালরি এবং পুষ্টিগুণ ভিত্তিক ফিল্টারিং (যেমন: হাই প্রোটিন বা লো ক্যালরি ফুড)
+            // এটি WHERE calorie <= ? AND status = 1 কোয়েরিকে সুপার ফাস্ট করবে
+            $table->index(['status', 'calorie'], 'idx_food_calorie_filter');
+            $table->index(['status', 'protein'], 'idx_food_protein_filter');
+
+            // ৩. নাম ভিত্তিক সার্চ (বাংলা এবং ইংরেজি)
+            $table->index('name_bn');
+            $table->index('name_en');
+
+            // ৪. ফিচারড এবং মোস্ট ভিউড সর্টিং (জনপ্রিয় খাবারের জন্য)
+            $table->index(['is_featured', 'view_count', 'status'], 'idx_food_popular_featured');
+
+            // ৫. সফট ডিলিট এবং টাইমস্ট্যাম্প অপ্টিমাইজেশন
+            $table->index('deleted_at');
+            $table->index('published_at');
         });
     }
 

@@ -90,7 +90,8 @@ new class extends Component {
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center mb-6">
                 <flux:callout icon="trophy" heading="মোট স্কোর" color="blue">
                     <flux:heading size="xl" class="text-4xl font-semibold text-blue-600">
-                        {{ $selectedAttempt->score }}/{{ $test->total_marks }}</flux:heading>
+                        {{ $selectedAttempt->score }}/{{ $test->total_marks }}
+                    </flux:heading>
                     <p class="text-gray-700"></p>
                     <flux:callout.text>
                         @if ($test->total_marks > 0)
@@ -107,7 +108,8 @@ new class extends Component {
                 </flux:callout>
                 <flux:callout icon="x-mark" heading="ভুল উত্তর" color="red">
                     <flux:heading size="xl" class="text-4xl font-semibold text-red-600">
-                        {{ $selectedAttempt->wrong_answers }}</flux:heading>
+                        {{ $selectedAttempt->wrong_answers }}
+                    </flux:heading>
                 </flux:callout>
             </div>
 
@@ -143,7 +145,8 @@ new class extends Component {
             <flux:heading size="lg" class="font-semibold">প্রশ্নভিত্তিক বিশ্লেষণ:</flux:heading>
 
             @foreach ($questions as $index => $question)
-                <div class="border rounded-xl border-zinc-400/25 overflow-hidden" x-data="{ open: {{ $index === 0 ? 'true' : 'false' }} }">
+                <div class="border rounded-xl border-zinc-400/25 overflow-hidden"
+                    x-data="{ open: {{ $index === 0 ? 'true' : 'false' }} }">
                     <!-- Accordion header -->
                     <flux:header class="gap-3 items-center border-b border-zinc-400/25"
                         color="{{ $this->isCorrect($question->id) ? 'green' : 'red' }}" @click="open = !open">
@@ -186,11 +189,9 @@ new class extends Component {
                             <flux:callout :variant="$variant" class="">
                                 <div class="flex items-center gap-2">
                                     @if ($isCorrect)
-                                        <flux:icon name="{{ $icon }}" variant="solid"
-                                            color="{{ $color }}" />
+                                        <flux:icon name="{{ $icon }}" variant="solid" color="{{ $color }}" />
                                     @elseif ($isWrongSelection)
-                                        <flux:icon name="{{ $icon }}" variant="solid"
-                                            color="{{ $color }}" />
+                                        <flux:icon name="{{ $icon }}" variant="solid" color="{{ $color }}" />
                                     @endif
 
 
@@ -233,6 +234,6 @@ new class extends Component {
             </flux:button>
         </div>
     @else
-        @include('partials.empty')
+        <livewire:global.nodata-message :title="'MCQ Result'" />
     @endif
 </section>

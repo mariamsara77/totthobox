@@ -202,15 +202,15 @@ new class extends Component {
             @foreach (collect($calendarDays)->flatten(1) as $day)
                 <div @if ($day) wire:click="$set('selectedDate', '{{ $day['date'] }}')" @endif
                     class="aspect-square relative rounded-xl transition-all duration-300
-                                                                                                            {{ !$day ? 'opacity-0' : 'cursor-pointer' }}
-                                                                                                            {{ $day && $day['date'] === $selectedDate ? 'bg-emerald-500 shadow-lg shadow-emerald-200 dark:shadow-none scale-110 z-10' : '' }}
-                                                                                                            {{ $day && $day['date'] !== $selectedDate ? 'hover:bg-zinc-100 dark:hover:bg-zinc-800' : '' }}">
+                                                                                                                            {{ !$day ? 'opacity-0' : 'cursor-pointer' }}
+                                                                                                                            {{ $day && $day['date'] === $selectedDate ? 'bg-emerald-500 shadow-lg shadow-emerald-200 dark:shadow-none scale-110 z-10' : '' }}
+                                                                                                                            {{ $day && $day['date'] !== $selectedDate ? 'hover:bg-zinc-100 dark:hover:bg-zinc-800' : '' }}">
 
                     @if ($day)
                         <div class="absolute inset-0 flex flex-col items-center justify-center">
                             <span
                                 class="text-lg font-black leading-none
-                                                                                                                                                                                                                {{ $day['date'] === $selectedDate ? 'text-white' : ($day['isToday'] ? 'text-emerald-500' : ($day['isWeekend'] ? 'text-rose-500' : 'text-zinc-800 dark:text-zinc-200')) }}">
+                                                                                                                                                                                                                                                {{ $day['date'] === $selectedDate ? 'text-white' : ($day['isToday'] ? 'text-emerald-500' : ($day['isWeekend'] ? 'text-rose-500' : 'text-zinc-800 dark:text-zinc-200')) }}">
                                 {{ $day['engDay'] }}
                             </span>
 
@@ -274,7 +274,7 @@ new class extends Component {
                 </div>
                 @if ($selHoliday)
                     <span
-                        class="px-3 py-1 rounded-full text-[8px] font-black text-white {{ $selHoliday['color'] }} uppercase tracking-tighter shadow-sm">
+                        class="px-3 py-1 rounded-full font-black text-white {{ $selHoliday['color'] }} uppercase tracking-tighter shadow-sm">
                         {{ $selHoliday['title'] }}
                     </span>
                 @endif

@@ -3,63 +3,108 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Laravel\Socialite\Facades\Socialite;
 use App\Models\User;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cookie;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\{Auth, Hash, Log, Cookie, DB};
+use Illuminate\Support\Str;
+use Laravel\Socialite\Facades\Socialite;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 
 class FacebookAuthController extends Controller
 {
-   // Redirect to Facebook
-    public function redirectToFacebook()
+    /**
+     * Redirect to Facebook with specific scopes
+     */
+    public function redirectToFacebook(): RedirectResponse
     {
-        return Socialite::driver('facebook')->redirect();
+        return Socialite::driver('facebook')
+            ->scopes(['email', 'public_profile'])
+            ->redirect();
     }
 
-    // Handle Facebook callback
-    public function handleFacebookCallback()
+    /**
+     * Handle Facebook callback
+     */
+    public function handleFacebookCallback(Request $request)
     {
         try {
             $facebookUser = Socialite::driver('facebook')->user();
 
-            // ১. ইউজার খুঁজে বের করা বা নতুন তৈরি করা
-            // wasRecentlyCreated প্রপার্টি ব্যবহার করে চেক করবো ইউজার কি এইমাত্র তৈরি হলো কি না
-            $user = User::firstOrCreate(
-                ['facebook_id' => $facebookUser->id],
-                [
-                    'name' => $facebookUser->name,
-                    'email' => $facebookUser->email,
-                    'password' => bcrypt(str()->random(24)), // পাসওয়ার্ড নাল রাখা উচিত নয়
-                    'status' => 'active', // স্ট্যাটাস সেট করা
-                ]
-            );
+            // ১. ইউজার খুঁজে বের করা বা আপডেট করা (Atomic operation)
+            $user = DB::transaction(function () use ($facebookUser) {
+                $user = User::updateOrCreate(
+                    ['email' => $facebookUser->getEmail()],
+                    [
+                        'name' => $facebookUser->getName(),
+                        'facebook_id' => $facebookUser->getId(),
+                        'password' => Hash::make(Str::random(24)),
+                        'email_verified_at' => now(),
+                        'status' => 'active',
+                    ]
+                );
 
-            // ২. যদি ইউজার নতুন তৈরি হয়ে থাকে তবেই রোল অ্যাসাইন করবো
-            if ($user->wasRecentlyCreated) {
-                $user->assignRole('user');
+                if ($user->wasRecentlyCreated) {
+                    $user->assignRole('user');
+                }
+
+                return $user;
+            });
+
+            // ২. প্রোফাইল পিকচার সিঙ্ক (Spatie Media Library)
+            if ($facebookUser->getAvatar()) {
+                $user->clearMediaCollection('avatars');
+                $user->addMediaFromUrl($facebookUser->getAvatar())
+                    ->toMediaCollection('avatars');
             }
 
-            Auth::login($user);
+            // ৩. সেশন এবং অথেন্টিকেশন
+            Auth::login($user, true);
+            $request->session()->regenerate();
 
-            // ৩. কুকি সেট করা
-            Cookie::queue(
-                Cookie::make(
-                    'last_logged_user',
-                    encrypt($user->id),
-                    60 * 24 * 365,
-                    null,
-                    null,
-                    true,
-                    true
-                )
-            );
+            // ৪. মাল্টিপল ইউজার কুকি সিঙ্ক করা (ইম্প্রুভড মেথড)
+            $this->syncSavedAccounts($user->id);
 
-            return redirect()->intended('/home');
+            return redirect()->intended('/');
 
         } catch (\Exception $e) {
-            \Log::error('Facebook Auth Error: ' . $e->getMessage());
-            return redirect('/login')->withErrors('Facebook login failed. Please try again.');
+            Log::error('Facebook Auth Error: ' . $e->getMessage());
+            return redirect()->route('login')->withErrors([
+                'email' => 'ফেসবুক লগইন ব্যর্থ হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।'
+            ]);
         }
+    }
+
+    /**
+     * একাধিক ইউজার আইডি সেভ রাখার জন্য ইম্প্রুভড কুকি লজিক
+     */
+    private function syncSavedAccounts($userId): void
+    {
+        $cookieName = 'saved_accounts';
+        $userIds = [];
+
+        // ১. বিদ্যমান কুকি থেকে ডেটা রিড করা
+        if ($existingCookie = request()->cookie($cookieName)) {
+            try {
+                $userIds = json_decode(decrypt($existingCookie), true) ?: [];
+            } catch (\Exception $e) {
+                $userIds = [];
+            }
+        }
+
+        // ২. বর্তমান আইডি যদি লিস্টে না থাকে তবে যুক্ত করা
+        if (!in_array($userId, $userIds)) {
+            $userIds[] = $userId;
+        }
+
+        // ৩. কুকিটি 'Forever' হিসেবে সেভ করা যাতে লগআউট করলেও থেকে যায়
+        Cookie::queue(
+            cookie()->forever(
+                $cookieName,
+                encrypt(json_encode($userIds))
+            )
+        );
+
+        // ৪. পুরনো সিঙ্গেল ইউজার কুকি থাকলে তা ক্লিনআপ করা
+        Cookie::queue(Cookie::forget('last_logged_user'));
     }
 }

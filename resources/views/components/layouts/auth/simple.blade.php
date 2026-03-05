@@ -5,7 +5,7 @@
     @include('partials.head')
 </head>
 
-<body class="min-h-screen antialiased dark:bg-linear-to-b dark:from-neutral-950 dark:to-neutral-900">
+<body class="min-h-screen bg-white antialiased dark:bg-linear-to-b dark:from-neutral-950 dark:to-neutral-900">
     {{-- <div class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
         <div
             class="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] rounded-full bg-indigo-600/10 blur-[120px] animate-glow">
@@ -20,8 +20,8 @@
         <div class="flex w-full max-w-sm flex-col gap-2">
             <a href="{{ route('home') }}" class="flex flex-col items-center gap-2 font-medium" wire:navigate.hover>
                 <div class="flex items-center justify-center rounded-md gap-4">
-                    <x-app-logo-icon class="w-6 h-6" />
-                    <flux:text class="text-xl font-bold">{{ config('app.name', 'Totthobox') }}</flux:text>
+                    <flux:icon.brand class="size-12" />
+                    {{-- <flux:text class="text-xl font-bold">{{ config('app.name', 'Totthobox') }}</flux:text> --}}
                 </div>
             </a>
             <div class="flex flex-col gap-6">

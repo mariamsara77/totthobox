@@ -5,27 +5,33 @@ use App\Models\Subject;
 use App\Models\Test;
 
 new class extends Component {
-    public $subjectId;
+    public $subjectSlug;
     public $subject;
     public $tests = [];
     public $activeTab = 'current';
     public $isLoading = true;
 
-    public function mount($subjectId)
+    // Fixed: Parameters should match the variable names used inside
+    public function mount($slug)
     {
-        $this->subjectId = $subjectId;
+        $this->subjectSlug = $slug;
         $this->loadSubject();
     }
 
     public function loadSubject()
     {
-        $this->subject = Subject::with('classLevel')->find($this->subjectId);
+        // Fixed: Use $this->subjectSlug (the property) instead of $this->slug
+        // Also: If your slug is a string (e.g., 'maths'), use where() instead of find()
+        $this->subject = Subject::with('classLevel')
+            ->where('slug', $this->subjectSlug)
+            ->first();
 
         if (!$this->subject) {
             return redirect()->route('home');
         }
 
         $this->loadTests();
+        $this->isLoading = false; // Good practice to turn off loading once done
     }
 
     public function loadTests()
@@ -96,7 +102,7 @@ new class extends Component {
                             Start: {{ $test->start_time?->format('d M Y H:i') ?? 'N/A' }}<br>
                             End: {{ $test->end_time?->format('d M Y H:i') ?? 'N/A' }}
                         </flux:text>
-                        <flux:link href="{{ route('mcq.take-test', $test->id) }}">
+                        <flux:link href="{{ route('mcq.take-test', $test->slug) }}">
                             Take Test
                         </flux:link>
                     </div>

@@ -319,8 +319,8 @@ new class extends Component {
                             <div class="flex flex-wrap gap-2 mt-2">
                                 <div class="relative">
                                     <img src="{{ $currentThumbnail }}" class="h-20 w-20 object-cover rounded" />
-                                    <flux:button size="xs" variant="primary" color="red"
-                                        wire:click="removeCurrentThumbnail">×</flux:button>
+                                    <flux:button size="xs" variant="primary" color="red" wire:click="removeCurrentThumbnail">×
+                                    </flux:button>
                                 </div>
                             </div>
                         @endif
@@ -375,9 +375,9 @@ new class extends Component {
             </div>
 
             {{-- @if (session()->has('success'))
-                <div class="bg-green-100 text-green-700 px-4 py-3 rounded">{{ session('success') }}</div>
+            <div class="bg-green-100 text-green-700 px-4 py-3 rounded">{{ session('success') }}</div>
             @endif --}}
-            @include('partials.toast')
+
 
 
             <div class="overflow-x-auto mt-2">
@@ -420,15 +420,11 @@ new class extends Component {
                                 <td class="px-4 py-2">{{ $item->is_featured ? 'Yes' : 'No' }}</td>
                                 <td class="px-4 py-2 flex space-x-2">
                                     @if ($item->deleted_at)
-                                        <button wire:click="restoreItem({{ $item->id }})"
-                                            class="text-green-600">Restore</button>
-                                        <button wire:click="forceDeleteItem({{ $item->id }})"
-                                            class="text-red-600">Delete</button>
+                                        <button wire:click="restoreItem({{ $item->id }})" class="text-green-600">Restore</button>
+                                        <button wire:click="forceDeleteItem({{ $item->id }})" class="text-red-600">Delete</button>
                                     @else
-                                        <button wire:click="editItem({{ $item->id }})"
-                                            class="text-blue-600">Edit</button>
-                                        <button wire:click="deleteItem({{ $item->id }})"
-                                            class="text-red-600">Delete</button>
+                                        <button wire:click="editItem({{ $item->id }})" class="text-blue-600">Edit</button>
+                                        <button wire:click="deleteItem({{ $item->id }})" class="text-red-600">Delete</button>
                                     @endif
                                 </td>
                             </tr>

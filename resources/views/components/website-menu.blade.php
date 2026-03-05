@@ -13,6 +13,10 @@
         wire:navigate.hover>
         পাসওয়ার্ড সেটিংস
     </flux:sidebar.item>
+    <flux:sidebar.item icon="trash" :href="route('settings.profile.remove', ['slug' => auth()->user()->slug])"
+        :current="request()->routeIs('settings.profile.remove', ['slug' => auth()->user()->slug])" wire:navigate.hover>
+        প্রোফাইল মুছুন
+    </flux:sidebar.item>
     <flux:sidebar.item icon="eye" :href="route('settings.appearance')" :current="request()->routeIs('settings.appearance')"
         wire:navigate.hover>
         প্রদর্শন ব্যবস্থা
@@ -21,7 +25,7 @@
 
 {{-- বাংলাদেশ সম্পর্কিত মেনু --}}
 @if (Request::is('bangladesh*'))
-    <flux:sidebar.item class="!text-center mb-4 text-base">সেটিংস</flux:sidebar.item>
+    <flux:sidebar.item class="!text-center mb-4 text-base">বাংলাদেশ</flux:sidebar.item>
     {{-- <flux:sidebar.item class="!text-center mb-4 text-base">বাংলাদেশ</flux:sidebar.item> --}}
     <flux:sidebar.item icon="flag" :href="route('bangladesh.introduction')"
         :current="request()->routeIs('bangladesh.introduction')" wire:navigate.hover>

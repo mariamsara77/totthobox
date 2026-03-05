@@ -14,13 +14,12 @@
 
     <flux:header container class="border-b border-zinc-200  dark:border-zinc-700 ">
 
-        <a href="{{ route('home') }}" class="flex items-center space-x-2 rtl:space-x-reverse lg:ms-0"
-            wire:navigate.hover>
+        <a href="{{ route('home') }}" class="flex items-center rtl:space-x-reverse lg:ms-0" wire:navigate.hover>
             <div class="flex aspect-square size-14 items-center justify-center rounded-md ">
-                <x-app-logo-icon class="size-8 fill-current text-gray-500" />
+                <flux:icon.brand class="w-8 h-8" />
             </div>
-            <div class="hidden lg:flex ms-1 flex-1 text-start text-sm ">
-                <span class="mb-0.5 font-bold text-4xl text-gray-500">Totthobox</span>
+            <div class="hidden lg:flex flex-1">
+                <span class="text-3xl font-semibold text-black dark:text-white font-sans">Totthobox</span>
             </div>
         </a>
 
@@ -108,34 +107,29 @@
     {{ $slot }}
 
 
-    @guest
-        <script src="https://accounts.google.com/gsi/client" async defer></script>
-        <script>
-            function handleCredentialResponse(response) {
-                const id_token = response.credential;
 
-                fetch('{{ url('/api/google/verify-token') }}', { // ★ এই URL টি নিশ্চিত করুন
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute(
-                            'content') // আপনার meta ট্যাগ থেকে CSRF টোকেন নিতে হবে
-                    },
-                    body: JSON.stringify({
-                        token: id_token
-                    })
-                })
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.success) {
-                            window.location.href = data.redirect;
-                        } else {
-                            console.error(data.message);
-                        }
-                    });
-            }
-        </script>
-    @endguest
+    {{--
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <div id="g_id_onload" data-client_id="{{ config('services.google.client_id') }}"
+        data-callback="handleCredentialResponse" data-auto_prompt="true">
+    </div>
+
+    <script>
+        function handleCredentialResponse(response) {
+            fetch("{{ route('auth.google.one-tap') }}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-TOKEN": "{{ csrf_token() }}"
+                },
+                body: JSON.stringify({ token: response.credential })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) window.location.href = data.redirect;
+                });
+        }
+    </script> --}}
 
     @stack('scripts')
     @fluxScripts

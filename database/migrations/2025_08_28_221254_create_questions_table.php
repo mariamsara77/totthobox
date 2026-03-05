@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     /**
      * Run the migrations.
      */
@@ -48,6 +47,25 @@ return new class extends Migration
             // Timestamps & soft deletes
             $table->timestamps();
             $table->softDeletes();
+
+            // --- ADVANCED INDEXING (Optimized for Large Data) ---
+
+            // ১. নির্দিষ্ট ক্লাস এবং সাবজেক্ট অনুযায়ী প্রশ্নের তালিকা দ্রুত পাওয়ার জন্য (সবচেয়ে গুরুত্বপূর্ণ)
+            // এটি WHERE class_level_id = ? AND subject_id = ? AND is_active = 1 কোয়েরিকে অপ্টিমাইজ করবে
+            $table->index(['class_level_id', 'subject_id', 'is_active'], 'idx_ques_class_sub_active');
+
+            // ২. ডিফিকাল্টি লেভেল এবং মার্কস অনুযায়ী ফিল্টারিং
+            // কুইজ জেনারেটর বা ফিল্টারিং পেজের জন্য: WHERE difficulty_level = ? AND is_active = 1
+            $table->index(['difficulty_level', 'is_active'], 'idx_ques_difficulty');
+
+            // ৩. স্ট্যাটাস এবং ফিচারড সর্টিং (টপ বা রেন্ডম প্রশ্ন দেখানোর জন্য)
+            $table->index(['is_active', 'is_featured', 'view_count'], 'idx_ques_stats');
+
+            // ৪. টাইমস্ট্যাম্প এবং সফট ডিলিট অপ্টিমাইজেশন
+            $table->index(['deleted_at', 'published_at']);
+
+            // ৫. ইউজার আইডেন্টিটি ট্র্যাকিং
+            $table->index('user_id');
         });
     }
 

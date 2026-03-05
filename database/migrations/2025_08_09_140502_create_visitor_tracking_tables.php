@@ -5,89 +5,96 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
-    public function up()
+    public function up(): void
     {
-        // 1. Visitors Table
+        // 1. VISITORS
         Schema::create('visitors', function (Blueprint $table) {
-    $table->id();
-    $table->string('hash', 64)->unique();
-    $table->string('ip_address', 45)->nullable()->index();
-    $table->text('user_agent')->nullable(); // এই লাইনটি যোগ করুন
-    $table->string('browser', 50)->nullable();
-    $table->string('os', 50)->nullable();
-    $table->string('device', 50)->nullable();
-    $table->string('country', 10)->nullable();
-    $table->string('city', 100)->nullable();
-    $table->string('latitude')->nullable();
-    $table->string('longitude')->nullable();
-    $table->string('timezone', 50)->nullable();
-    $table->text('referrer')->nullable();
-    $table->string('referrer_domain')->nullable();
-    $table->boolean('is_bot')->default(false);
-    $table->timestamp('first_seen_at')->nullable();
-    $table->timestamp('last_seen_at')->nullable();
-    $table->string('screen_resolution', 25)->nullable();
-    $table->float('ram_gb')->nullable()->index();
-    $table->integer('cpu_cores')->nullable();
-    $table->string('network_type', 20)->nullable();
-    $table->timestamps();
+            $table->id();
+            $table->unsignedBigInteger('user_id')->nullable()->index();
+            $table->char('hash', 64)->unique();
+            $table->string('ip_address', 45)->nullable();
+            $table->string('browser_family', 50)->nullable()->index();
+            $table->string('os_family', 50)->nullable()->index();
+            $table->string('device_type', 20)->nullable()->index();
+            $table->string('device_model', 100)->nullable();
+            $table->char('country_code', 2)->nullable()->index();
+            $table->string('city_name', 100)->nullable();
+            $table->string('timezone', 64)->nullable();
+            $table->boolean('is_pwa')->default(false)->index();
+            $table->string('app_version', 20)->nullable();
+            $table->boolean('is_bot')->default(false);
+            $table->timestamp('first_seen_at')->useCurrent();
+            $table->timestamp('last_seen_at')->useCurrent();
+            $table->timestamps();
 
-    $table->index(['country', 'is_bot'], 'idx_country_bot');
-    $table->index(['last_seen_at', 'is_bot'], 'idx_active_users');
-});
+            $table->index(['country_code', 'device_type', 'is_bot'], 'idx_visitor_analytics');
+            $table->index(['last_seen_at', 'is_bot']);
+        });
 
-        // 2. Visitor Sessions Table
+        // 2. VISITOR SESSIONS
         Schema::create('visitor_sessions', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->foreignId('visitor_id')->constrained()->cascadeOnDelete();
-            $table->string('session_hash', 64)->unique();
-            $table->timestamp('started_at')->index();
-            $table->timestamp('ended_at')->nullable()->index();
-            $table->integer('duration')->unsigned()->nullable()->index(); // লং সেশন ফিল্টার করতে
+            $table->foreignId('visitor_id')->constrained('visitors')->cascadeOnDelete();
+            $table->string('origin_type', 20)->default('direct')->index();
+            $table->string('origin_source')->nullable()->index();
+            $table->text('entry_url')->nullable();
+            $table->string('utm_source')->nullable()->index();
+            $table->string('utm_medium')->nullable()->index();
+            $table->string('utm_campaign')->nullable()->index();
+            $table->timestamp('started_at')->useCurrent();
+            $table->timestamp('last_active_at')->nullable();
+            $table->unsignedInteger('hits_count')->default(0);
+            $table->unsignedInteger('seconds_spent')->default(0);
             $table->timestamps();
 
-            // Composite Index: সেশনের সময়কাল এবং ইউজারের সম্পর্ক দ্রুত করতে
-            $table->index(['visitor_id', 'started_at'], 'idx_visitor_session_time');
+            $table->index(['visitor_id', 'last_active_at'], 'idx_session_recovery');
+            $table->index(['started_at', 'origin_type'], 'idx_traffic_stats');
         });
 
-        // 3. Page Views Table
+        // 3. PAGE VIEWS
         Schema::create('page_views', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('visitor_id')->constrained()->cascadeOnDelete();
-            $table->uuid('session_id')->nullable();
-            $table->string('route_name')->nullable()->index();
-            $table->integer('status_code')->index(); // 404 বা 500 এরর ট্র্যাকিং ফাস্ট হবে
+            $table->uuid('session_id');
+            $table->foreignId('visitor_id')->constrained('visitors')->cascadeOnDelete();
+            $table->string('title', 255)->nullable();
             $table->text('url');
-            $table->string('method', 10)->default('GET');
-            $table->json('query_params')->nullable();
-            $table->decimal('load_time', 10, 3)->nullable()->index(); // স্লো পেজ সহজে ধরা যাবে
-            $table->boolean('is_ajax')->default(false);
-            $table->boolean('is_secure')->default(false);
-            $table->timestamps();
+            $table->char('url_hash', 40)->index();
+            $table->string('route_name', 100)->nullable()->index();
+            $table->unsignedInteger('load_time_ms')->nullable();
+            $table->unsignedInteger('view_duration')->default(0);
+            $table->timestamp('created_at')->useCurrent();
 
-            // Foreign Key & Composite Index
-            $table->foreign('session_id')->references('id')->on('visitor_sessions')->nullOnDelete();
-            $table->index(['session_id', 'created_at'], 'idx_session_page_order');
-            $table->index(['created_at', 'route_name'], 'idx_traffic_flow');
+            // Session foreign key
+            $table->foreign('session_id')->references('id')->on('visitor_sessions')->cascadeOnDelete();
+
+            $table->index(['visitor_id', 'created_at'], 'idx_user_journey');
+            $table->index(['created_at', 'route_name'], 'idx_popular_pages');
         });
 
-        // 4. Visitor Events Table
+        // 4. VISITOR EVENTS
         Schema::create('visitor_events', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('visitor_id')->constrained()->cascadeOnDelete();
             $table->uuid('session_id')->nullable();
-            $table->string('event_type')->index();
-            $table->string('event_name')->index();
-            $table->json('event_data')->nullable();
-            $table->timestamps();
+            $table->string('event_category', 50)->index();
+            $table->string('event_action', 50)->index();
+            $table->string('event_label', 100)->nullable();
+            $table->json('payload')->nullable();
+            $table->timestamp('created_at')->useCurrent();
 
-            $table->foreign('session_id')->references('id')->on('visitor_sessions')->nullOnDelete();
-            $table->index(['visitor_id', 'event_type', 'created_at'], 'idx_user_behavior');
+            // Foreign Key Definition
+            $table->foreign('session_id')
+                ->references('id')
+                ->on('visitor_sessions')
+                ->onDelete('cascade')
+                ->onUpdate('cascade');
+
+            $table->index(['event_category', 'event_action', 'created_at'], 'idx_event_stats');
         });
     }
 
-    public function down()
+    public function down(): void
     {
+        // Drop tables in REVERSE order of creation to avoid FK constraints
         Schema::dropIfExists('visitor_events');
         Schema::dropIfExists('page_views');
         Schema::dropIfExists('visitor_sessions');

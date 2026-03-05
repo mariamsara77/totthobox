@@ -53,6 +53,25 @@ return new class extends Migration {
             $table->foreign('updated_by')->references('id')->on('users')->nullOnDelete();
             $table->foreign('deleted_by')->references('id')->on('users')->nullOnDelete();
             $table->foreign('published_by')->references('id')->on('users')->nullOnDelete();
+
+            // --- ADVANCED INDEXING (Performance Boost) ---
+
+            // ১. লিডারবোর্ড এবং নির্দিষ্ট পরীক্ষার রেজাল্ট দ্রুত দেখার জন্য
+            // WHERE test_id = ? ORDER BY score DESC
+            $table->index(['test_id', 'score', 'completed_at'], 'idx_test_leaderboard');
+
+            // ২. ইউজারের নিজস্ব পরীক্ষার হিস্ট্রি দ্রুত লোড করার জন্য
+            // WHERE user_id = ? ORDER BY started_at DESC
+            $table->index(['user_id', 'started_at'], 'idx_user_attempt_history');
+
+            // ৩. স্ট্যাটাস ভিত্তিক ফিল্টারিং (যেমন: কতজন 'completed' করেছে)
+            $table->index(['status', 'completed_at']);
+
+            // ৪. ডেট রেঞ্জ সার্চ (যেমন: আজকের কতজন পরীক্ষা দিল)
+            $table->index('started_at');
+
+            // ৫. সফট ডিলিট অপ্টিমাইজেশন
+            $table->index('deleted_at');
         });
     }
 

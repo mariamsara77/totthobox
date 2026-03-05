@@ -2,37 +2,28 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class VisitorEvent extends Model
 {
-    use HasFactory;
+    public $timestamps = false;
 
     protected $fillable = [
-        'visitor_id',
         'session_id',
-        'event_type',
-        'event_name',
-        'event_data',
+        'event_category',
+        'event_action',
+        'event_label',
+        'payload',
+        'created_at'
     ];
 
     protected $casts = [
-        'event_data' => 'array',
+        'payload' => 'array',
+        'created_at' => 'datetime',
     ];
 
-    public function visitor(): BelongsTo
-    {
-        return $this->belongsTo(Visitor::class);
-    }
-
     public function session(): BelongsTo
-    {
-        return $this->belongsTo(VisitorSession::class);
-    }
-
-    public function visitorSession()
     {
         return $this->belongsTo(VisitorSession::class, 'session_id');
     }

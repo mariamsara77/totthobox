@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     /**
      * Run the migrations.
      */
@@ -21,11 +20,11 @@ return new class extends Migration
             $table->longText('bangla_fojilot')->nullable();
             $table->string('audio')->nullable();
             $table->longText('others')->nullable();
-            $table->string('type')->nullable(); // ধরন
+            $table->string('type')->nullable(); // যেমন: সকাল-সন্ধ্যা, বিপদ-আপদ
             $table->string('tags')->nullable();
             $table->string('slug')->unique();
             $table->unsignedBigInteger('user_id')->nullable();
-            $table->tinyInteger('status')->default(0);    // URL এর জন্য স্লাগ
+            $table->tinyInteger('status')->default(0);
 
             // SEO fields
             $table->string('meta_title')->nullable();
@@ -45,12 +44,31 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            // Foreign key constraints
+            // --- Foreign key constraints ---
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
             $table->foreign('created_by')->references('id')->on('users')->onDelete('set null');
             $table->foreign('updated_by')->references('id')->on('users')->onDelete('set null');
             $table->foreign('deleted_by')->references('id')->on('users')->onDelete('set null');
             $table->foreign('published_by')->references('id')->on('users')->onDelete('set null');
+
+            // --- ADVANCED INDEXING (Maximum Search Optimization) ---
+
+            // ১. টাইপ বা ক্যাটাগরি ভিত্তিক সর্টিং
+            // WHERE type = 'Morning' AND status = 1
+            $table->index(['type', 'status'], 'idx_dowa_type_status');
+
+            // ২. ফিচারড এবং ভিউ কাউন্ট সর্টিং (মোস্ট রিড দোয়া)
+            // ORDER BY is_featured DESC, view_count DESC
+            $table->index(['status', 'is_featured', 'view_count'], 'idx_dowa_featured_popular');
+
+            // ৩. বাংলা নামের ওপর দ্রুত সার্চ করার জন্য
+            $table->index('bangla_name');
+
+            // ৪. পাবলিশ ডেট এবং স্ট্যাটাস (লেটেস্ট দোয়া)
+            $table->index(['status', 'published_at']);
+
+            // ৫. ইউজার ভিত্তিক অডিট ফিল্টার
+            $table->index(['user_id', 'status']);
         });
     }
 

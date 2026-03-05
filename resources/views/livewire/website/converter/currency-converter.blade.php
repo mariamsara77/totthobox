@@ -267,7 +267,7 @@ new class extends Component {
         <p class="text-zinc-500 mt-2">সর্বনিম্ন পেলোড ও সুপার ফাস্ট রূপান্তর</p>
     </header>
 
-    @include('partials.toast')
+
 
     <div class="max-w-2xl mx-auto space-y-6">
 

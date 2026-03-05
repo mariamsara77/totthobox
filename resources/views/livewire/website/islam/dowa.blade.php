@@ -12,17 +12,17 @@ new class extends Component {
     }
 }; ?>
 
-<section class="max-w-2xl mx-auto">
-    <div class="text-center mb-12">
-        <flux:heading size="xl" class="font-black tracking-tight">
+<section class="max-w-2xl mx-auto space-y-4">
+    <div class="text-center">
+        <flux:heading level="1" size="xl">
             দোয়া সংগ্রহ
         </flux:heading>
-        <flux:subheading size="lg" class="mt-2 text-zinc-500">
+        <flux:subheading level="2">
             প্রতিদিনের প্রয়োজনীয় দোয়া ও আমলসমূহ
         </flux:subheading>
     </div>
 
-    <div class="grid gap-8 mt-8">
+    <div class="grid gap-8">
         @forelse($dowas as $dowa)
             <div>
                 <div class="flex flex-col gap-6">
@@ -64,10 +64,7 @@ new class extends Component {
                 </div>
             </div>
         @empty
-            <div class="flex flex-col items-center justify-center py-20 border-2 border-dashed border-zinc-200 rounded-2xl">
-                <flux:icon.magnifying-glass size="xl" class="text-zinc-300" />
-                <flux:text class="mt-4">কোনো তথ্য খুঁজে পাওয়া যায়নি।</flux:text>
-            </div>
+            <livewire:global.nodata-message :title="'দোয়া সংগ্রহ'" />
         @endforelse
     </div>
 </section>

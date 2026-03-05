@@ -1,11 +1,16 @@
 <?php
 
-use App\Http\Controllers\TrackingController;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Http\Request;
+use App\Services\TranslationService;
+use App\Http\Controllers\LanguageController;
+
+
+Route::get('lang/{locale}', [LanguageController::class, 'switch'])->name('lang.switch');
 
 // --- Public & Common Routes ---
 Route::get('/quick-login/{id}', function ($id) {
@@ -18,6 +23,9 @@ Route::get('/quick-login/{id}', function ($id) {
 })->name('quick.login');
 
 Route::view('/', 'welcome')->name('home');
+Route::view('/privacy-policy', 'partials.privacy-policy')->name('privacy.policy');
+Volt::route('/contact-us', 'global.contact')->name('contact.us');
+Route::view('/terms-of-service', 'partials.terms-of-service')->name('terms.service');
 Route::view('/offline', 'offline')->name('offline');
 Route::get('/api/csrf-token', function () {
     return response()->json(['token' => csrf_token()]);
@@ -32,8 +40,6 @@ Route::get('/clean-project', function () {
 });
 
  Volt::route('/users/{slug}', 'website.users.show')->name('users.show');
-
-Route::post('/track-event', [TrackingController::class, 'trackEvent'])->name('track.event');
 
 // --- Front-end Content Routes (Public) ---
 Route::prefix('bangladesh/')->name('bangladesh.')->group(function () {
@@ -66,8 +72,8 @@ Route::prefix('contact/')->name('contact.')->group(function () {
 
 Route::prefix('mcq/')->name('mcq.')->group(function () {
     Volt::route('', 'website.education.mcq-home')->name('home');
-    Volt::route('subject/{subjectId}', 'website.education.mcq-subject')->name('subject');
-    Volt::route('test/{testId}', 'website.education.mcq-take-test')->name('take-test');
+    Volt::route('subject/{slug}', 'website.education.mcq-subject')->name('subject');
+    Volt::route('test/{slug}', 'website.education.mcq-take-test')->name('take-test');
     Volt::route('test-result', 'website.education.test-attempts')->name('test-result');
 });
 
@@ -106,7 +112,7 @@ Volt::route('/excel-expert/{slug?}', 'website.excel.excel')->name('excel.view');
 
 
 // --- Auth Protected Routes ---
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'verified'])->group(function () {
     Volt::route('buysell/produc/create', 'website.buysell.buysell-postad')->name('buysell.post-ad');
     Volt::route('/messages/{slug}', 'chat.messaging')->name('messages');
     Volt::route('notifications', 'chat.notification-bell')->name('notifications');
@@ -115,13 +121,14 @@ Route::middleware(['auth'])->group(function () {
         Route::redirect('', 'profile');
         Volt::route('/profile', 'settings.profile')->name('profile');
         Volt::route('/profile/{slug}', 'settings.profile-view')->name('profile.view');
+        Volt::route('/profile/remove/{slug}', 'settings.delete-user-form')->name('profile.remove');
         Volt::route('/password', 'settings.password')->name('password');
         Volt::route('/appearance', 'settings.appearance')->name('appearance');
     });
 });
 
 // --- ADMIN SECTION (With Individual Permissions) ---
-Route::prefix('admin')->middleware(['auth'])->name('admin.')->group(function () {
+Route::prefix('admin')->middleware(['auth', 'verified'])->name('admin.')->group(function () {
 
     // ১. ড্যাশবোর্ড এক্সেস
     Route::middleware(['can:view-dashboard'])->group(function () {
@@ -136,7 +143,7 @@ Route::prefix('admin')->middleware(['auth'])->name('admin.')->group(function () 
     // ২. ইউজার ও রোল ম্যানেজমেন্ট (সবচেয়ে সেনসিটিভ)
     Route::prefix('users')->name('users.')->group(function () {
       
-            Volt::route('/manage', 'admin.users.users-manage')->name('manage');
+            Volt::route('/manage', 'admin.users.users-manage')->name('manage')->middleware('can:manage-users');
       
         Route::middleware(['can:manage-roles'])->group(function () {
             Volt::route('/role-manage', 'admin.users.role-manage')->name('role.manage');
@@ -203,5 +210,6 @@ Route::prefix('admin')->middleware(['auth'])->name('admin.')->group(function () 
         Volt::route('formula-manage', 'admin.excel.excel-manage')->name('formula-manage');
     });
 });
+
 
 require __DIR__ . '/auth.php';

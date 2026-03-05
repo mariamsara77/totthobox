@@ -59,6 +59,26 @@ return new class extends Migration {
             $table->foreign('updated_by')->references('id')->on('users')->nullOnDelete();
             $table->foreign('deleted_by')->references('id')->on('users')->nullOnDelete();
             $table->foreign('published_by')->references('id')->on('users')->nullOnDelete();
+
+            // --- ADVANCED INDEXING (Maximum Efficiency) ---
+
+            // ১. নির্দিষ্ট ক্লাসের নির্দিষ্ট সাবজেক্টের পাবলিশড পরীক্ষাগুলো দ্রুত পাওয়ার জন্য
+            // WHERE class_level_id = ? AND subject_id = ? AND is_published = 1
+            $table->index(['class_level_id', 'subject_id', 'is_published'], 'idx_test_lookup');
+
+            // ২. চলমান পরীক্ষা (Running Exams) ফিল্টার করার জন্য
+            // WHERE start_time <= NOW() AND end_time >= NOW()
+            $table->index(['start_time', 'end_time', 'is_published'], 'idx_test_schedule');
+
+            // ৩. স্ট্যাটাস এবং ফিচারড সর্টিং (টপ পরীক্ষাগুলো দেখানোর জন্য)
+            $table->index(['status', 'is_featured', 'view_count'], 'idx_test_featured_stats');
+
+            // ৪. পাবলিশ ডেট এবং টাইটেল দিয়ে সার্চের জন্য
+            $table->index(['is_published', 'published_at']);
+            $table->index('title');
+
+            // ৫. সফট ডিলিট অপ্টিমাইজেশন
+            $table->index('deleted_at');
         });
     }
 

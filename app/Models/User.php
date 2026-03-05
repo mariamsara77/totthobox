@@ -15,8 +15,9 @@ use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Spatie\Image\Enums\Fit;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 
-class User extends Authenticatable implements HasMedia
+class User extends Authenticatable implements MustVerifyEmail, HasMedia
 {
     use HasFactory, HasPushSubscriptions, Notifiable, SoftDeletes, HasRoles, InteractsWithMedia;
 
@@ -50,6 +51,8 @@ class User extends Authenticatable implements HasMedia
         'remember_token',
     ];
 
+    protected $with = ['roles', 'permissions', 'media'];
+
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
@@ -57,6 +60,27 @@ class User extends Authenticatable implements HasMedia
         'is_student' => 'boolean',
     ];
 
+    // User.php
+// User.php
+    public function getAvatarUrlAttribute(): string
+    {
+        // ১. মিডিয়া কালেকশন মেমোরি থেকে চেক করা (hasMedia এর বদলে)
+        $media = $this->getMedia('avatars');
+
+        if ($media->isNotEmpty()) {
+            // থাম্বনেইল চেক
+            $url = $this->getFirstMediaUrl('avatars', 'thumb');
+            return $url ?: $this->getFirstMediaUrl('avatars');
+        }
+
+        // ২. কলাম চেক
+        if ($this->avatar) {
+            return asset('storage/' . $this->avatar);
+        }
+
+        // ৩. ডিফল্ট
+        return 'https://ui-avatars.com/api/?name=' . urlencode($this->name) . '&color=7F9CF5&background=EBF4FF';
+    }
     // --- Relationships ---
     public function division(): BelongsTo
     {
@@ -81,7 +105,7 @@ class User extends Authenticatable implements HasMedia
     }
     public function buysellposts(): HasMany
     {
-        return $this->hasMany(buysellpost::class);
+        return $this->hasMany(Buysellpost::class);
     }
 
     // --- Messaging Relationships ---
@@ -112,7 +136,11 @@ class User extends Authenticatable implements HasMedia
     protected static function boot()
     {
         parent::boot();
-        static::creating(fn($user) => $user->slug = $user->slug ?? Str::slug($user->name) . '-' . Str::random(6));
+        static::creating(function ($user) {
+            if (empty($user->slug)) {
+                $user->slug = Str::slug($user->name) . '-' . Str::lower(Str::random(6));
+            }
+        });
     }
 
     public function getRouteKeyName(): string
@@ -127,7 +155,7 @@ class User extends Authenticatable implements HasMedia
 
     public function isOnline(): bool
     {
-        return $this->last_active_at?->gt(now()->subMinutes(5));
+        return (bool) ($this->last_active_at?->gt(now()->subMinutes(5)));
     }
 
     // --- Scopes ---

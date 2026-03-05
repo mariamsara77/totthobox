@@ -68,7 +68,7 @@ new class extends Component {
         </div>
     </div>
 
-    @include('partials.toast')
+    
 
     <flux:card class="p-0! overflow-hidden shadow-sm border-zinc-200 dark:border-zinc-800">
         <flux:table>
@@ -110,7 +110,7 @@ new class extends Component {
                         <flux:table.cell>
                             <div class="flex items-center gap-2">
                                 <flux:avatar 
-                                    src="{{ $sender?->avatar ?? $sender?->photo }}" 
+                                    src="{{ $sender?->avatar_url ?? $sender?->photo }}" 
                                     name="{{ $sender?->name ?? 'Guest' }}"
                                     class="rounded-lg" />
                                 <div class="flex flex-col">

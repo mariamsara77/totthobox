@@ -3,201 +3,231 @@
 use Livewire\Volt\Component;
 use App\Models\Para;
 use Livewire\WithPagination;
-use Flux\Flux;
 use Illuminate\Support\Str;
+use Livewire\Attributes\{Computed, Validate};
 
 new class extends Component {
     use WithPagination;
 
-    // Form fields
     public $paraId;
+
+    #[Validate('required|integer|min:1|max:30')]
     public $para_number;
+
+    #[Validate('required|string')]
     public $name_arabic = '';
+
+    #[Validate('required|string')]
     public $name_english = '';
+
+    #[Validate('required|string')]
     public $name_bangla = '';
+
     public $is_active = true;
-
-    // UI states
-    public $showForm = false;
-    public $formType = 'create';
     public $search = '';
+    public $viewType = 'active'; // আপনার সেভড ফরম্যাট অনুযায়ী
 
-    // Pagination / Sorting
-    public $perPage = 10;
-    public $sortField = 'para_number';
-    public $sortDirection = 'asc';
-
-    public function getParasProperty()
+    public function updatedSearch()
     {
-        return Para::query()
-            ->when($this->search, function ($query) {
-                $query->where('name_bangla', 'like', '%' . $this->search . '%')
-                    ->orWhere('name_english', 'like', '%' . $this->search . '%')
-                    ->orWhere('para_number', 'like', '%' . $this->search . '%');
-            })
-            ->orderBy($this->sortField, $this->sortDirection)
-            ->paginate($this->perPage);
+        $this->resetPage();
     }
 
-    public function sortBy($field)
+    public function updatedViewType()
     {
-        $this->sortDirection = ($this->sortField === $field && $this->sortDirection === 'asc') ? 'desc' : 'asc';
-        $this->sortField = $field;
+        $this->resetPage();
+    }
+
+    #[Computed]
+    public function paras()
+    {
+        return ($this->viewType === 'trashed' ? Para::onlyTrashed() : Para::query())
+            ->when($this->search, function ($query) {
+                $query->where(function ($q) {
+                    $q->where('name_bangla', 'like', '%' . $this->search . '%')
+                        ->orWhere('name_english', 'like', '%' . $this->search . '%')
+                        ->orWhere('para_number', 'like', '%' . $this->search . '%');
+                });
+            })
+            ->orderBy('para_number', 'asc')
+            ->paginate(10);
     }
 
     public function showCreateForm()
     {
-        $this->resetForm();
-        $this->formType = 'create';
-        $this->showForm = true;
+        $this->resetValidation();
+        $this->reset(['paraId', 'para_number', 'name_arabic', 'name_english', 'name_bangla', 'is_active']);
+        $this->dispatch('modal-show', name: 'para-form');
     }
 
-    public function showEditForm(Para $para)
+    public function showEditForm($id)
     {
+        $this->resetValidation();
+        $para = Para::withTrashed()->findOrFail($id);
+
         $this->paraId = $para->id;
         $this->para_number = $para->para_number;
         $this->name_arabic = $para->name_arabic;
         $this->name_english = $para->name_english;
         $this->name_bangla = $para->name_bangla;
-        $this->is_active = $para->is_active;
+        $this->is_active = (bool) $para->is_active;
 
-        $this->formType = 'edit';
-        $this->showForm = true;
-    }
-
-    public function resetForm()
-    {
-        $this->reset(['paraId', 'para_number', 'name_arabic', 'name_english', 'name_bangla', 'is_active']);
-        $this->resetErrorBag();
+        $this->dispatch('modal-show', name: 'para-form');
     }
 
     public function save()
     {
-        $validated = $this->validate([
-            'para_number' => 'required|integer|unique:paras,para_number,' . $this->paraId,
-            'name_arabic' => 'required|string',
-            'name_english' => 'required|string',
-            'name_bangla' => 'required|string',
-            'is_active' => 'boolean',
+        $this->validate([
+            'para_number' => 'unique:paras,para_number,' . $this->paraId
         ]);
 
-        $validated['slug'] = Str::slug($this->name_english);
+        $data = [
+            'para_number' => $this->para_number,
+            'name_arabic' => $this->name_arabic,
+            'name_english' => $this->name_english,
+            'name_bangla' => $this->name_bangla,
+            'slug' => Str::slug($this->name_english),
+            'is_active' => $this->is_active,
+        ];
 
-        if ($this->formType === 'edit') {
-            Para::find($this->paraId)->update($validated);
-            $message = 'Para updated successfully!';
-        } else {
-            Para::create($validated);
-            $message = 'Para created successfully!';
-        }
+        Para::updateOrCreate(['id' => $this->paraId], $data);
 
-        $this->showForm = false;
-        $this->resetForm();
-        Flux::toast($message);
+        $this->dispatch('modal-close', name: 'para-form');
+        $this->dispatch('toast', variant: 'success', text: 'পারা সফলভাবে সংরক্ষিত হয়েছে।');
     }
 
-    public function deletePara(Para $para)
+    // Soft Delete (Trash)
+    public function delete($id)
     {
+        $para = Para::find($id);
         $para->delete();
-        Flux::toast('Para deleted successfully!');
+        $this->dispatch('toast', variant: 'warning', text: 'পারাটি ট্র্যাশে পাঠানো হয়েছে।');
+    }
+
+    // Restore from Trash
+    public function restore($id)
+    {
+        $para = Para::onlyTrashed()->findOrFail($id);
+        $para->restore();
+        $this->dispatch('toast', variant: 'success', text: 'পারাটি রিস্টোর করা হয়েছে।');
+    }
+
+    // Permanent Delete
+    public function forceDelete($id)
+    {
+        $para = Para::onlyTrashed()->findOrFail($id);
+        $para->forceDelete();
+        $this->dispatch('toast', variant: 'error', text: 'পারাটি স্থায়ীভাবে ডিলিট করা হয়েছে।');
     }
 }; ?>
 
-<section>
-    <div class="flex flex-col space-y-6">
-        @if ($showForm)
-            <div class="">
-                <div class="flex justify-between items-center mb-6">
-                    <h3 class="text-xl font-bold">{{ $formType === 'create' ? 'নতুন পারা যুক্ত করুন' : 'পারা এডিট করুন' }}
-                    </h3>
-                    <flux:button wire:click="$set('showForm', false)" variant="ghost" size="sm">Back</flux:button>
-                </div>
+<div>
+    {{-- Header Section with Toggle --}}
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div>
+            <flux:heading size="xl">Para Management</flux:heading>
+            <flux:subheading>Manage the 30 Paras of Al-Quran.</flux:subheading>
+        </div>
 
-                <form wire:submit.prevent="save" class="space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <flux:input type="number" wire:model="para_number" label="পারা নম্বর (১-৩০)" />
-                        <flux:input type="text" wire:model="name_arabic" label="আরবি নাম" />
-                        <flux:input type="text" wire:model="name_english" label="ইংরেজি নাম" />
-                        <flux:input type="text" wire:model="name_bangla" label="বাংলা নাম" />
-                    </div>
-
-                    <div class="flex items-center space-x-4">
-                        <flux:checkbox wire:model="is_active" label="Active" />
-                    </div>
-
-                    <div class="mt-6 flex justify-end space-x-3">
-                        <flux:button type="button" wire:click="$set('showForm', false)">Cancel</flux:button>
-                        <flux:button type="submit" variant="primary">
-                            {{ $formType === 'create' ? 'Save Para' : 'Update Para' }}
-                        </flux:button>
-                    </div>
-                </form>
-            </div>
-        @else
-            <div class="flex justify-between items-center">
-                <h2 class="text-2xl font-bold">Para Management</h2>
-                <flux:button wire:click="showCreateForm" variant="primary">Create New Para</flux:button>
-            </div>
-
-            <flux:input type="text" wire:model.live.debounce.300ms="search" placeholder="Search by name or number..." />
-
-            <flux:table>
-                <flux:table.columns>
-                    <flux:table.column wire:click="sortBy('para_number')" :sortable="true"
-                        :direction="$sortField === 'para_number' ? $sortDirection : null">
-                        No
-                    </flux:table.column>
-
-                    <flux:table.column>Name (BN/AR)</flux:table.column>
-
-                    <flux:table.column>Status</flux:table.column>
-
-                    <flux:table.column align="end">Actions</flux:table.column>
-                </flux:table.columns>
-
-                <flux:table.rows>
-                    @forelse ($this->paras as $para)
-                        <flux:table.row :key="$para->id">
-                            <flux:table.cell class="font-bold text-gray-900">
-                                {{ $para->para_number }}
-                            </flux:table.cell>
-
-                            <flux:table.cell>
-                                <div class="flex flex-col">
-                                    <span class="font-medium text-gray-900">{{ $para->name_bangla }}</span>
-                                    <span class="text-xs text-gray-500 font-arabic">{{ $para->name_arabic }}</span>
-                                </div>
-                            </flux:table.cell>
-
-                            <flux:table.cell>
-                                <flux:badge size="sm" :color="$para->is_active ? 'green' : 'red'" inset="top">
-                                    {{ $para->is_active ? 'Active' : 'Inactive' }}
-                                </flux:badge>
-                            </flux:table.cell>
-
-                            <flux:table.cell align="end">
-                                <div class="flex justify-end gap-2">
-                                    <flux:button wire:click="showEditForm({{ $para->id }})" variant="ghost" size="sm"
-                                        icon="pencil-square" />
-                                    <flux:button wire:confirm="আয়াতগুলোসহ এই পারাটি মুছে ফেলতে চান?"
-                                        wire:click="deletePara({{ $para->id }})" variant="ghost" size="sm" color="red"
-                                        icon="trash" />
-                                </div>
-                            </flux:table.cell>
-                        </flux:table.row>
-                    @empty
-                        <flux:table.row>
-                            <flux:table.cell colspan="4" class="text-center py-10 text-gray-400">
-                                কোনো ডাটা পাওয়া যায়নি।
-                            </flux:table.cell>
-                        </flux:table.row>
-                    @endforelse
-                </flux:table.rows>
-            </flux:table>
-
-            <div class="mt-4">
-                {{ $this->paras->links() }}
-            </div>
-        @endif
+        <div class="flex items-center gap-3">
+            <flux:radio.group wire:model.live="viewType" variant="segmented" size="sm">
+                <flux:radio value="active" label="Active" />
+                <flux:radio value="trashed" label="Trashed" />
+            </flux:radio.group>
+            <flux:button wire:click="showCreateForm" icon="plus" variant="primary" size="sm">Create New</flux:button>
+        </div>
     </div>
-</section>
+
+    {{-- Search Filter --}}
+    <div class="mb-4">
+        <flux:input wire:model.live.debounce.400ms="search" placeholder="পারা নম্বর বা নাম দিয়ে খুঁজুন..."
+            icon="magnifying-glass" />
+    </div>
+
+    {{-- Table Section --}}
+    <flux:table :paginate="$this->paras">
+        <flux:table.columns>
+            <flux:table.column>No</flux:table.column>
+            <flux:table.column>Name (Bangla / Arabic)</flux:table.column>
+            <flux:table.column>Status</flux:table.column>
+            <flux:table.column align="end">Actions</flux:table.column>
+        </flux:table.columns>
+
+        <flux:table.rows>
+            @forelse ($this->paras as $para)
+                <flux:table.row :key="$para->id">
+                    <flux:table.cell class="font-bold">
+                        {{ str_pad($para->para_number, 2, '0', STR_PAD_LEFT) }}
+                    </flux:table.cell>
+
+                    <flux:table.cell>
+                        <div class="flex flex-col text-sm">
+                            <span class="font-medium text-zinc-800 dark:text-zinc-200">{{ $para->name_bangla }}</span>
+                            <span class="text-xs text-zinc-500 font-arabic italic">{{ $para->name_arabic }}</span>
+                        </div>
+                    </flux:table.cell>
+
+                    <flux:table.cell>
+                        <flux:badge size="sm" :color="$para->is_active ? 'green' : 'red'" inset="top bottom">
+                            {{ $para->is_active ? 'Active' : 'Inactive' }}
+                        </flux:badge>
+                    </flux:table.cell>
+
+                    <flux:table.cell align="end">
+                        <div class="flex justify-end gap-1">
+                            @if($viewType === 'active')
+                                <flux:button variant="ghost" size="sm" icon="pencil-square"
+                                    wire:click="showEditForm({{ $para->id }})" />
+                                <flux:button variant="ghost" size="sm" icon="trash" color="red" wire:confirm="আর ইউ সিওর?"
+                                    wire:click="delete({{ $para->id }})" />
+                            @else
+                                <flux:button variant="ghost" size="sm" icon="arrow-path" color="green"
+                                    wire:click="restore({{ $para->id }})" />
+                                <flux:button variant="ghost" size="sm" icon="x-mark" color="red"
+                                    wire:confirm="স্থায়ীভাবে মুছে ফেলতে চান?" wire:click="forceDelete({{ $para->id }})" />
+                            @endif
+                        </div>
+                    </flux:table.cell>
+                </flux:table.row>
+            @empty
+                <flux:table.row>
+                    <flux:table.cell colspan="4" class="text-center py-10 text-zinc-400">
+                        @if($viewType === 'active')
+                            কোনো তথ্য পাওয়া যায়নি।
+                        @else
+                            তথ্য পাওয়া যায়নি।
+                        @endif
+                    </flux:table.cell>
+                </flux:table.row>
+            @endforelse
+        </flux:table.rows>
+    </flux:table>
+
+    {{-- Modal Form --}}
+    <flux:modal name="para-form" class="md:w-[40rem]">
+        <form wire:submit="save" class="space-y-6">
+            <div>
+                <flux:heading size="lg">{{ $paraId ? 'Edit Para' : 'Add New Para' }}</flux:heading>
+                <flux:subheading>পারা সংক্রান্ত তথ্যগুলো সঠিকভাবে পূরণ করুন।</flux:subheading>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <flux:input type="number" wire:model="para_number" label="পারা নম্বর (১-৩০)" required />
+                <flux:input wire:model="name_arabic" label="আরবি নাম" required />
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <flux:input wire:model="name_english" label="ইংরেজি নাম" required />
+                <flux:input wire:model="name_bangla" label="বাংলা নাম" required />
+            </div>
+
+            <flux:checkbox wire:model="is_active" label="পাবলিশ করুন (Active)" />
+
+            <div class="flex justify-end gap-3 pt-6 border-t border-zinc-100 dark:border-zinc-800">
+                <flux:modal.close>
+                    <flux:button variant="ghost">বাতিল</flux:button>
+                </flux:modal.close>
+                <flux:button type="submit" variant="primary">সংরক্ষণ করুন</flux:button>
+            </div>
+        </form>
+    </flux:modal>
+</div>

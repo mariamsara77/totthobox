@@ -45,11 +45,11 @@ new class extends Component {
     public function introBds()
     {
         return ($this->viewType === 'trashed' ? IntroBd::onlyTrashed() : IntroBd::query())
+            ->with('creator') // এখানে 'user' এর বদলে 'creator' দিন
             ->when($this->search, fn($q) => $q->where('title', 'like', "%{$this->search}%"))
             ->latest()
             ->paginate(10);
     }
-
     public function with(): array
     {
         return [
@@ -158,7 +158,7 @@ new class extends Component {
     }
 }; ?>
 
-<div class="p-6">
+<div class="">
     {{-- Header Section --}}
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div>
@@ -186,31 +186,43 @@ new class extends Component {
             <flux:table.column>Media</flux:table.column>
             <flux:table.column sortable>Title</flux:table.column>
             <flux:table.column>Category</flux:table.column>
+            <flux:table.column>Creator</flux:table.column>
             <flux:table.column align="end">Action</flux:table.column>
         </flux:table.columns>
 
         <flux:table.rows>
             @forelse ($this->introBds as $item)
                 <flux:table.row :key="$item->id">
-                    <flux:table.cell>
-                      
-                            @php 
-                                $images = $item->getMedia('intro_images'); 
-                            @endphp
+                   <flux:table.cell>
+                    @php 
+                        $images = $item->getMedia('intro_images'); 
+                    @endphp
 
-                        <flux:avatar.group>
-                                @foreach($images->take(3) as $media)
-                                    <flux:avatar src="{{ $media->getUrl() }}" />
-                                @endforeach
-                                @if($images->count() > 3)
-                                    <flux:avatar initials="+{{ $images->count() - 3 }}" />
-                                @endif
-                        </flux:avatar.group>
-                    </flux:table.cell>
+                    <flux:avatar.group>
+                        @if($images->isEmpty())
+                            {{-- ইমেজ না থাকলে ডিফল্ট ইমেজ --}}
+                            <flux:icon.photo />
+                        @else
+                            {{-- ইমেজ থাকলে লুপ চলবে --}}
+                            @foreach($images->take(3) as $media)
+                                <flux:avatar src="{{ $media->getUrl('thumb') }}" />
+                            @endforeach
+
+                            @if($images->count() > 3)
+                                <flux:avatar initials="+{{ $images->count() - 3 }}" />
+                            @endif
+                        @endif
+                    </flux:avatar.group>
+                </flux:table.cell>
                     <flux:table.cell class="font-medium">{{ $item->title }}</flux:table.cell>
                     <flux:table.cell>
                         <flux:badge size="sm" color="zinc" inset="top bottom">{{ $item->intro_category ?: 'General' }}
                         </flux:badge>
+                    </flux:table.cell>
+                    <flux:table.cell>
+                        <flux:link href="{{ route('users.show', $item->creator?->slug ?: 'unknown' ) }}">
+                        {{ $item->creator?->name ?: 'Unknown' }}
+                        </flux:link>
                     </flux:table.cell>
                 <flux:table.cell align="end">
                     @if($viewType === 'active')

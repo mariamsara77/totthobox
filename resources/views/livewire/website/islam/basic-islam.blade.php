@@ -2,53 +2,61 @@
 
 use Livewire\Volt\Component;
 use App\Models\BasicIslam;
+use Illuminate\Support\Facades\Cache;
 
 new class extends Component {
-    public $basicislams;
+    // পাবলিক প্রপার্টিতে ডাটা রাখা এড়িয়ে চলুন যদি সেটা আপডেট করার প্রয়োজন না হয়
     public $showForm = false;
     public $formType = 'create';
 
-    public function mount()
+    /**
+     * Computed Property ব্যবহার করলে এটি মেমরিতে ডাটা ধরে রাখে না, 
+     * শুধু যখন রেন্ডার হয় তখন কল হয়।
+     */
+    public function basicislams()
     {
-        // ল্যাটেস্ট ডেটা আগে দেখানোর জন্য চাইলে sort করতে পারেন
-        $this->basicislams = BasicIslam::latest()->get();
+        return Cache::remember('basic_islams_list', 3600, function () {
+            // শুধু টাইটেল এবং ডেসক্রিপশন নিন, অপ্রয়োজনীয় কলাম বাদ দিন
+            return BasicIslam::select('title', 'description')
+                ->latest()
+                ->get();
+        });
+    }
+
+    // ডাটাবেসে নতুন কিছু সেভ হলে ক্যাশ ক্লিয়ার করতে হবে
+    public function clearCache()
+    {
+        Cache::forget('basic_islams_list');
     }
 }; ?>
-<section class="max-w-2xl mx-auto px-4 py-8 md:py-12">
-    <div class="mb-10 text-center">
-        <flux:heading level="1" size="xl" class="md:text-3xl font-bold">
-            ইসলামের মৌলিক জ্ঞান
-        </flux:heading>
 
-        {{-- এটি অটোমেটিক লাইট/ডার্ক মুডে অ্যাডজাস্ট হবে --}}
-        <flux:separator variant="subtle" class="max-w-[100px] mx-auto mt-4" />
+<section class="max-w-2xl mx-auto space-y-4">
+    <div class="text-center">
+        <flux:heading level="1" size="xl">ইসলামের মৌলিক জ্ঞান</flux:heading>
+        <flux:subheading level="2">ইসলামের মূল ভিত্তি ও মৌলিক জ্ঞান সম্পর্কে সংক্ষিপ্ত ধারণা</flux:subheading>
     </div>
 
     <div class="space-y-8">
-        @forelse($basicislams as $basicislam)
+        {{-- Computed property কল করার সময় $this->basicislams() এভাবে করতে হয় --}}
+        @forelse($this->basicislams() as $basicislam)
             <div class="group">
-                {{-- টাইটেলের জন্য Flux Heading ব্যবহার করা হয়েছে --}}
                 <flux:heading level="2" size="lg" class="flex items-center gap-2">
                     <span class="opacity-50">•</span>
                     {{ $basicislam->title }}
                 </flux:heading>
 
                 <div class="mt-2 pl-5 md:pl-6 mb-8">
-                    {{-- ডেসক্রিপশনের জন্য Flux Text ব্যবহার করা হয়েছে যা থিম অনুযায়ী কালার পরিবর্তন করে --}}
                     <flux:text class="text-sm md:text-base leading-relaxed">
                         {{ $basicislam->description }}
                     </flux:text>
                 </div>
 
-                {{-- প্রতিটি বিষয়ের মাঝে ডিভাইডার --}}
                 @if (!$loop->last)
                     <flux:separator variant="subtle" />
                 @endif
             </div>
         @empty
-            <div class="text-center py-10">
-                <flux:text>কোনো তথ্য পাওয়া যায়নি।</flux:text>
-            </div>
+            <livewire:global.nodata-message :title="'ইসলামের মৌলিক জ্ঞান'" />
         @endforelse
     </div>
 </section>

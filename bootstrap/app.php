@@ -8,13 +8,16 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',
+        api: __DIR__ . '/../routes/api.php',
         channels: __DIR__.'/../routes/channels.php',
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
 
+
+    $middleware->trustProxies(at: '*');
         $middleware->validateCsrfTokens(except: [
-            'track-event', // আপনার রাউট ইউআরএল
+            'api/tracking/*',    
             'api/sync-offline-data'
         ]);
         
@@ -27,6 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\TrackVisitors::class,
             \App\Http\Middleware\UpdateLastActive::class,
             \App\Http\Middleware\AdminDebugbar::class,
+            \App\Http\Middleware\TranslateMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

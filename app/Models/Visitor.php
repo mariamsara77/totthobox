@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\{HasMany, HasOne, BelongsTo, HasManyThrough};
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 
@@ -12,117 +12,78 @@ class Visitor extends Model
 {
     use HasFactory;
 
-    /**
-     * The attributes that are mass assignable.
-     */
     protected $fillable = [
-        'hash',
-        'ip_address',
-        'user_agent',
-        'browser',
-        'os',
-        'device',
-        'country',
-        'city',
-        'latitude',
-        'longitude',
-        'timezone',
-        'referrer',
-        'referrer_domain',
-        'is_bot',
-        'first_seen_at',
+        'user_id', 'hash', 'ip_address', 'browser_family', 'os_family', 
+        'device_type', 'device_model', 'country_code', 'city_name', 
+        'timezone', 'is_pwa', 'app_version', 'is_bot', 'first_seen_at', 
         'last_seen_at',
-        // Modern Specs Columns
-        'screen_resolution',
-        'ram_gb',
-        'cpu_cores',
-        'network_type'
     ];
 
-    /**
-     * The attributes that should be cast.
-     */
     protected $casts = [
+        'is_pwa' => 'boolean',
+        'is_bot' => 'boolean',
         'first_seen_at' => 'datetime',
         'last_seen_at' => 'datetime',
-        'is_bot' => 'boolean',
-        'ram_gb' => 'float',
-        'cpu_cores' => 'integer',
     ];
 
-    // --- ১. Scopes (চার্টে ডেটা ফিল্টার করার জন্য সহজ উপায়) ---
-
-    /**
-     * শুধুমাত্র আসল ইউজারদের ফিল্টার করা (বট বাদ দিয়ে)
-     */
-    public function scopeRealUsers(Builder $query): void
+    public function isOnline(): bool
     {
-        $query->where('is_bot', false);
+        return $this->last_seen_at?->gt(now()->subMinutes(5));
     }
 
-    /**
-     * যারা বর্তমানে অনলাইনে আছে (গত ৫ মিনিটে একটিভ)
-     */
-    public function scopeOnline(Builder $query): void
-    {
-        $query->where('last_seen_at', '>=', now()->subMinutes(5));
+    // --- রিলেশনশিপস ---
+    public function sessions(): HasMany {
+        return $this->hasMany(VisitorSession::class)->latest('started_at');
     }
 
-    /**
-     * নির্দিষ্ট নেটওয়ার্ক টাইপ অনুযায়ী ফিল্টার
-     */
-    public function scopeByNetwork(Builder $query, string $type): void
-    {
-        $query->where('network_type', $type);
+    public function lastSession(): HasOne {
+        return $this->hasOne(VisitorSession::class)->latestOfMany('started_at');
     }
 
-    // --- ২. Accessors (ব্লেড বা চার্টে সুন্দরভাবে নাম দেখানোর জন্য) ---
-
-    /**
-     * ইউজারের লোকেশন সুন্দরভাবে দেখানোর জন্য: "Dhaka, BD"
-     */
-    protected function location(): Attribute
-    {
-        return Attribute::make(
-            get: fn() => ($this->city && $this->country)
-            ? "{$this->city}, {$this->country}"
-            : 'Unknown'
-        );
-    }
-
-    /**
-     * RAM সুন্দরভাবে দেখানোর জন্য: "8 GB"
-     */
-    protected function ramFriendly(): Attribute
-    {
-        return Attribute::make(
-            get: fn() => $this->ram_gb ? $this->ram_gb . ' GB' : 'N/A'
-        );
-    }
-
-    // --- ৩. Relationships ---
-
-    /**
-     * সেশন ট্র্যাকিং
-     */
-    public function sessions(): HasMany
-    {
-        return $this->hasMany(VisitorSession::class);
-    }
-
-    /**
-     * পেজ ভিউ ট্র্যাকিং
-     */
-    public function pageViews(): HasMany
-    {
+    public function pageViews(): HasMany {
         return $this->hasMany(PageView::class);
     }
 
-    /**
-     * কাস্টম ইভেন্ট ট্র্যাকিং (ক্লিক, ডাউনলোড ইত্যাদি)
-     */
-    public function events(): HasMany
-    {
-        return $this->hasMany(VisitorEvent::class);
+    public function events(): HasManyThrough {
+        return $this->hasManyThrough(VisitorEvent::class, VisitorSession::class, 'visitor_id', 'session_id');
     }
+
+    public function user(): BelongsTo {
+        return $this->belongsTo(User::class);
+    }
+
+    // --- স্কোপস ---
+    public function scopeRealUsers(Builder $query) {
+        $query->where('is_bot', false);
+    }
+
+    public function scopeOnline(Builder $query) {
+        $query->where('last_seen_at', '>=', now()->subMinutes(5));
+    }
+
+    // --- এক্সেসর ---
+    protected function locationFriendly(): Attribute {
+        return Attribute::make(
+            get: fn() => ($this->city_name && $this->country_code) 
+                ? "{$this->city_name}, {$this->country_code}" 
+                : ($this->country_code ?? 'Unknown')
+        );
+    }
+
+ protected function browserIcon(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                $browser = strtolower($this->browser_family);
+                return match (true) {
+                    str_contains($browser, 'chrome') => 'browser-chrome',
+                    str_contains($browser, 'firefox') => 'browser-firefox',
+                    str_contains($browser, 'safari') => 'browser-safari',
+                    str_contains($browser, 'edge') => 'browser-edge',
+                    default => 'globe-alt',
+                };
+            }
+        );
+    }
+
 }

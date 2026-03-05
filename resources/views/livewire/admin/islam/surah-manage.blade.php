@@ -4,63 +4,77 @@ use Livewire\Volt\Component;
 use App\Models\Sura;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
-use Flux\Flux;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Livewire\Attributes\{Computed, Validate};
 
 new class extends Component {
     use WithFileUploads, WithPagination;
 
-    // Form fields
     public $suraId;
+
+    #[Validate('required|integer|unique:suras,sura_no,{suraId}')]
     public $sura_no;
+
+    #[Validate('required|string')]
     public $name_arabic = '';
+
+    #[Validate('required|string')]
     public $name_english = '';
+
+    #[Validate('required|string')]
     public $name_bangla = '';
+
+    #[Validate('nullable|string')]
     public $revelation_place = '';
+
+    #[Validate('nullable|integer')]
     public $total_ayat;
+
+    #[Validate('nullable|file|mimes:mp3,wav|max:20480')] // 20MB Max
     public $audio;
+
     public $existingAudio;
     public $is_active = true;
-
-    // UI states
-    public $showForm = false;
-    public $formType = 'create';
     public $search = '';
+    public $viewType = 'active';
 
-    // Pagination / Sorting
-    public $perPage = 10;
-    public $sortField = 'sura_no';
-    public $sortDirection = 'asc';
-
-    public function getSurasProperty()
+    public function updatedSearch()
     {
-        return Sura::query()
-            ->when($this->search, function ($query) {
-                $query->where('name_bangla', 'like', '%' . $this->search . '%')
-                    ->orWhere('name_english', 'like', '%' . $this->search . '%')
-                    ->orWhere('sura_no', 'like', '%' . $this->search . '%');
-            })
-            ->orderBy($this->sortField, $this->sortDirection)
-            ->paginate($this->perPage);
+        $this->resetPage();
+    }
+    public function updatedViewType()
+    {
+        $this->resetPage();
     }
 
-    public function sortBy($field)
+    #[Computed]
+    public function suras()
     {
-        $this->sortDirection = ($this->sortField === $field && $this->sortDirection === 'asc') ? 'desc' : 'asc';
-        $this->sortField = $field;
+        return ($this->viewType === 'trashed' ? Sura::onlyTrashed() : Sura::query())
+            ->when($this->search, function ($query) {
+                $query->where(function ($q) {
+                    $q->where('name_bangla', 'like', '%' . $this->search . '%')
+                        ->orWhere('name_english', 'like', '%' . $this->search . '%')
+                        ->orWhere('sura_no', 'like', '%' . $this->search . '%');
+                });
+            })
+            ->orderBy('sura_no', 'asc')
+            ->paginate(10);
     }
 
     public function showCreateForm()
     {
-        $this->resetForm();
-        $this->formType = 'create';
-        $this->showForm = true;
+        $this->resetValidation();
+        $this->reset(['suraId', 'sura_no', 'name_arabic', 'name_english', 'name_bangla', 'revelation_place', 'total_ayat', 'audio', 'existingAudio', 'is_active']);
+        $this->dispatch('modal-show', name: 'sura-form');
     }
 
-    public function showEditForm(Sura $sura)
+    public function showEditForm($id)
     {
-        $this->resetForm();
+        $this->resetValidation();
+        $sura = Sura::withTrashed()->findOrFail($id);
+
         $this->suraId = $sura->id;
         $this->sura_no = $sura->sura_no;
         $this->name_arabic = $sura->name_arabic;
@@ -68,173 +82,193 @@ new class extends Component {
         $this->name_bangla = $sura->name_bangla;
         $this->revelation_place = $sura->revelation_place;
         $this->total_ayat = $sura->total_ayat;
-        $this->is_active = $sura->is_active;
+        $this->is_active = (bool) $sura->is_active;
         $this->existingAudio = $sura->audio;
 
-        $this->formType = 'edit';
-        $this->showForm = true;
-    }
-
-    public function resetForm()
-    {
-        $this->reset(['suraId', 'sura_no', 'name_arabic', 'name_english', 'name_bangla', 'revelation_place', 'total_ayat', 'audio', 'existingAudio', 'is_active']);
-        $this->resetErrorBag();
+        $this->dispatch('modal-show', name: 'sura-form');
     }
 
     public function save()
     {
-        $validated = $this->validate([
+        $this->validate([
             'sura_no' => 'required|integer|unique:suras,sura_no,' . $this->suraId,
-            'name_arabic' => 'required|string',
-            'name_english' => 'required|string',
-            'name_bangla' => 'required|string',
-            'revelation_place' => 'nullable|string',
-            'total_ayat' => 'nullable|integer',
-            'audio' => 'nullable|file|mimes:mp3,wav|max:10240',
-            'is_active' => 'boolean',
         ]);
+
+        $data = [
+            'sura_no' => $this->sura_no,
+            'name_arabic' => $this->name_arabic,
+            'name_english' => $this->name_english,
+            'name_bangla' => $this->name_bangla,
+            'revelation_place' => $this->revelation_place,
+            'total_ayat' => $this->total_ayat,
+            'is_active' => $this->is_active,
+            'slug' => Str::slug($this->name_english),
+        ];
 
         if ($this->audio) {
             if ($this->existingAudio) {
                 Storage::disk('public')->delete($this->existingAudio);
             }
-            $validated['audio'] = $this->audio->store('suras/audio', 'public');
+            $data['audio'] = $this->audio->store('suras/audio', 'public');
         }
 
-        $validated['slug'] = Str::slug($this->name_english);
+        Sura::updateOrCreate(['id' => $this->suraId], $data);
 
-        if ($this->formType === 'edit') {
-            Sura::find($this->suraId)->update($validated);
-            $message = 'Sura updated successfully!';
-        } else {
-            Sura::create($validated);
-            $message = 'Sura created successfully!';
-        }
-
-        $this->showForm = false;
-        $this->resetForm();
-        Flux::toast($message);
+        $this->dispatch('modal-close', name: 'sura-form');
+        $this->dispatch('toast', variant: 'success', text: 'সূরার তথ্য সফলভাবে সংরক্ষিত হয়েছে।');
     }
 
-    public function deleteSura(Sura $sura)
+    public function delete($id)
     {
+        Sura::find($id)->delete();
+        $this->dispatch('toast', variant: 'warning', text: 'সূরাটি ট্র্যাশে সরানো হয়েছে।');
+    }
+
+    public function restore($id)
+    {
+        Sura::onlyTrashed()->findOrFail($id)->restore();
+        $this->dispatch('toast', variant: 'success', text: 'সূরাটি রিস্টোর করা হয়েছে।');
+    }
+
+    public function forceDelete($id)
+    {
+        $sura = Sura::onlyTrashed()->findOrFail($id);
         if ($sura->audio) {
             Storage::disk('public')->delete($sura->audio);
         }
-        $sura->delete();
-        Flux::toast('Sura deleted successfully!');
+        $sura->forceDelete();
+        $this->dispatch('toast', variant: 'error', text: 'সূরাটি স্থায়ীভাবে ডিলিট করা হয়েছে।');
     }
 }; ?>
 
-<section>
-    <div class="flex flex-col space-y-6">
-        @if ($showForm)
-            <div class="">
-                <div class="flex justify-between items-center mb-6">
-                    <h3 class="text-xl font-bold">
-                        {{ $formType === 'create' ? 'নতুন সূরা যুক্ত করুন' : 'সূরা তথ্য এডিট করুন' }}
-                    </h3>
-                    <flux:button wire:click="$set('showForm', false)" variant="ghost" size="sm">Back</flux:button>
-                </div>
+<div>
+    {{-- Header Section --}}
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div>
+            <flux:heading size="xl">Sura Management</flux:heading>
+            <flux:subheading>Manage all 114 Suras of the Holy Quran.</flux:subheading>
+        </div>
 
-                <form wire:submit.prevent="save" class="space-y-5">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <flux:input type="number" wire:model="sura_no" label="সূরা নম্বর" />
-                        <flux:input wire:model="name_arabic" label="নাম (আরবি)" />
-                        <flux:input wire:model="name_bangla" label="নাম (বাংলা)" />
-                        <flux:input wire:model="name_english" label="নাম (ইংরেজি)" />
-                        <flux:input wire:model="revelation_place" label="অবতীর্ণ হওয়ার স্থান" />
-                        <flux:input type="number" wire:model="total_ayat" label="মোট আয়াত সংখ্যা" />
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-                        <flux:input type="file" wire:model="audio" label="অডিও ফাইল (MP3)" />
-                        <div class="flex items-center pb-2">
-                            <flux:checkbox wire:model="is_active" label="Active Status" />
-                        </div>
-                    </div>
-
-                    @if ($existingAudio && !$audio)
-                        <div class="p-3 bg-gray-50 rounded-lg">
-                            <p class="text-xs text-gray-500 mb-1">বর্তমান অডিও:</p>
-                            <audio controls class="h-8 w-full">
-                                <source src="{{ Storage::url($existingAudio) }}" type="audio/mpeg">
-                            </audio>
-                        </div>
-                    @endif
-
-                    <div class="mt-8 flex justify-end gap-3">
-                        <flux:button type="button" wire:click="$set('showForm', false)">Cancel</flux:button>
-                        <flux:button type="submit" variant="primary">
-                            {{ $formType === 'create' ? 'সূরা সেভ করুন' : 'আপডেট করুন' }}
-                        </flux:button>
-                    </div>
-                </form>
-            </div>
-        @else
-            <div class="flex justify-between items-center">
-                <h2 class="text-2xl font-bold">Sura Management</h2>
-                <flux:button wire:click="showCreateForm" variant="primary" icon="plus">Create New Sura</flux:button>
-            </div>
-
-            <flux:input type="text" wire:model.live.debounce.300ms="search" placeholder="Search by name or sura number..."
-                icon="magnifying-glass" />
-
-            <flux:table>
-                <flux:table.columns>
-                    <flux:table.column wire:click="sortBy('sura_no')" :sortable="true"
-                        :direction="$sortField === 'sura_no' ? $sortDirection : null">No</flux:table.column>
-                    <flux:table.column>Sura Name</flux:table.column>
-                    <flux:table.column>Place & Ayat</flux:table.column>
-                    <flux:table.column>Status</flux:table.column>
-                    <flux:table.column align="end">Actions</flux:table.column>
-                </flux:table.columns>
-
-                <flux:table.rows>
-                    @forelse ($this->suras as $sura)
-                        <flux:table.row :key="$sura->id">
-                            <flux:table.cell class="font-bold text-gray-900">{{ $sura->sura_no }}</flux:table.cell>
-                            <flux:table.cell>
-                                <div class="flex flex-col">
-                                    <span class="font-medium text-gray-900">{{ $sura->name_bangla }}</span>
-                                    <span class="text-xs text-gray-500 font-arabic">{{ $sura->name_arabic }}
-                                        ({{ $sura->name_english }})</span>
-                                </div>
-                            </flux:table.cell>
-                            <flux:table.cell>
-                                <div class="text-sm">
-                                    <span class="text-gray-600">{{ $sura->revelation_place }}</span> •
-                                    <span class="text-gray-500">{{ $sura->total_ayat }} Ayats</span>
-                                </div>
-                            </flux:table.cell>
-                            <flux:table.cell>
-                                <flux:badge size="sm" :color="$sura->is_active ? 'green' : 'red'" inset="top">
-                                    {{ $sura->is_active ? 'Active' : 'Inactive' }}
-                                </flux:badge>
-                            </flux:table.cell>
-                            <flux:table.cell align="end">
-                                <div class="flex justify-end gap-2">
-                                    <flux:button wire:click="showEditForm({{ $sura->id }})" variant="ghost" size="sm"
-                                        icon="pencil-square" />
-                                    <flux:button wire:confirm="Are you sure you want to delete this Sura?"
-                                        wire:click="deleteSura({{ $sura->id }})" variant="ghost" size="sm" color="red"
-                                        icon="trash" />
-                                </div>
-                            </flux:table.cell>
-                        </flux:table.row>
-                    @empty
-                        <flux:table.row>
-                            <flux:table.cell colspan="5" class="text-center py-12 text-gray-400">
-                                No suras found in the database.
-                            </flux:table.cell>
-                        </flux:table.row>
-                    @endforelse
-                </flux:table.rows>
-            </flux:table>
-
-            <div class="mt-4">
-                {{ $this->suras->links() }}
-            </div>
-        @endif
+        <div class="flex items-center gap-3">
+            <flux:radio.group wire:model.live="viewType" variant="segmented" size="sm">
+                <flux:radio value="active" label="Active" />
+                <flux:radio value="trashed" label="Trashed" />
+            </flux:radio.group>
+            <flux:button wire:click="showCreateForm" icon="plus" variant="primary" size="sm">Add Sura</flux:button>
+        </div>
     </div>
-</section>
+
+    {{-- Search --}}
+    <div class="mb-4">
+        <flux:input wire:model.live.debounce.400ms="search" placeholder="সূরা নম্বর বা নাম দিয়ে খুঁজুন..."
+            icon="magnifying-glass" />
+    </div>
+
+    {{-- Table --}}
+    <flux:table :paginate="$this->suras">
+        <flux:table.columns>
+            <flux:table.column>No</flux:table.column>
+            <flux:table.column>Sura Name</flux:table.column>
+            <flux:table.column>Details</flux:table.column>
+            <flux:table.column>Status</flux:table.column>
+            <flux:table.column align="end">Actions</flux:table.column>
+        </flux:table.columns>
+
+        <flux:table.rows>
+            @forelse ($this->suras as $sura)
+                <flux:table.row :key="$sura->id">
+                    <flux:table.cell class="font-bold text-zinc-800 dark:text-zinc-200">
+                        {{ str_pad($sura->sura_no, 3, '0', STR_PAD_LEFT) }}
+                    </flux:table.cell>
+
+                    <flux:table.cell>
+                        <div class="flex flex-col">
+                            <span class="font-medium">{{ $sura->name_bangla }}</span>
+                            <span class="text-xs text-zinc-500 font-arabic italic">{{ $sura->name_arabic }}</span>
+                        </div>
+                    </flux:table.cell>
+
+                    <flux:table.cell>
+                        <div class="text-sm">
+                            <span class="text-zinc-600 dark:text-zinc-400">{{ $sura->revelation_place }}</span>
+                            <span class="mx-1 text-zinc-300">•</span>
+                            <span class="text-zinc-500">{{ $sura->total_ayat }} Ayats</span>
+                        </div>
+                    </flux:table.cell>
+
+                    <flux:table.cell>
+                        <flux:badge size="sm" :color="$sura->is_active ? 'green' : 'red'" inset="top bottom">
+                            {{ $sura->is_active ? 'Active' : 'Inactive' }}
+                        </flux:badge>
+                    </flux:table.cell>
+
+                    <flux:table.cell align="end">
+                        <div class="flex justify-end gap-1">
+                            @if($viewType === 'active')
+                                <flux:button variant="ghost" size="sm" icon="pencil-square"
+                                    wire:click="showEditForm({{ $sura->id }})" />
+                                <flux:button variant="ghost" size="sm" icon="trash" color="red" wire:confirm="আর ইউ সিওর?"
+                                    wire:click="delete({{ $sura->id }})" />
+                            @else
+                                <flux:button variant="ghost" size="sm" icon="arrow-path" color="green"
+                                    wire:click="restore({{ $sura->id }})" />
+                                <flux:button variant="ghost" size="sm" icon="x-mark" color="red"
+                                    wire:confirm="স্থায়ীভাবে ডিলিট করতে চান?" wire:click="forceDelete({{ $sura->id }})" />
+                            @endif
+                        </div>
+                    </flux:table.cell>
+                </flux:table.row>
+            @empty
+                <flux:table.row>
+                    <flux:table.cell colspan="5" class="text-center py-12 text-zinc-400">কোনো সূরা পাওয়া যায়নি।
+                    </flux:table.cell>
+                </flux:table.row>
+            @endforelse
+        </flux:table.rows>
+    </flux:table>
+
+    {{-- Modal Form --}}
+    <flux:modal name="sura-form" class="md:w-[45rem]">
+        <form wire:submit="save" class="space-y-6">
+            <div>
+                <flux:heading size="lg">{{ $suraId ? 'Edit Sura' : 'Create New Sura' }}</flux:heading>
+                <flux:subheading>সূরার তথ্য এবং অডিও ফাইল আপডেট করুন।</flux:subheading>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <flux:input type="number" wire:model="sura_no" label="সূরা নম্বর" placeholder="Ex: 1" required />
+                <flux:input wire:model="name_arabic" label="নাম (আরবি)" placeholder="الفاتحة" required />
+                <flux:input wire:model="name_bangla" label="নাম (বাংলা)" placeholder="আল-ফাতিহা" required />
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <flux:input wire:model="name_english" label="নাম (ইংরেজি)" placeholder="Al-Fatiha" required />
+                <flux:input wire:model="revelation_place" label="অবতীর্ণ হওয়ার স্থান" placeholder="মক্কা/মদীনা" />
+                <flux:input type="number" wire:model="total_ayat" label="মোট আয়াত" placeholder="Ex: 7" />
+            </div>
+
+            <div class="space-y-3">
+                <flux:input type="file" wire:model="audio" label="অডিও ফাইল (MP3/WAV)" />
+
+                @if ($existingAudio && !$audio)
+                    <div class="p-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg">
+                        <p class="text-[10px] uppercase tracking-wider font-bold text-zinc-400 mb-2">Current Audio Preview
+                        </p>
+                        <audio controls class="h-8 w-full scale-95">
+                            <source src="{{ Storage::url($existingAudio) }}" type="audio/mpeg">
+                        </audio>
+                    </div>
+                @endif
+            </div>
+
+            <flux:checkbox wire:model="is_active" label="এই সূরাটি অ্যাপে লাইভ থাকবে (Active Status)" />
+
+            <div class="flex justify-end gap-3 pt-6 border-t border-zinc-100 dark:border-zinc-800">
+                <flux:modal.close>
+                    <flux:button variant="ghost">বাতিল</flux:button>
+                </flux:modal.close>
+                <flux:button type="submit" variant="primary">তথ্য সংরক্ষণ করুন</flux:button>
+            </div>
+        </form>
+    </flux:modal>
+</div>
