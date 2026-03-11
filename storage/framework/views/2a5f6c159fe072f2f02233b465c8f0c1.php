@@ -17,7 +17,9 @@ use Livewire\WithPagination;
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['level' => '1','size' => 'xl','class' => 'text-center']); ?>বাংলাদেশের মন্ত্রী পরিষদ আর্কাইভ <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['level' => '1','size' => 'xl','class' => 'text-center']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+বাংলাদেশের মন্ত্রী পরিষদ আর্কাইভ <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginale0fd5b6a0986beffac17a0a103dfd7b9)): ?>
 <?php $attributes = $__attributesOriginale0fd5b6a0986beffac17a0a103dfd7b9; ?>
@@ -36,7 +38,9 @@ use Livewire\WithPagination;
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['class' => 'text-center text-base']); ?>স্বাধীনতার পর থেকে অদ্যবধি সকল মন্ত্রীগণের তথ্যাদি <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['class' => 'text-center text-base']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+স্বাধীনতার পর থেকে অদ্যবধি সকল মন্ত্রীগণের তথ্যাদি <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal0638ebfbd490c7a414275d493e14cb4e)): ?>
 <?php $attributes = $__attributesOriginal0638ebfbd490c7a414275d493e14cb4e; ?>
@@ -60,6 +64,8 @@ use Livewire\WithPagination;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => 'search','wire:model.live.debounce.300ms' => 'search','placeholder' => 'নাম দিয়ে খুজুন...','size' => 'sm','clearable' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal26c546557cdc09040c8dd00b2090afd0)): ?>
@@ -82,10 +88,12 @@ use Livewire\WithPagination;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['wire:model.live' => 'partyFilter','size' => 'sm','class' => 'min-w-30']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
             <option value="">সকল রাজনৈতিক দল</option>
-            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__currentLoopData = $parties; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $party): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $parties; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $party): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
                 <option value="<?php echo e($party); ?>"><?php echo e($party); ?></option>
-            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
          <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginala467913f9ff34913553be64599ec6e92)): ?>
@@ -107,10 +115,12 @@ use Livewire\WithPagination;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['wire:model.live' => 'designationFilter','size' => 'sm','class' => 'min-w-30']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
             <option value="">সকল পদবী</option>
-            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__currentLoopData = $designations; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $designation): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $designations; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $designation): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
                 <option value="<?php echo e($designation); ?>"><?php echo e($designation); ?></option>
-            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
          <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginala467913f9ff34913553be64599ec6e92)): ?>
@@ -132,6 +142,8 @@ use Livewire\WithPagination;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['wire:model.live' => 'currentFilter','size' => 'sm']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
             <option value="all">অবস্থা (সকল)</option>
             <option value="current">বর্তমান</option>
             <option value="former">সাবেক</option>
@@ -157,6 +169,8 @@ use Livewire\WithPagination;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['type' => 'date','wire:model.live' => 'fromDateFilter','size' => 'sm']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal26c546557cdc09040c8dd00b2090afd0)): ?>
@@ -177,6 +191,8 @@ use Livewire\WithPagination;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['type' => 'date','wire:model.live' => 'toDateFilter','size' => 'sm']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal26c546557cdc09040c8dd00b2090afd0)): ?>
@@ -199,7 +215,9 @@ use Livewire\WithPagination;
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['wire:click' => 'resetFilters','size' => 'sm','variant' => 'ghost','icon' => 'x-mark','class' => 'shrink-0']); ?>মুছে ফেলুন
+<?php $component->withAttributes(['wire:click' => 'resetFilters','size' => 'sm','variant' => 'ghost','icon' => 'x-mark','class' => 'shrink-0']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+মুছে ফেলুন
              <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalc04b147acd0e65cc1a77f86fb0e81580)): ?>
@@ -217,7 +235,7 @@ use Livewire\WithPagination;
     <div class="space-y-4">
         <?php $ministersList = $this->ministers(); ?>
 
-        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $ministersList; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $minister): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
+        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $ministersList; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $minister): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
                                     <div x-data="{ open: false }"
                                         class="group border border-slate-200 dark:border-zinc-700 rounded-2xl overflow-hidden transition-all duration-300 bg-white dark:bg-zinc-800/50"
                                         :class="open ? 'ring-1 ring-primary/30 shadow-xl' : 'hover:border-primary/50 shadow-sm'">
@@ -238,6 +256,8 @@ use Livewire\WithPagination;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['media' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($minister->getMedia('minister_images')),'class' => 'max-w-20 max-h-20']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal3be3b786a3491a3a45d5180880ad0316)): ?>
@@ -260,6 +280,8 @@ use Livewire\WithPagination;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['variant' => 'solid','color' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($minister->is_current ? 'green' : 'zinc'),'size' => 'sm','class' => 'absolute -top-2 -right-2']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
                                                     <?php echo e($minister->is_current ? 'বর্তমান' : 'সাবেক'); ?>
 
                                                  <?php echo $__env->renderComponent(); ?>
@@ -294,6 +316,8 @@ use Livewire\WithPagination;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['size' => 'xs']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalc88322ae7a991a4d285d3bf35e6f7f6c)): ?>
@@ -317,6 +341,8 @@ use Livewire\WithPagination;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['size' => 'xs']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal0d48bd54d72df81b49ee07c1a3735f04)): ?>
@@ -340,6 +366,8 @@ use Livewire\WithPagination;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['size' => 'xs']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalf48bb55ce6fd23a8de595ceefa5f14db)): ?>
@@ -368,6 +396,8 @@ use Livewire\WithPagination;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['size' => 'sm','class' => 'transition-transform duration-300',':class' => 'open ? \'rotate-180 text-primary\' : \'text-slate-400\'']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal298ff21bbc41cebb188cbb18c6c11bc0)): ?>
@@ -473,26 +503,32 @@ use Livewire\WithPagination;
                                             </div>
                                         </div>
                                     </div>
-        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
+        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
             <?php
 $__split = function ($name, $params = []) {
     return [$name, $params];
 };
 [$__name, $__params] = $__split('global.nodata-message', ['title' => 'মন্ত্রীর তথ্য','search' => $search]);
 
-$key = null;
+$__keyOuter = $__key ?? null;
 
-$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-464520153-1', null);
+$__key = null;
+$__componentSlots = [];
 
-$__html = app('livewire')->mount($__name, $__params, $key);
+$__key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-464520153-0', $__key);
+
+$__html = app('livewire')->mount($__name, $__params, $__key, $__componentSlots);
 
 echo $__html;
 
 unset($__html);
+unset($__key);
+$__key = $__keyOuter;
+unset($__keyOuter);
 unset($__name);
 unset($__params);
+unset($__componentSlots);
 unset($__split);
-if (isset($__slots)) unset($__slots);
 ?>
         <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
     </div>

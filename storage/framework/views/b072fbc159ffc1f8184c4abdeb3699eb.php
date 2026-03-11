@@ -45,8 +45,10 @@ unset($__defined_vars, $__key, $__value); ?>
 <?php
     $siteName = config('app.name', 'Totthobox');
     $fullTitle = $title ? "$title | $siteName" : "$siteName - প্রয়োজনীয় সকল সেবা এক জায়গায়";
-    config(['app.current_page_title' => $title ?: $siteName]);
-    $ogImage = $image ?: asset('favicon.svg'); 
+    
+    // সোশ্যাল মিডিয়া প্রিভিউর জন্য SVG এর বদলে PNG বেস্ট। 
+    // যদি ইমেজ না থাকে তবে একটি ডিফল্ট og-image.png (1200x630) ব্যবহার করা উচিত।
+    $ogImage = $image ?: asset('og-image.png'); 
     $cleanDescription = Str::limit(strip_tags($description), 160);
     $url = url()->current();
 ?>
@@ -54,6 +56,7 @@ unset($__defined_vars, $__key, $__value); ?>
 <?php $__env->startPush('seo_meta'); ?>
     
     <title><?php echo e($fullTitle); ?></title>
+    <meta name="title" content="<?php echo e($fullTitle); ?>">
 
     
     <meta name="description" content="<?php echo e($cleanDescription); ?>">
@@ -67,11 +70,17 @@ unset($__defined_vars, $__key, $__value); ?>
     <meta property="og:title" content="<?php echo e($fullTitle); ?>">
     <meta property="og:description" content="<?php echo e($cleanDescription); ?>">
     <meta property="og:image" content="<?php echo e($ogImage); ?>">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
     <meta property="og:site_name" content="<?php echo e($siteName); ?>">
 
     
     <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="<?php echo e($url); ?>">
     <meta name="twitter:title" content="<?php echo e($fullTitle); ?>">
     <meta name="twitter:description" content="<?php echo e($cleanDescription); ?>">
     <meta name="twitter:image" content="<?php echo e($ogImage); ?>">
+
+    
+    <?php session(['seo_applied' => true]); ?>
 <?php $__env->stopPush(); ?><?php /**PATH /var/www/html/totthobox/resources/views/components/seo.blade.php ENDPATH**/ ?>

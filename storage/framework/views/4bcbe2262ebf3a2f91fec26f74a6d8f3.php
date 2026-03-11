@@ -1,5 +1,5 @@
 
-<?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(Request::is('settings*')): ?>
+<?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(Request::is('profile*')): ?>
     <?php if (isset($component)) { $__componentOriginalfe86969babb72517ecf97426e7c9330d = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalfe86969babb72517ecf97426e7c9330d = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::sidebar.item','data' => ['icon' => 'cog','class' => 'text-center mb-4 text-base']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -9,7 +9,9 @@
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['icon' => 'cog','class' => 'text-center mb-4 text-base']); ?>সেটিংস <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['icon' => 'cog','class' => 'text-center mb-4 text-base']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+সেটিংস <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalfe86969babb72517ecf97426e7c9330d)): ?>
 <?php $attributes = $__attributesOriginalfe86969babb72517ecf97426e7c9330d; ?>
@@ -19,16 +21,19 @@
 <?php $component = $__componentOriginalfe86969babb72517ecf97426e7c9330d; ?>
 <?php unset($__componentOriginalfe86969babb72517ecf97426e7c9330d); ?>
 <?php endif; ?>
+    
     <?php if (isset($component)) { $__componentOriginalfe86969babb72517ecf97426e7c9330d = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalfe86969babb72517ecf97426e7c9330d = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::sidebar.item','data' => ['icon' => 'cog','href' => route('settings.profile.view', ['slug' => auth()->user()->slug]),'current' => request()->routeIs('settings.profile.view'),'wire:navigate.hover' => true]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::sidebar.item','data' => ['icon' => 'user','href' => route('profile.view'),'current' => request()->routeIs('profile.view'),'wire:navigate.hover' => true]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('flux::sidebar.item'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['icon' => 'cog','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('settings.profile.view', ['slug' => auth()->user()->slug])),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('settings.profile.view')),'wire:navigate.hover' => true]); ?>
+<?php $component->withAttributes(['icon' => 'user','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('profile.view')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('profile.view')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         প্রোফাইল
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -40,16 +45,19 @@
 <?php $component = $__componentOriginalfe86969babb72517ecf97426e7c9330d; ?>
 <?php unset($__componentOriginalfe86969babb72517ecf97426e7c9330d); ?>
 <?php endif; ?>
+
     <?php if (isset($component)) { $__componentOriginalfe86969babb72517ecf97426e7c9330d = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalfe86969babb72517ecf97426e7c9330d = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::sidebar.item','data' => ['icon' => 'cog','href' => route('settings.profile'),'current' => request()->routeIs('settings.profile'),'wire:navigate.hover' => true]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::sidebar.item','data' => ['icon' => 'cog','href' => route('profile.settings'),'current' => request()->routeIs('profile.settings'),'wire:navigate.hover' => true]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('flux::sidebar.item'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['icon' => 'cog','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('settings.profile')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('settings.profile')),'wire:navigate.hover' => true]); ?>
+<?php $component->withAttributes(['icon' => 'cog','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('profile.settings')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('profile.settings')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         প্রোফাইল সেটিংস
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -63,15 +71,17 @@
 <?php endif; ?>
     <?php if (isset($component)) { $__componentOriginalfe86969babb72517ecf97426e7c9330d = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalfe86969babb72517ecf97426e7c9330d = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::sidebar.item','data' => ['icon' => 'key','href' => route('settings.password'),'current' => request()->routeIs('settings.password'),'wire:navigate.hover' => true]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::sidebar.item','data' => ['icon' => 'briefcase','href' => route('profile.activity'),'current' => request()->routeIs('profile.activity'),'wire:navigate.hover' => true]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('flux::sidebar.item'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['icon' => 'key','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('settings.password')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('settings.password')),'wire:navigate.hover' => true]); ?>
-        পাসওয়ার্ড সেটিংস
+<?php $component->withAttributes(['icon' => 'briefcase','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('profile.activity')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('profile.activity')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
+        আমার কার্যক্রম
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalfe86969babb72517ecf97426e7c9330d)): ?>
@@ -82,16 +92,43 @@
 <?php $component = $__componentOriginalfe86969babb72517ecf97426e7c9330d; ?>
 <?php unset($__componentOriginalfe86969babb72517ecf97426e7c9330d); ?>
 <?php endif; ?>
+
     <?php if (isset($component)) { $__componentOriginalfe86969babb72517ecf97426e7c9330d = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalfe86969babb72517ecf97426e7c9330d = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::sidebar.item','data' => ['icon' => 'trash','href' => route('settings.profile.remove', ['slug' => auth()->user()->slug]),'current' => request()->routeIs('settings.profile.remove', ['slug' => auth()->user()->slug]),'wire:navigate.hover' => true]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::sidebar.item','data' => ['icon' => 'key','href' => route('profile.password'),'current' => request()->routeIs('profile.password'),'wire:navigate.hover' => true]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('flux::sidebar.item'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['icon' => 'trash','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('settings.profile.remove', ['slug' => auth()->user()->slug])),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('settings.profile.remove', ['slug' => auth()->user()->slug])),'wire:navigate.hover' => true]); ?>
+<?php $component->withAttributes(['icon' => 'key','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('profile.password')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('profile.password')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
+        পাসওয়ার্ড সেটিংস
+     <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginalfe86969babb72517ecf97426e7c9330d)): ?>
+<?php $attributes = $__attributesOriginalfe86969babb72517ecf97426e7c9330d; ?>
+<?php unset($__attributesOriginalfe86969babb72517ecf97426e7c9330d); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginalfe86969babb72517ecf97426e7c9330d)): ?>
+<?php $component = $__componentOriginalfe86969babb72517ecf97426e7c9330d; ?>
+<?php unset($__componentOriginalfe86969babb72517ecf97426e7c9330d); ?>
+<?php endif; ?>
+
+    <?php if (isset($component)) { $__componentOriginalfe86969babb72517ecf97426e7c9330d = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginalfe86969babb72517ecf97426e7c9330d = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::sidebar.item','data' => ['icon' => 'trash','href' => route('profile.remove'),'current' => request()->routeIs('profile.remove'),'wire:navigate.hover' => true]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('flux::sidebar.item'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['icon' => 'trash','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('profile.remove')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('profile.remove')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         প্রোফাইল মুছুন
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -103,16 +140,19 @@
 <?php $component = $__componentOriginalfe86969babb72517ecf97426e7c9330d; ?>
 <?php unset($__componentOriginalfe86969babb72517ecf97426e7c9330d); ?>
 <?php endif; ?>
+
     <?php if (isset($component)) { $__componentOriginalfe86969babb72517ecf97426e7c9330d = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalfe86969babb72517ecf97426e7c9330d = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::sidebar.item','data' => ['icon' => 'eye','href' => route('settings.appearance'),'current' => request()->routeIs('settings.appearance'),'wire:navigate.hover' => true]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::sidebar.item','data' => ['icon' => 'eye','href' => route('profile.appearance'),'current' => request()->routeIs('profile.appearance'),'wire:navigate.hover' => true]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('flux::sidebar.item'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['icon' => 'eye','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('settings.appearance')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('settings.appearance')),'wire:navigate.hover' => true]); ?>
+<?php $component->withAttributes(['icon' => 'eye','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('profile.appearance')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('profile.appearance')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         প্রদর্শন ব্যবস্থা
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -137,7 +177,9 @@
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['class' => '!text-center mb-4 text-base']); ?>বাংলাদেশ <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['class' => '!text-center mb-4 text-base']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+বাংলাদেশ <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalfe86969babb72517ecf97426e7c9330d)): ?>
 <?php $attributes = $__attributesOriginalfe86969babb72517ecf97426e7c9330d; ?>
@@ -158,6 +200,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => 'flag','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('bangladesh.introduction')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('bangladesh.introduction')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         পরিচিতি
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -179,6 +223,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => 'map','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('bangladesh.tourism')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('bangladesh.tourism')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         পর্যটন
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -200,6 +246,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => 'book-open','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('bangladesh.history')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('bangladesh.history')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         ইতিহাস
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -221,6 +269,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => 'building-library','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('bangladesh.establishment')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('bangladesh.establishment')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         প্রতিষ্ঠা
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -242,6 +292,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => 'user-group','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('bangladesh.minister')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('bangladesh.minister')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         মন্ত্রী
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -266,7 +318,9 @@
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['class' => '!text-center mb-4 text-base']); ?>আন্তর্জাতিক <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['class' => '!text-center mb-4 text-base']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+আন্তর্জাতিক <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalfe86969babb72517ecf97426e7c9330d)): ?>
 <?php $attributes = $__attributesOriginalfe86969babb72517ecf97426e7c9330d; ?>
@@ -286,6 +340,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => 'home','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('international.all-country')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('international.all-country')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         সব দেশ
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -310,7 +366,9 @@
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['class' => '!text-center mb-4 text-base']); ?>ইসলাম <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['class' => '!text-center mb-4 text-base']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+ইসলাম <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalfe86969babb72517ecf97426e7c9330d)): ?>
 <?php $attributes = $__attributesOriginalfe86969babb72517ecf97426e7c9330d; ?>
@@ -330,6 +388,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => 'moon','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('islam.basicislam')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('islam.basicislam')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         ইসলামের মূলনীতি
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -351,6 +411,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => 'home','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('islam.dowa')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('islam.dowa')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         দোয়া
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -372,6 +434,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => 'book-open','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('islam.al-quran')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('islam.al-quran')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         কুরআন
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -396,7 +460,9 @@
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['class' => '!text-center mb-4 text-base']); ?>স্বাস্থ্য <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['class' => '!text-center mb-4 text-base']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+স্বাস্থ্য <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalfe86969babb72517ecf97426e7c9330d)): ?>
 <?php $attributes = $__attributesOriginalfe86969babb72517ecf97426e7c9330d; ?>
@@ -416,6 +482,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => 'chart-bar','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('health.calorie-chart')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('health.calorie-chart')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         ক্যালোরী চার্ট
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -437,6 +505,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => 'home','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('health.food-nutrients')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('health.food-nutrients')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         খাদ্য পুষ্টি
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -458,6 +528,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => 'heart','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('health.basic-health')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('health.basic-health')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         মৌলিক স্বাস্থ্য
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -482,7 +554,9 @@
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['class' => '!text-center mb-4 text-base']); ?>ক্রয়/বিক্রয় <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['class' => '!text-center mb-4 text-base']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+ক্রয়/বিক্রয় <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalfe86969babb72517ecf97426e7c9330d)): ?>
 <?php $attributes = $__attributesOriginalfe86969babb72517ecf97426e7c9330d; ?>
@@ -503,6 +577,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => 'shopping-cart','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('buysell.all')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('buysell.all')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         সব ক্যাটাগরি
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -525,6 +601,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => 'plus','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('buysell.post-ad')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('buysell.post-ad')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         পোস্ট যোগ করুন
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -541,7 +619,7 @@
         $buysellCategories = \App\Models\BuySellCategory::all();
     ?>
 
-    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $buysellCategories; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $category): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $buysellCategories; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $category): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
         <?php if (isset($component)) { $__componentOriginalfe86969babb72517ecf97426e7c9330d = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalfe86969babb72517ecf97426e7c9330d = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::sidebar.item','data' => ['icon' => ''.e($category->icon).'','href' => route('buysell.category', $category->slug),'current' => request()->routeIs('buysell.category') && request()->route('categorySlug') === $category->slug,'wire:navigate.hover' => true]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -552,6 +630,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => ''.e($category->icon).'','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('buysell.category', $category->slug)),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('buysell.category') && request()->route('categorySlug') === $category->slug),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
             <?php echo e($category->name); ?>
 
          <?php echo $__env->renderComponent(); ?>
@@ -564,7 +644,7 @@
 <?php $component = $__componentOriginalfe86969babb72517ecf97426e7c9330d; ?>
 <?php unset($__componentOriginalfe86969babb72517ecf97426e7c9330d); ?>
 <?php endif; ?>
-    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
         <?php if (isset($component)) { $__componentOriginalfe86969babb72517ecf97426e7c9330d = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalfe86969babb72517ecf97426e7c9330d = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::sidebar.item','data' => ['icon' => 'exclamation-circle']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -574,7 +654,9 @@
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['icon' => 'exclamation-circle']); ?>কোনো পরিচিতি ক্যাটাগরি পাওয়া যায়নি <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['icon' => 'exclamation-circle']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+কোনো পরিচিতি ক্যাটাগরি পাওয়া যায়নি <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalfe86969babb72517ecf97426e7c9330d)): ?>
 <?php $attributes = $__attributesOriginalfe86969babb72517ecf97426e7c9330d; ?>
@@ -599,7 +681,9 @@
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['class' => '!text-center mb-4 text-base']); ?>ক্যালেন্ডার <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['class' => '!text-center mb-4 text-base']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+ক্যালেন্ডার <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalfe86969babb72517ecf97426e7c9330d)): ?>
 <?php $attributes = $__attributesOriginalfe86969babb72517ecf97426e7c9330d; ?>
@@ -619,6 +703,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => 'calendar','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('calendar.calendar')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('calendar.calendar')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         ক্যালেন্ডার
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -640,6 +726,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => 'sun','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('calendar.holiday')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('calendar.holiday')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         ছুটির দিন
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -664,7 +752,9 @@
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['class' => '!text-center mb-4 text-base']); ?>শিশু শিক্ষা <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['class' => '!text-center mb-4 text-base']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+শিশু শিক্ষা <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalfe86969babb72517ecf97426e7c9330d)): ?>
 <?php $attributes = $__attributesOriginalfe86969babb72517ecf97426e7c9330d; ?>
@@ -684,6 +774,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => 'pencil','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('education.child.practice')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('education.child.practice')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         অনুশীলন
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -708,7 +800,9 @@
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['class' => '!text-center mb-4 text-base']); ?>এমসিকিউ <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['class' => '!text-center mb-4 text-base']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+এমসিকিউ <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalfe86969babb72517ecf97426e7c9330d)): ?>
 <?php $attributes = $__attributesOriginalfe86969babb72517ecf97426e7c9330d; ?>
@@ -728,6 +822,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => 'document-text','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('mcq.home')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('mcq.home')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         এমসিকিউ সূচি
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -749,6 +845,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => 'chart-pie','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('mcq.test-result')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('mcq.test-result')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         এমসিকিউ ফলাফল
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -773,7 +871,9 @@
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['class' => '!text-center mb-4 text-base']); ?>রূপান্তর <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['class' => '!text-center mb-4 text-base']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+রূপান্তর <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalfe86969babb72517ecf97426e7c9330d)): ?>
 <?php $attributes = $__attributesOriginalfe86969babb72517ecf97426e7c9330d; ?>
@@ -793,6 +893,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => 'currency-dollar','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('converter.currency')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('converter.currency')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         মুদ্রা রূপান্তর
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -813,7 +915,9 @@
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['icon' => 'bars-2','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('converter.land')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('converter.land')),'wire:navigate.hover' => true]); ?> জমি রূপান্তর
+<?php $component->withAttributes(['icon' => 'bars-2','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('converter.land')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('converter.land')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+ জমি রূপান্তর
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalfe86969babb72517ecf97426e7c9330d)): ?>
@@ -834,6 +938,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => 'bars-2','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('converter.length')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('converter.length')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         দৈর্ঘ্য রূপান্তর
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -855,6 +961,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => 'scale','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('converter.weight')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('converter.weight')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         ওজন রূপান্তর
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -876,6 +984,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => 'map','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('converter.area')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('converter.area')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         এলাকা রূপান্তর
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -897,6 +1007,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => 'view-columns','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('converter.volume')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('converter.volume')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         পরিমাণ রূপান্তর
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -918,6 +1030,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => 'adjustments-vertical','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('converter.temperature')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('converter.temperature')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         তাপমাত্রা রূপান্তর
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -939,6 +1053,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => 'home','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('converter.speed')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('converter.speed')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         গতিবেগ রূপান্তর
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -960,6 +1076,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => 'clock','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('converter.time')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('converter.time')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         সময় রূপান্তর
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -981,6 +1099,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => 'circle-stack','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('converter.data')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('converter.data')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         ডেটা স্টোরেজ রূপান্তর
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -1002,6 +1122,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => 'bolt','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('converter.energy')),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('converter.energy')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         শক্তি/পাওয়ার রূপান্তর
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -1027,7 +1149,9 @@
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['class' => '!text-center mb-4 text-base']); ?>জরুরী নাম্বার <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['class' => '!text-center mb-4 text-base']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+জরুরী নাম্বার <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalfe86969babb72517ecf97426e7c9330d)): ?>
 <?php $attributes = $__attributesOriginalfe86969babb72517ecf97426e7c9330d; ?>
@@ -1040,7 +1164,7 @@
     <?php
         $contactCategories = \App\Models\ContactCategory::all();
     ?>
-    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $contactCategories; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $category): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $contactCategories; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $category): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
         <?php if (isset($component)) { $__componentOriginalfe86969babb72517ecf97426e7c9330d = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalfe86969babb72517ecf97426e7c9330d = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::sidebar.item','data' => ['icon' => ''.e($category->icon).'','href' => route('contact.number', $category->slug),'current' => request()->routeIs('contact.number') && request()->route('slug') === $category->slug,'wire:navigate.hover' => true]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -1051,6 +1175,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => ''.e($category->icon).'','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('contact.number', $category->slug)),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('contact.number') && request()->route('slug') === $category->slug),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
             <?php echo e($category->name); ?>
 
          <?php echo $__env->renderComponent(); ?>
@@ -1063,7 +1189,7 @@
 <?php $component = $__componentOriginalfe86969babb72517ecf97426e7c9330d; ?>
 <?php unset($__componentOriginalfe86969babb72517ecf97426e7c9330d); ?>
 <?php endif; ?>
-    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
         <?php if (isset($component)) { $__componentOriginalfe86969babb72517ecf97426e7c9330d = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalfe86969babb72517ecf97426e7c9330d = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::sidebar.item','data' => ['icon' => 'exclamation-circle']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -1073,7 +1199,9 @@
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['icon' => 'exclamation-circle']); ?>কোনো পরিচিতি ক্যাটাগরি পাওয়া যায়নি <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['icon' => 'exclamation-circle']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+কোনো পরিচিতি ক্যাটাগরি পাওয়া যায়নি <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalfe86969babb72517ecf97426e7c9330d)): ?>
 <?php $attributes = $__attributesOriginalfe86969babb72517ecf97426e7c9330d; ?>
@@ -1096,7 +1224,9 @@
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['class' => '!text-center mb-4 text-base']); ?>বিভিন্ন সংকেত <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['class' => '!text-center mb-4 text-base']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+বিভিন্ন সংকেত <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalfe86969babb72517ecf97426e7c9330d)): ?>
 <?php $attributes = $__attributesOriginalfe86969babb72517ecf97426e7c9330d; ?>
@@ -1109,7 +1239,7 @@
     <?php
         $signCategories = \App\Models\SignCategory::all();
     ?>
-    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $signCategories; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $category): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $signCategories; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $category): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
         <?php if (isset($component)) { $__componentOriginalfe86969babb72517ecf97426e7c9330d = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalfe86969babb72517ecf97426e7c9330d = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::sidebar.item','data' => ['icon' => $category->icon,'href' => route('signs.sign', $category->slug),'current' => request()->routeIs('signs.sign') && request()->route('slug') === $category->slug,'wire:navigate.hover' => true]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -1120,6 +1250,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($category->icon),'href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('signs.sign', $category->slug)),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('signs.sign') && request()->route('slug') === $category->slug),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
             <?php echo e($category->name); ?>
 
          <?php echo $__env->renderComponent(); ?>
@@ -1132,7 +1264,7 @@
 <?php $component = $__componentOriginalfe86969babb72517ecf97426e7c9330d; ?>
 <?php unset($__componentOriginalfe86969babb72517ecf97426e7c9330d); ?>
 <?php endif; ?>
-    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
         <?php if (isset($component)) { $__componentOriginalfe86969babb72517ecf97426e7c9330d = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalfe86969babb72517ecf97426e7c9330d = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::sidebar.item','data' => ['icon' => 'exclamation-circle']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -1142,7 +1274,9 @@
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['icon' => 'exclamation-circle']); ?>কোনো সাইন ক্যাটাগরি পাওয়া যায়নি <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['icon' => 'exclamation-circle']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+কোনো সাইন ক্যাটাগরি পাওয়া যায়নি <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalfe86969babb72517ecf97426e7c9330d)): ?>
 <?php $attributes = $__attributesOriginalfe86969babb72517ecf97426e7c9330d; ?>
@@ -1167,6 +1301,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['class' => '!text-center mb-4 text-lg font-bold text-green-600 border-b pb-2']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         Excel টিউটোরিয়াল
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -1187,7 +1323,7 @@
             ->groupBy('chapter_name');
     ?>
 
-    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $excelChapters; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $chapterName => $lessons): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $excelChapters; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $chapterName => $lessons): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
         
         <div class="px-3 py-2 mt-4 text-xs font-bold text-zinc-400 uppercase tracking-widest">
             <?php echo e($chapterName); ?>
@@ -1195,7 +1331,7 @@
         </div>
 
         
-        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__currentLoopData = $lessons; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $lesson): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $lessons; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $lesson): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
             <?php if (isset($component)) { $__componentOriginalfe86969babb72517ecf97426e7c9330d = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalfe86969babb72517ecf97426e7c9330d = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::sidebar.item','data' => ['icon' => 'document-text','href' => route('excel.view', $lesson->slug),'current' => request()->route('slug') === $lesson->slug,'wire:navigate.hover' => true]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -1206,6 +1342,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => 'document-text','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('excel.view', $lesson->slug)),'current' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->route('slug') === $lesson->slug),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
                 <?php echo e($lesson->title); ?>
 
              <?php echo $__env->renderComponent(); ?>
@@ -1218,9 +1356,9 @@
 <?php $component = $__componentOriginalfe86969babb72517ecf97426e7c9330d; ?>
 <?php unset($__componentOriginalfe86969babb72517ecf97426e7c9330d); ?>
 <?php endif; ?>
-        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
 
-    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
         <?php if (isset($component)) { $__componentOriginalfe86969babb72517ecf97426e7c9330d = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalfe86969babb72517ecf97426e7c9330d = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::sidebar.item','data' => ['icon' => 'exclamation-circle']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -1230,7 +1368,9 @@
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['icon' => 'exclamation-circle']); ?>কোনো লেসন পাওয়া যায়নি <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['icon' => 'exclamation-circle']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+কোনো লেসন পাওয়া যায়নি <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalfe86969babb72517ecf97426e7c9330d)): ?>
 <?php $attributes = $__attributesOriginalfe86969babb72517ecf97426e7c9330d; ?>

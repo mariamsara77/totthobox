@@ -27,6 +27,8 @@ use Livewire\Volt\Component;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['title' => 'আপনার অ্যাকাউন্টে লগ ইন করুন','description' => 'লগ ইন করতে নিচের ধাপগুলো অনুসরণ করুন']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginale5d2f2831f58fdbe96ad6d7cbd41a7dd)): ?>
@@ -77,7 +79,9 @@ $message = $__bag->first($__errorArgs[0]); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['class' => 'text-red-600 text-xs pl-4']); ?><?php echo e($message); ?> <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['class' => 'text-red-600 text-xs pl-4']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+<?php echo e($message); ?> <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal0638ebfbd490c7a414275d493e14cb4e)): ?>
 <?php $attributes = $__attributesOriginal0638ebfbd490c7a414275d493e14cb4e; ?>
@@ -121,6 +125,8 @@ unset($__errorArgs, $__bag); ?>"
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['x-show' => '!show','icon' => 'eye','variant' => 'micro']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalc7d5f44bf2a2d803ed0b55f72f1f82e2)): ?>
@@ -141,6 +147,8 @@ unset($__errorArgs, $__bag); ?>"
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['x-show' => 'show','x-cloak' => true,'icon' => 'eye-slash','variant' => 'micro']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalc7d5f44bf2a2d803ed0b55f72f1f82e2)): ?>
@@ -168,7 +176,9 @@ $message = $__bag->first($__errorArgs[0]); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['class' => 'text-red-600 text-xs pl-4']); ?><?php echo e($message); ?> <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['class' => 'text-red-600 text-xs pl-4']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+<?php echo e($message); ?> <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal0638ebfbd490c7a414275d493e14cb4e)): ?>
 <?php $attributes = $__attributesOriginal0638ebfbd490c7a414275d493e14cb4e; ?>
@@ -195,6 +205,8 @@ unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendB
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['type' => 'submit','class' => 'w-full !rounded-full py-6 font-bold','variant' => 'primary']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
                     লগ ইন করুন
                  <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -219,6 +231,8 @@ unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendB
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['class' => 'text-xs','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('password.request')),'wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
                             পাসওয়ার্ড ভুলে গেছেন?
                          <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -241,6 +255,8 @@ unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendB
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['wire:click' => 'toggleEmailLoginClose','icon' => 'arrow-left','size' => 'xs','variant' => 'ghost','class' => '!rounded-full']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
                        পিছনে যান
                      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -263,19 +279,25 @@ $__split = function ($name, $params = []) {
 };
 [$__name, $__params] = $__split('auth.last-user-display', []);
 
-$key = null;
+$__keyOuter = $__key ?? null;
 
-$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-1994464692-3', null);
+$__key = null;
+$__componentSlots = [];
 
-$__html = app('livewire')->mount($__name, $__params, $key);
+$__key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-1994464692-0', $__key);
+
+$__html = app('livewire')->mount($__name, $__params, $__key, $__componentSlots);
 
 echo $__html;
 
 unset($__html);
+unset($__key);
+$__key = $__keyOuter;
+unset($__keyOuter);
 unset($__name);
 unset($__params);
+unset($__componentSlots);
 unset($__split);
-if (isset($__slots)) unset($__slots);
 ?>
 
             <?php if (isset($component)) { $__componentOriginalc04b147acd0e65cc1a77f86fb0e81580 = $component; } ?>
@@ -288,6 +310,8 @@ if (isset($__slots)) unset($__slots);
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['wire:click' => 'toggleEmailLogin','class' => 'w-full !rounded-full py-6','icon' => 'envelope','variant' => 'primary']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
                 ইমেইল দিয়ে লগ ইন
              <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -307,19 +331,25 @@ $__split = function ($name, $params = []) {
 };
 [$__name, $__params] = $__split('auth.google-login');
 
-$key = null;
+$__keyOuter = $__key ?? null;
 
-$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-1994464692-4', null);
+$__key = null;
+$__componentSlots = [];
 
-$__html = app('livewire')->mount($__name, $__params, $key);
+$__key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-1994464692-1', $__key);
+
+$__html = app('livewire')->mount($__name, $__params, $__key, $__componentSlots);
 
 echo $__html;
 
 unset($__html);
+unset($__key);
+$__key = $__keyOuter;
+unset($__keyOuter);
 unset($__name);
 unset($__params);
+unset($__componentSlots);
 unset($__split);
-if (isset($__slots)) unset($__slots);
 ?>
                 <?php
 $__split = function ($name, $params = []) {
@@ -327,19 +357,25 @@ $__split = function ($name, $params = []) {
 };
 [$__name, $__params] = $__split('auth.facebook-auth');
 
-$key = null;
+$__keyOuter = $__key ?? null;
 
-$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-1994464692-5', null);
+$__key = null;
+$__componentSlots = [];
 
-$__html = app('livewire')->mount($__name, $__params, $key);
+$__key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-1994464692-2', $__key);
+
+$__html = app('livewire')->mount($__name, $__params, $__key, $__componentSlots);
 
 echo $__html;
 
 unset($__html);
+unset($__key);
+$__key = $__keyOuter;
+unset($__keyOuter);
 unset($__name);
 unset($__params);
+unset($__componentSlots);
 unset($__split);
-if (isset($__slots)) unset($__slots);
 ?>
            
         </div>
@@ -363,7 +399,9 @@ if (isset($__slots)) unset($__slots);
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('register')),'class' => 'font-bold','wire:navigate.hover' => true]); ?>সাইন আপ করুন <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('register')),'class' => 'font-bold','wire:navigate.hover' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+সাইন আপ করুন <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal54ddb5b70b37b1e1cf0f2f95e4c53477)): ?>
 <?php $attributes = $__attributesOriginal54ddb5b70b37b1e1cf0f2f95e4c53477; ?>

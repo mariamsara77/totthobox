@@ -60,6 +60,8 @@ unset($__defined_vars, $__key, $__value); ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['variant' => 'micro','class' => 'size-3']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal6b14ccea37ceba802c7692663ec127c4)): ?>
@@ -81,6 +83,8 @@ unset($__defined_vars, $__key, $__value); ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['variant' => 'micro','class' => 'size-3']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal298ff21bbc41cebb188cbb18c6c11bc0)): ?>
@@ -102,6 +106,8 @@ unset($__defined_vars, $__key, $__value); ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['variant' => 'micro','class' => 'size-3 opacity-0 group-hover:opacity-100']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalcc1305822472ccf8aa9a0b8dc7a9cf8c)): ?>

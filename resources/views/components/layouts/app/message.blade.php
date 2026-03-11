@@ -42,7 +42,7 @@
                 </flux:sidebar.profile>
 
                 <flux:menu class="w-[220px] dark:!bg-zinc-800">
-                    <x-auth-dropdown />
+                    <x-auth-head />
                 </flux:menu>
             </flux:dropdown>
         @else

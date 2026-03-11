@@ -1,39 +1,57 @@
 <meta charset="utf-8" />
-{{-- ১. অ্যাপ যেন জুম না হয় এবং ফোনের ফুল স্ক্রিন জুড়ে থাকে (Modern & Native Viewport) --}}
-<meta name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <meta name="csrf-token" content="{{ csrf_token() }}">
 
+{{-- এখানে কোনো টাইটেল ট্যাগ থাকবে না, সব @stack থেকে আসবে --}}
+@stack('seo_meta')
 
-<title>{{ $title ?? config('app.name') }}</title>
+<title>@yield('title', 'Totthobox - আপনার প্রয়োজনীয় তথ্যসমূহ')</title>
 
-<meta name="description"
-    content="{{ $description ?? 'Welcome to Totthobox, your personal space for managing tasks and projects.' }}" />
+{{-- যদি কোনো পেজে <x-seo /> দিতে ভুলে যান, তার জন্য একটি ব্যাকআপ টাইটেল --}}
+@if (!View::hasSection('seo_pushed'))
+    {{-- এটি শুধু তখনই কাজ করবে যখন স্ট্যাক খালি থাকবে --}}
+@endif
+
 <meta name="author" content="Totthobox Team" />
 <meta name="robots" content="index, follow" />
 
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
-<link rel="shortcut icon" href="/favicon.ico" />
+{{--
+<link rel="alternate icon" href="/favicon.ico" /> --}}
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
 <meta name="apple-mobile-web-app-title" content="Totthobox" />
 
-{{-- ২. PWA & Manifest Connection --}}
-<link rel="manifest" href="/manifest.json">
+{{-- PWA & Manifest Connection --}}
+<link rel="manifest" href="/manifest.json"> {{-- আপনার স্ক্রিনশটে site.webmanifest ছিল, নাম চেক করে নিন --}}
 <meta name="mobile-web-app-capable" content="yes">
+
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#262626" media="(prefers-color-scheme: dark)">
+
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#007bff">
 
+<link rel="modulepreload" href="/flux/flux.js?id=618aa74b">
+<link rel="preload" href="/livewire/livewire.js?id=0f6341c0" as="script">
 
-{{-- ৪. Vite & Flux --}}
+{{-- Vite & Flux --}}
 @vite(['resources/css/app.css', 'resources/js/app.js'])
 @fluxAppearance
-
+<link rel="preload" href="/fonts/solaimanlipi-webfont.woff2" as="font" type="font/woff2" crossorigin>
 {{-- Fonts --}}
-<link href="https://fonts.maateen.me/solaiman-lipi/font.css" rel="stylesheet">
+{{-- <link href="https://fonts.maateen.me/solaiman-lipi/font.css" rel="stylesheet"> --}}
+
+<script>
+    // Flux UI যখন .dark ক্লাস অ্যাড/রিমুভ করবে, এটি অটোমেটিক মেটা ট্যাগ আপডেট করবে
+    const observer = new MutationObserver(() => {
+        const isDark = document.documentElement.classList.contains('dark');
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', isDark ? '#262626' : '#ffffff');
+    });
+
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+</script>
 
 {{-- Setting modal --}}
 <flux:modal name="settings" class="md:w-96">
@@ -69,6 +87,7 @@
         </div>
     </div>
 </flux:modal>
+
 
 {{-- PWA Smart Bar --}}
 <div id="pwa-smart-bar"

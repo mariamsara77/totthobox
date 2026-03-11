@@ -11,7 +11,7 @@ use Spatie\Image\Enums\Fit;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
-class HistoryBd extends Model implements HasMedia
+class HistoryBd extends BaseModel implements HasMedia
 {
     use InteractsWithMedia, SoftDeletes;
 

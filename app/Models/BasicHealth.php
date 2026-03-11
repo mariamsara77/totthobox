@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Carbon\Carbon;
 
-class BasicHealth extends Model
+class BasicHealth extends BaseModel
 {
     use HasFactory, SoftDeletes;
 

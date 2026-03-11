@@ -18,7 +18,7 @@ class PageView extends Model
         'route_name',
         'load_time_ms',
         'view_duration',
-        'created_at'
+        'created_at',
     ];
 
     protected $casts = [

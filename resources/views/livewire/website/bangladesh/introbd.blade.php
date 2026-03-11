@@ -2,63 +2,65 @@
 
 use Livewire\Volt\Component;
 use App\Models\IntroBd;
-use Livewire\WithPagination;
-use Livewire\Attributes\On;
-use Livewire\Attributes\Title;
-use Livewire\Attributes\Computed; // এই লাইনটি মিসিং ছিল
+use Livewire\Attributes\Computed;
+use Illuminate\Support\Facades\Cache;
 
 new class extends Component {
-    use WithPagination;
-
     public $search = '';
-    public $perPage = 10;
 
-    #[On('networkStatusChanged')]
-    public function updateStatus($data)
+    /**
+     * Fetches all data cached for 1 hour. 
+     * Uses eager loading for nested media relationships.
+     */
+    #[Computed]
+    public function allData()
     {
-        if (!$data['online']) {
-            session()->flash('warning', 'আপনি অফলাইন আছেন, কিছু ফিচার কাজ নাও করতে পারে।');
-        }
+        return Cache::remember(IntroBd::CACHE_KEY, now()->addHour(), function () {
+            return IntroBd::query()
+                ->with([
+                    'media',
+                    'creator' => fn($q) => $q
+                        ->select(['id', 'name', 'avatar', 'slug'])
+                        ->with(['media']) // Eager load user avatars
+                        ->without(['roles', 'permissions']) // Prevent overhead
+                ])
+                ->latest('id')
+                ->get();
+        });
     }
 
-    public function updatedSearch()
+    /**
+     * Filters the already cached collection. 
+     * This avoids new database hits when searching.
+     */
+    #[Computed]
+    public function filteredData()
     {
-        $this->resetPage();
+        if (empty($this->search))
+            return $this->allData;
+
+        $term = strtolower($this->search);
+        return $this->allData->filter(function ($intro) use ($term) {
+            return str_contains(strtolower($intro->title), $term) ||
+                str_contains(strtolower($intro->description), $term);
+        });
     }
 
-    // ইউনিক ক্রিয়েটরদের লিস্ট বের করার জন্য
     #[Computed]
     public function creators()
     {
-        return IntroBd::query()
-            ->with('creator.media')
-            ->whereNotNull('created_by')
-            ->get()
-            ->pluck('creator')
-            ->filter()
-            ->unique('id')
-            ->sortBy('id') // ছোট আইডি সবার আগে আসবে (Oldest First)
-            ->values();
+        return $this->filteredData->pluck('creator')->unique('id');
     }
+
+    #[Computed]
     public function groupedIntros()
     {
-        return IntroBd::query()
-            ->with(['media', 'creator']) // creator ও এখানে লোড করে রাখা ভালো
-            ->when($this->search, function ($query) {
-                $query->where(function ($q) {
-                    $q->where('title', 'like', '%' . $this->search . '%')
-                        ->orWhere('description', 'like', '%' . $this->search . '%');
-                });
-            })
-            ->latest('id')
-            ->get()
-            ->groupBy('intro_category');
+        return $this->filteredData->groupBy('intro_category');
     }
 
     public function resetFilter()
     {
         $this->reset('search');
-        $this->resetPage();
     }
 }; ?>
 
@@ -72,20 +74,16 @@ new class extends Component {
 
         <div class="flex items-center gap-2">
             {{-- Main Creator Info Icon --}}
-            <flux:tooltip toggleable class="">
-                <flux:button icon="information-circle" size="sm" variant="ghost" />
+            <flux:tooltip toggleable>
+                <flux:button icon="users" size="sm" variant="subtle" />
 
-                <flux:tooltip.content
-                    class="max-w-[22rem] overflow-hidden border rounded-2xl! bg-white! dark:bg-zinc-700!">
+                <flux:tooltip.content class="rounded-2xl! space-y-4">
                     {{-- Header of Tooltip --}}
-                    <div class="p-2">
-                        <flux:heading size="sm">তথ্য প্রদানকারীগণ ({{ bn_num($this->creators->count()) }})
-                        </flux:heading>
-                        <flux:subheading size="xs">এই কন্টেন্ট তৈরিতে যারা অবদান রেখেছেন</flux:subheading>
-                    </div>
-
+                    <flux:heading>তথ্য প্রদানকারীগণ ({{ bn_num($this->creators->count()) }})
+                    </flux:heading>
+                    <flux:subheading size="sm">এই কন্টেন্ট তৈরিতে যারা অবদান রেখেছেন</flux:subheading>
                     {{-- Scrollable List Area --}}
-                    <div class="max-h-[350px] overflow-y-auto space-y-3 p-2 custom-scrollbar">
+                    <div class="max-h-80 max-w-80 overflow-y-auto space-y-4 custom-scrollbar">
                         @foreach($this->creators as $creator)
                             <div class="relative p-2 group rounded-2xl bg-zinc-400/25 transition-all">
                                 <div class="flex items-start gap-3">
@@ -111,18 +109,12 @@ new class extends Component {
                                         <flux:text size="sm">
                                             {{ $creator->profession ?? 'কন্টেন্ট কন্ট্রিবিউটর' }}
                                         </flux:text>
-                                        {{--
-                                        @if($creator->bio)
-                                        <flux:text size="sm">
-                                            {!! $creator->bio !!}
-                                        </flux:text>
-                                        @endif --}}
                                     </div>
                                 </div>
                                 <flux:separator class="my-2" />
                                 {{-- Hover Action (Optional: Profile Link) --}}
                                 <div class="flex items-center justify-between">
-                                    <flux:text size="xs">
+                                    <flux:text size="sm">
                                         একটিভ: {{ bn_num($creator->last_active_at?->diffForHumans()) ?? 'অজানা' }}
                                     </flux:text>
                                     <flux:button href="{{ route('users.show', $creator->slug) }}" variant="ghost" size="xs"
@@ -133,11 +125,9 @@ new class extends Component {
                     </div>
 
                     {{-- Footer --}}
-                    <div class="text-center">
-                        <flux:text size="xs">
-                            আমাদের সকল তথ্য ভেরিফাইড এবং যাচাইকৃত।
-                        </flux:text>
-                    </div>
+                    <flux:text>
+                        আমাদের সকল তথ্য ভেরিফাইড এবং যাচাইকৃত।
+                    </flux:text>
                 </flux:tooltip.content>
             </flux:tooltip>
         </div>
@@ -145,16 +135,16 @@ new class extends Component {
     {{-- Header & Search --}}
 
     <div class="flex items-center gap-3">
-        <flux:input wire:model.live.debounce.400ms="search" size="sm" placeholder="তথ্য খুঁজুন (যেমন: রাজধানী, নদী...)"
+        <flux:input wire:model.live.debounce.400ms="search" placeholder="তথ্য খুঁজুন (যেমন: রাজধানী, নদী...)"
             icon="magnifying-glass" variant="filled" class="rounded-xl! flex-1" />
 
         @if($search)
-            <flux:button wire:click="resetFilter" size="sm" variant="ghost" icon="x-mark">মুছে ফেলুন</flux:button>
+            <flux:button wire:click="resetFilter" variant="ghost" icon="x-mark">মুছে ফেলুন</flux:button>
         @endif
     </div>
 
     {{-- Content List with Grouping --}}
-    @forelse ($this->groupedIntros() as $category => $intros)
+    @forelse ($this->groupedIntros as $category => $intros)
 
         {{-- Category Badge --}}
         <div class="flex justify-center">
@@ -165,8 +155,9 @@ new class extends Component {
         @foreach ($intros as $item)
 
             {{-- Title --}}
-            <header>
-                <flux:heading size="lg" level="2" class="font-bold">
+            <header class="flex items-center gap-2">
+                <div class="h-6 w-1 bg-zinc-600 dark:bg-zinc-200 rounded-full"></div>
+                <flux:heading level="2" size="lg" class="group-hover:text-emerald-600 transition-colors">
                     {{ $item->title }}
                 </flux:heading>
             </header>

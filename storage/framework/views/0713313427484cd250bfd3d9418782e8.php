@@ -21,6 +21,8 @@ use Livewire\Attributes\Computed;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['class' => 'mb-8']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
             <?php if (isset($component)) { $__componentOriginalced986e8ff6641d3797206c3198c2b83 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalced986e8ff6641d3797206c3198c2b83 = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::breadcrumbs.item','data' => ['href' => '/']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -30,7 +32,9 @@ use Livewire\Attributes\Computed;
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['href' => '/']); ?>Home <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['href' => '/']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+Home <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalced986e8ff6641d3797206c3198c2b83)): ?>
 <?php $attributes = $__attributesOriginalced986e8ff6641d3797206c3198c2b83; ?>
@@ -49,7 +53,9 @@ use Livewire\Attributes\Computed;
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['href' => '#']); ?>Excel Tutorial <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['href' => '#']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+Excel Tutorial <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalced986e8ff6641d3797206c3198c2b83)): ?>
 <?php $attributes = $__attributesOriginalced986e8ff6641d3797206c3198c2b83; ?>
@@ -68,7 +74,9 @@ use Livewire\Attributes\Computed;
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes([]); ?><?php echo e($this->tutorial->chapter_name); ?> <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes([]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+<?php echo e($this->tutorial->chapter_name); ?> <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalced986e8ff6641d3797206c3198c2b83)): ?>
 <?php $attributes = $__attributesOriginalced986e8ff6641d3797206c3198c2b83; ?>
@@ -101,7 +109,9 @@ use Livewire\Attributes\Computed;
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['color' => 'green','size' => 'sm','variant' => 'pill']); ?>Lesson #<?php echo e($this->tutorial->position); ?>
+<?php $component->withAttributes(['color' => 'green','size' => 'sm','variant' => 'pill']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+Lesson #<?php echo e($this->tutorial->position); ?>
 
                  <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -123,6 +133,8 @@ use Livewire\Attributes\Computed;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['variant' => 'prose','size' => 'sm','class' => 'italic']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
                     Updated: <?php echo e($this->tutorial->updated_at->format('M Y')); ?>
 
                  <?php echo $__env->renderComponent(); ?>
@@ -147,6 +159,8 @@ use Livewire\Attributes\Computed;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['size' => 'xl','class' => '!text-4xl md:!text-5xl tracking-tight text-zinc-900 dark:text-white']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
                 <?php echo e($this->tutorial->title); ?>
 
              <?php echo $__env->renderComponent(); ?>
@@ -180,6 +194,8 @@ use Livewire\Attributes\Computed;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes([]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
             <div class="ql-text-fromat">
                 <?php echo $this->tutorial->description; ?>
 
@@ -220,6 +236,8 @@ use Livewire\Attributes\Computed;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['size' => 'lg','class' => 'flex items-center gap-2']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
                         <?php if (isset($component)) { $__componentOriginal8a9f4a3592595c10cba0ab9ab65a680d = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal8a9f4a3592595c10cba0ab9ab65a680d = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::icon.variable','data' => ['class' => 'size-5 text-green-600']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -230,6 +248,8 @@ use Livewire\Attributes\Computed;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['class' => 'size-5 text-green-600']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal8a9f4a3592595c10cba0ab9ab65a680d)): ?>
@@ -261,7 +281,9 @@ use Livewire\Attributes\Computed;
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['color' => 'green','variant' => 'flat','size' => 'sm','class' => 'uppercase tracking-widest']); ?>Formula
+<?php $component->withAttributes(['color' => 'green','variant' => 'flat','size' => 'sm','class' => 'uppercase tracking-widest']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+Formula
                      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal4cc377eda9b63b796b6668ee7832d023)): ?>
@@ -292,6 +314,8 @@ use Livewire\Attributes\Computed;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['x-on:click' => 'copyToClipboard','size' => 'sm','variant' => 'filled','color' => 'green','class' => 'w-full md:w-auto font-bold']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
                         <span x-show="!copied" class="flex items-center gap-2">
                             <?php if (isset($component)) { $__componentOriginal37b415d373c8ef5ee7753cc3fe05d8eb = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal37b415d373c8ef5ee7753cc3fe05d8eb = $attributes; } ?>
@@ -303,6 +327,8 @@ use Livewire\Attributes\Computed;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['class' => 'size-4']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal37b415d373c8ef5ee7753cc3fe05d8eb)): ?>
@@ -325,6 +351,8 @@ use Livewire\Attributes\Computed;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['class' => 'size-4']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal9c2dfd6cb98f4df18e26d1694500af11)): ?>
@@ -362,6 +390,8 @@ use Livewire\Attributes\Computed;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['size' => 'sm','class' => 'text-zinc-400']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
             &copy; <?php echo e(date('Y')); ?> Excel Expert BD. সহজ শিক্ষায় সেরা সমাধান।
          <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>

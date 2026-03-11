@@ -15,7 +15,7 @@ class VisitorEvent extends Model
         'event_action',
         'event_label',
         'payload',
-        'created_at'
+        'created_at',
     ];
 
     protected $casts = [

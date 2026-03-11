@@ -946,20 +946,23 @@ new class extends Component {
         <div class="relative">
 
 
-            <!-- Search Input -->
-            <flux:input type="text" kbd="⌘K" icon="magnifying-glass" placeholder="Search..."
-                wire:model.live.debounce.300ms="query" clearable autofocus
-                class="backdrop-blur-lg bg-zinc-100/25 dark:bg-zinc-700/50 rounded-lg">
-                <x-slot name="iconTrailing">
-                    <flux:button size="sm" @click="showFilters = !showFilters" variant="subtle" class="-mr-1">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-                            stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                        </svg>
-                    </flux:button>
-                </x-slot>
-            </flux:input>
+            <flux:input kbd="⌘K" icon="magnifying-glass" placeholder="Search..."
+    wire:model.live.debounce.300ms="query" clearable autofocus
+    class="backdrop-blur-lg bg-zinc-100/25 dark:bg-zinc-700/50 rounded-lg">
+    
+    <x-slot name="iconTrailing">
+        <flux:button size="sm" @click="showFilters = !showFilters" 
+            variant="subtle" class="-mr-1" 
+            aria-label="Filter results"> 
+            
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+        </flux:button>
+    </x-slot>
+</flux:input>
 
 
             <!-- Filters Panel -->
@@ -1206,21 +1209,16 @@ new class extends Component {
                                                         {!! $item['highlighted_display'] !!}
                                                     </p>
                                                     @if (isset($item['badge']))
-                                                        <span
-                                                            class="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $item['badge']['class'] }}">
-                                                            {{ $item['badge']['value'] }}
-                                                        </span>
+                                                        <flux:badge size="sm">
+                                                         {{ $item['badge']['value'] }}
+                                                        </flux:badge>
                                                     @endif
                                                 </div>
 
-                                                <!-- Metadata -->
-                                                <div class="mt-1.5 space-y-1">
+                                               <div class="mt-1.5 space-y-1">
                                                     @foreach ($item['metadata'] as $field => $value)
-                                                        <div
-                                                            class="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
-                                                            <span
-                                                                class="font-medium capitalize">{{ Str::headline($field) }}:</span>
-                                                            {!! $value !!}
+                                                        <div class="line-clamp-2 text-sm text-zinc-500">
+                                                            {!! html_entity_decode($value) !!}
                                                         </div>
                                                     @endforeach
                                                 </div>

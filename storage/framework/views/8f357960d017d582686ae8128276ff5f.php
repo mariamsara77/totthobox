@@ -19,6 +19,8 @@ use Livewire\Volt\Component;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['size' => 'xl','class' => 'text-red-600 dark:text-red-500']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
             অ্যাকাউন্ট মুছে ফেলুন
          <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -40,6 +42,8 @@ use Livewire\Volt\Component;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['class' => 'mt-2']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
             একবার আপনার অ্যাকাউন্ট মুছে ফেলা হলে, এর সমস্ত তথ্য এবং রিসোর্স স্থায়ীভাবে ডিলিট হয়ে যাবে।
          <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -65,6 +69,8 @@ use Livewire\Volt\Component;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['size' => 'lg','class' => 'text-red-700 dark:text-red-400']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
                 আপনি কি নিশ্চিতভাবে আপনার অ্যাকাউন্টটি মুছে ফেলতে চান?
              <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -86,6 +92,8 @@ use Livewire\Volt\Component;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['class' => 'mt-1']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
                 নিরাপত্তার স্বার্থে এবং নিশ্চিত হতে আপনার পাসওয়ার্ডটি নিচে প্রদান করুন। এই কাজটি আর ফিরিয়ে আনা সম্ভব হবে
                 না।
              <?php echo $__env->renderComponent(); ?>
@@ -111,6 +119,8 @@ use Livewire\Volt\Component;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['wire:model' => 'password','label' => 'আপনার পাসওয়ার্ড দিন','type' => 'password','viewable' => true,'placeholder' => '••••••••','required' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal26c546557cdc09040c8dd00b2090afd0)): ?>
@@ -134,6 +144,8 @@ use Livewire\Volt\Component;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['variant' => 'danger','type' => 'submit','class' => 'px-8']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
                 হ্যাঁ, অ্যাকাউন্ট মুছুন
              <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -148,14 +160,16 @@ use Livewire\Volt\Component;
 
             <?php if (isset($component)) { $__componentOriginalc04b147acd0e65cc1a77f86fb0e81580 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalc04b147acd0e65cc1a77f86fb0e81580 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::button.index','data' => ['variant' => 'ghost','href' => route('settings.profile'),'wire:navigate' => true]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::button.index','data' => ['variant' => 'ghost','href' => route('profile.settings'),'wire:navigate' => true]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('flux::button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['variant' => 'ghost','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('settings.profile')),'wire:navigate' => true]); ?>
+<?php $component->withAttributes(['variant' => 'ghost','href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('profile.settings')),'wire:navigate' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
                 বাতিল করুন
              <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>

@@ -42,6 +42,8 @@ unset($__defined_vars, $__key, $__value); ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['attributes' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($attributes)]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
     <?php if (!Flux::componentExists($name = 'select.variants.'.$variant)) throw new \Exception("Flux component [{$name}] does not exist."); ?><?php if (isset($component)) { $__componentOriginal75ba87e40352b8c0b6c5fcd9fae0ab24 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal75ba87e40352b8c0b6c5fcd9fae0ab24 = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve([

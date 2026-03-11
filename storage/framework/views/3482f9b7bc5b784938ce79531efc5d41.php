@@ -86,6 +86,8 @@ $iconClasses = Flux::classes('text-zinc-500 dark:text-zinc-400 [ui-radio[data-ch
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($icon),'variant' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($iconVariant),'class' => ''.$iconClasses.'']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalc7d5f44bf2a2d803ed0b55f72f1f82e2)): ?>
@@ -101,7 +103,7 @@ $iconClasses = Flux::classes('text-zinc-500 dark:text-zinc-400 [ui-radio[data-ch
 
     <?php endif; ?>
 
-    <?php echo e($label ?? $slot); ?>
+    <?php echo e($slot->isNotEmpty() ? $slot : $label); ?>
 
 
     <?php if (is_string($iconTrailing) && $iconTrailing !== ''): ?>
@@ -115,6 +117,8 @@ $iconClasses = Flux::classes('text-zinc-500 dark:text-zinc-400 [ui-radio[data-ch
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($iconTrailing),'variant' => 'micro']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalc7d5f44bf2a2d803ed0b55f72f1f82e2)): ?>

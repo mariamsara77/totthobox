@@ -1,9 +1,0 @@
-{
-  "appId": "com.example.totthobox",
-  "appName": "Totthobox",
-  "webDir": "public",
-  "server": {
-    "url": "https://upper-sage-focus-namely.trycloudflare.com",
-    "cleartext": true
-  }
-}

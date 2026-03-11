@@ -7,26 +7,21 @@
 
 <body class="min-h-screen bg-white dark:bg-zinc-800">
 
-    {{-- Google OneTap Login Popup --}}
-    <div id="g_id_onload" data-client_id="{{ config('services.google.client_id') }}" data-context="signin"
-        data-ux_mode="popup" data-callback="handleCredentialResponse" data-auto_prompt="true">
-    </div>
-
     <flux:header container class="border-b border-zinc-200  dark:border-zinc-700 ">
 
-        <a href="{{ route('home') }}" class="flex items-center rtl:space-x-reverse lg:ms-0" wire:navigate.hover>
+        <a href="{{ route('home') }}" class="flex items-center rtl:space-x-reverse lg:ms-0" wire:navigate.hover aria-label="Totthobox Home">
             <div class="flex aspect-square size-14 items-center justify-center rounded-md ">
                 <flux:icon.brand class="w-8 h-8" />
             </div>
             <div class="hidden lg:flex flex-1">
-                <span class="text-3xl font-semibold text-black dark:text-white font-sans">Totthobox</span>
+                <h1 class="text-3xl font-semibold text-black dark:text-white font-sans">Totthobox</h1>
             </div>
         </a>
 
         <flux:spacer />
 
         <flux:modal.trigger name="search">
-            <flux:button icon='search' variant="subtle" size="sm" tooltip="Search">
+            <flux:button icon='search' variant="subtle" size="sm" tooltip="Search" aria-label="Search">
                 <flux:text class="hidden lg:flex" tooltip="Search">Search</flux:text>
             </flux:button>
         </flux:modal.trigger>
@@ -46,7 +41,7 @@
                 </flux:profile>
 
                 <flux:menu class="w-[220px]">
-                    <x-auth-dropdown />
+                    <x-auth-head />
                 </flux:menu>
             </flux:dropdown>
         @else
@@ -65,7 +60,7 @@
     <flux:sidebar stashable sticky
         class="lg:hidden border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
 
-        <a href="{{ route('home') }}" class="ms-1 flex items-center space-x-2 rtl:space-x-reverse" wire:navigate.hover>
+        <a href="{{ route('home') }}" class="ms-1 flex items-center space-x-2 rtl:space-x-reverse" wire:navigate.hover aria-label="Totthobox Home">
             <x-app-logo />
         </a>
 
@@ -81,7 +76,7 @@
         <flux:spacer />
 
         <flux:navlist variant="outline">
-            {{-- <x-auth-dropdown /> --}}
+            {{-- <x-auth-head /> --}}
             @auth
 
                 <flux:dropdown position="top" align="start" class="max-lg:hidden">
@@ -91,7 +86,7 @@
                     </flux:sidebar.profile>
 
                     <flux:menu class="w-[220px]">
-                        <x-auth-dropdown />
+                        <x-auth-head />
                     </flux:menu>
                 </flux:dropdown>
             @else
@@ -104,32 +99,9 @@
         </flux:navlist>
     </flux:sidebar>
 
-    {{ $slot }}
-
-
-
-    {{--
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <div id="g_id_onload" data-client_id="{{ config('services.google.client_id') }}"
-        data-callback="handleCredentialResponse" data-auto_prompt="true">
-    </div>
-
-    <script>
-        function handleCredentialResponse(response) {
-            fetch("{{ route('auth.google.one-tap') }}", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRF-TOKEN": "{{ csrf_token() }}"
-                },
-                body: JSON.stringify({ token: response.credential })
-            })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) window.location.href = data.redirect;
-                });
-        }
-    </script> --}}
+    <main id="main-content" role="main">
+        {{ $slot }}
+    </main>
 
     @stack('scripts')
     @fluxScripts

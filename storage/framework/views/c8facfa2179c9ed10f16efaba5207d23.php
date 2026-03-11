@@ -70,7 +70,9 @@ if (($wireModel = $attributes->wire('model')) && $wireModel->directive && ! $wir
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['kbd' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($kbd)]); ?><?php echo e($content); ?> <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['kbd' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($kbd)]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+<?php echo e($content); ?> <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalb33170285c50607a3d87e01ed45caae5)): ?>
 <?php $attributes = $__attributesOriginalb33170285c50607a3d87e01ed45caae5; ?>
@@ -97,7 +99,9 @@ if (($wireModel = $attributes->wire('model')) && $wireModel->directive && ! $wir
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['kbd' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($kbd)]); ?><?php echo e($content); ?> <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['kbd' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($kbd)]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+<?php echo e($content); ?> <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalb33170285c50607a3d87e01ed45caae5)): ?>
 <?php $attributes = $__attributesOriginalb33170285c50607a3d87e01ed45caae5; ?>

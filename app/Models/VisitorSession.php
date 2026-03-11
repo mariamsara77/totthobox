@@ -3,12 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany};
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 class VisitorSession extends Model
 {
     protected $keyType = 'string';
+
     public $incrementing = false;
 
     protected $fillable = [
@@ -23,7 +25,7 @@ class VisitorSession extends Model
         'started_at',
         'last_active_at',
         'hits_count',
-        'seconds_spent'
+        'seconds_spent',
     ];
 
     protected $casts = [
@@ -36,7 +38,7 @@ class VisitorSession extends Model
     protected static function boot()
     {
         parent::boot();
-        static::creating(fn($model) => $model->id = $model->id ?: (string) Str::uuid());
+        static::creating(fn ($model) => $model->id = $model->id ?: (string) Str::uuid());
     }
 
     public function visitor(): BelongsTo

@@ -6,26 +6,22 @@
 </head>
 
 <body class="min-h-screen bg-white dark:bg-zinc-800 antialiased">
-    <flux:sidebar sticky collapsible
-        class="bg-zinc-50 dark:bg-zinc-900 border- border-zinc-200 dark:border-zinc-700 duration-300 overflow-hidden"
-        x-data x-init="let saved = localStorage.getItem('sidebar-scroll') || 0;
-        $el.scrollTop = saved;
-        window.addEventListener('livewire:navigated', () => {
-            $nextTick(() => {
-                $el.scrollTop = localStorage.getItem('sidebar-scroll') || 0;
-            });
-        });
-        $el.addEventListener('scroll', () => {
-            localStorage.setItem('sidebar-scroll', $el.scrollTop);
+
+    <flux:sidebar sticky collapsible class="bg-zinc-50 dark:bg-zinc-900" x-data="{
+            saveScroll() { localStorage.setItem('sidebar-scroll', $el.scrollTop); },
+                loadScroll() { $el.scrollTop = localStorage.getItem('sidebar-scroll') || 0; }
+        }" x-init="loadScroll();
+        $el.addEventListener('scroll', saveScroll);
+        // Livewire নেভিগেশনের সময় নতুন DOM এর সাথে সিঙ্ক করা
+        document.addEventListener('livewire:navigated', () => {
+            $nextTick(() => loadScroll());
         });">
 
         <flux:sidebar.header>
             <flux:sidebar.brand href="/" name="Totthobox" wire:navigate.hover>
                 <flux:icon name="brand" class="w-8 h-8" />
             </flux:sidebar.brand>
-
-            <flux:sidebar.collapse
-                class="in-data-flux-sidebar-on-desktop:not-in-data-flux-sidebar-collapsed-desktop:-mr-2" />
+            <flux:sidebar.collapse />
         </flux:sidebar.header>
 
         <flux:modal.trigger name="search">
@@ -33,10 +29,8 @@
         </flux:modal.trigger>
 
         <flux:modal name="search" variant="flyout" position="bottom" dismissible="false"
-            class="!bg-transparent !border-0 !p-1 !px-6 !mt-2 !overflow-visible">
-            <div class="">
-                <livewire:global.search />
-            </div>
+            class="bg-transparent! border-0! p-1! px-6! mt-2! overflow-visible!">
+            <livewire:global.search />
         </flux:modal>
 
         <flux:sidebar.nav>
@@ -47,100 +41,58 @@
             @endif
         </flux:sidebar.nav>
 
-
         <flux:sidebar.spacer />
 
         @auth
             <livewire:chat.notification-badge />
-
             <flux:dropdown position="top" align="start" class="max-lg:hidden">
-                <flux:sidebar.profile
-                    avatar="{{ auth()->user()->getFirstMediaUrl('avatars', 'thumb') ? auth()->user()->getFirstMediaUrl('avatars', 'thumb') : null }}"
+                <flux:sidebar.profile avatar="{{ auth()->user()->getFirstMediaUrl('avatars', 'thumb') ?: null }}"
                     name="{{ auth()->user()->name }}" initials="{{ auth()->user()->initials() }}"
-                    icon:trailing="chevrons-up-down" class="" />
-
-
+                    icon:trailing="chevrons-up-down" />
                 <flux:menu class="w-[220px]">
-                    <x-auth-dropdown />
+                    <x-auth-head />
                 </flux:menu>
             </flux:dropdown>
         @else
             <flux:sidebar.item icon="arrow-right-start-on-rectangle" :href="route('login')"
                 :current="request()->routeIs('login')" wire:navigate.hover>
                 {{ __('লগইন') }}
-                </flux:navlist.item>
-                <flux:modal.trigger name="settings">
-                    <flux:sidebar.item icon="cog" variant="fill">
-                        {{ __('সেটিংস') }}
-                        </flux:navlist.item>
-                </flux:modal.trigger>
-
+            </flux:sidebar.item>
+            <flux:modal.trigger name="settings">
+                <flux:sidebar.item icon="cog" variant="subtle">
+                    {{ __('সেটিংস') }}
+                </flux:sidebar.item>
+            </flux:modal.trigger>
         @endauth
-
-
     </flux:sidebar>
 
-
-
-    <!-- Mobile User Menu -->
     <flux:header sticky class="lg:hidden backdrop-blur-lg">
-        <flux:sidebar.collapse class="lg:hidden" />
-        {{--
-        <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" /> --}}
-        <a href="{{ route('home') }}" class="flex items-center space-x-2 rtl:space-x-reverse lg:ms-0"
-            wire:navigate.hover>
-            <div class="flex aspect-square size-14 items-center justify-center rounded-md ">
-                <flux:icon name="brand" class="w-8 h-8" />
-            </div>
-            <div class="hidden lg:flex ms-1 flex-1 text-start text-sm ">
-                <span class="mb-0.5 font-bold text-4xl text-[#6B747D]">Totthobox</span>
-            </div>
+        <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" />
+        <a href="{{ route('home') }}" class="flex items-center space-x-2" wire:navigate.hover>
+            <flux:icon name="brand" class="w-8 h-8" />
+            <span class="font-bold text-xl text-[#6B747D]">Totthobox</span>
         </a>
         <flux:spacer />
 
-
         <flux:modal.trigger name="search">
-            <flux:tooltip :content="__('Search')" position="bottom">
-                <flux:button class="mr-0 pr-0" icon='search' variant="subtle" size="sm"><span
-                        class="hidden lg:flex">Search</span></flux:button>
-            </flux:tooltip>
+            <flux:button icon="search" variant="subtle" size="sm" />
         </flux:modal.trigger>
-
-        <flux:dropdown>
-            <flux:button variant="ghost" size="sm">
-                <flux:icon.grid-4 class="w-4 h-4" />
-            </flux:button>
-
-            <flux:menu>
-                <flux:menu.grid-menu />
-            </flux:menu>
-        </flux:dropdown>
 
         @auth
             <flux:dropdown position="top" align="end">
-                <flux:profile
-                    :avatar="auth()->user()->getFirstMediaUrl('avatars', 'thumb') ? auth()->user()->getFirstMediaUrl('avatars', 'thumb') : null"
-                    class="cursor-pointer" :initials="auth()->user()->initials()">
-                </flux:profile>
-
+                <flux:profile :avatar="auth()->user()->getFirstMediaUrl('avatars', 'thumb') ?: null"
+                    :initials="auth()->user()->initials()" class="cursor-pointer" />
                 <flux:menu class="w-[220px]">
-                    <x-auth-dropdown />
+                    <x-auth-head />
                 </flux:menu>
             </flux:dropdown>
         @else
-            <flux:modal.trigger name="settings">
-                <flux:button icon="cog" variant="subtle" size="sm" tooltip="Settings" />
-            </flux:modal.trigger>
-            <flux:button variant="subtle" size="sm" icon="arrow-right-start-on-rectangle" wire:navigate
-                href="{{ route('login') }}" tooltip="Login & Register">
-                {{ __('Login') }}
-            </flux:button>
+            <flux:button icon="arrow-right-start-on-rectangle" variant="subtle" size="sm" wire:navigate
+                href="{{ route('login') }}" />
         @endauth
     </flux:header>
 
     {{ $slot }}
-
-
 
     @fluxScripts
     @stack('scripts')

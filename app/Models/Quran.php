@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 
-class Quran extends Model implements HasMedia
+class Quran extends BaseModel implements HasMedia
 {
     use HasFactory, InteractsWithMedia;
 

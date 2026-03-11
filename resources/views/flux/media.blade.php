@@ -54,7 +54,7 @@
                 {{-- অতিরিক্ত ছবি সংখ্যা প্রদর্শন --}}
                 @if($count > 3 && $index === 2)
                     <div class="absolute inset-0 bg-black/60 flex items-center justify-center text-white font-bold">
-                        <span class="text-lg">+{{ $count - 3 }} টি</span>
+                        <span class="text-lg">+ {{ bn_num($count - 3) }} টি</span>
                     </div>
                 @endif
             </div>

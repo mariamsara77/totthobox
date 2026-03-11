@@ -62,7 +62,7 @@ unset($__defined_vars, $__key, $__value); ?>
     <div class="grid gap-2 overflow-hidden rounded-2xl"
         style="grid-template-columns: repeat(<?php echo e($count > 1 ? 2 : 1); ?>, 1fr);">
 
-        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__currentLoopData = collect($items)->take(3); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $index => $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = collect($items)->take(3); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $index => $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
             <div class="<?php echo e($count > 2 && $index === 0 ? 'row-span-2' : ''); ?> relative group cursor-pointer overflow-hidden bg-zinc-100 dark:bg-zinc-900 border border-black/5 dark:border-white/5"
                 @click="$dispatch('open-lightbox', { index: <?php echo e($index); ?>, items: galleryItems })">
 
@@ -84,6 +84,8 @@ unset($__defined_vars, $__key, $__value); ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['name' => 'play','variant' => 'solid','class' => 'size-6']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalc7d5f44bf2a2d803ed0b55f72f1f82e2)): ?>
@@ -101,14 +103,14 @@ unset($__defined_vars, $__key, $__value); ?>
                 
                 <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($count > 3 && $index === 2): ?>
                     <div class="absolute inset-0 bg-black/60 flex items-center justify-center text-white font-bold">
-                        <span class="text-lg">+<?php echo e($count - 3); ?> টি</span>
+                        <span class="text-lg">+ <?php echo e(bn_num($count - 3)); ?> টি</span>
                     </div>
                 <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
             </div>
-        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
     </div>
 
-    <?php if (! $__env->hasRenderedOnce('ce6f2dfd-c504-432a-af3f-73e52c2a8443')): $__env->markAsRenderedOnce('ce6f2dfd-c504-432a-af3f-73e52c2a8443'); ?>
+    <?php if (! $__env->hasRenderedOnce('b38335f2-7e41-497a-a73d-66829132d3e4')): $__env->markAsRenderedOnce('b38335f2-7e41-497a-a73d-66829132d3e4'); ?>
         <?php if (isset($component)) { $__componentOriginal9b11bf7ce1f72fecce31dd160cb86c23 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal9b11bf7ce1f72fecce31dd160cb86c23 = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.global-lightbox','data' => []] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -119,6 +121,8 @@ unset($__defined_vars, $__key, $__value); ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes([]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal9b11bf7ce1f72fecce31dd160cb86c23)): ?>

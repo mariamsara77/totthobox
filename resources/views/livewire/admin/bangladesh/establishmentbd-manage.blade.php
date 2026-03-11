@@ -258,10 +258,14 @@ new class extends Component {
                             <flux:button variant="ghost" size="sm" icon="trash" color="red" wire:confirm="Are you sure?"
                                 wire:click="delete({{ $row->id }})" />
                         @else
-                            <flux:button variant="ghost" size="sm" icon="arrow-path" color="green"
-                                wire:click="restore({{ $row->id }})" />
-                            <flux:button variant="ghost" size="sm" icon="x-mark" color="red" wire:confirm="Delete permanently?"
-                                wire:click="forceDelete({{ $row->id }})" />
+                            @can('restore data')
+                                <flux:button variant="ghost" size="sm" icon="arrow-path" color="green"
+                                    wire:click="restore({{ $row->id }})" />
+                            @endcan
+                            @can('permanent delete')
+                                <flux:button variant="ghost" size="sm" icon="x-mark" color="red" wire:confirm="Delete permanently?"
+                                    wire:click="forceDelete({{ $row->id }})" />
+                            @endcan
                         @endif
                     </flux:table.cell>
                 </flux:table.row>

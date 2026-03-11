@@ -8,6 +8,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['title' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(__('অফলাইন')),'description' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(__('আপনি বর্তমানে অফলাইনে আছেন')),'image' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(asset('images/logo.gif'))]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
     <div class="min-h-[70vh] flex flex-col items-center justify-center text-center px-6">
         <div class="relative flex items-center justify-center py-10">
             <div
@@ -31,6 +33,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['variant' => 'outline','class' => 'w-16 h-16 text-zinc-300 dark:text-zinc-600 transition-colors duration-500 group-hover:text-zinc-400']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal03f679e608f7698978062350c9757def)): ?>
@@ -101,6 +105,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['size' => 'xl','level' => '1','class' => 'font-black tracking-tight mb-3']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
             আপনি অফলাইনে আছেন!
          <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -123,6 +129,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['size' => 'lg','class' => 'max-w-md mx-auto mb-10 leading-relaxed text-gray-500']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
             আপনার ইন্টারনেট সংযোগ বিচ্ছিন্ন হয়ে গেছে। তবে আপনি আপনার আগে থেকে লোড হওয়া তথ্যগুলো এখান থেকে দেখতে
             পারবেন।
          <?php echo $__env->renderComponent(); ?>
@@ -147,6 +155,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['href' => '/','variant' => 'primary','icon' => 'home','class' => 'w-full sm:w-auto px-10 rounded-2xl shadow-lg']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
                 হোম পেজে যান
              <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>

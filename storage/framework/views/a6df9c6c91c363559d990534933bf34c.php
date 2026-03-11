@@ -15,6 +15,8 @@ use Livewire\Volt\Component;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['wire:click' => 'redirectToFacebook','wire:loading.attr' => 'disabled','class' => 'w-full !rounded-full py-6','icon' => 'facebook','variant' => 'primary','color' => 'blue']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         <span wire:loading.remove><?php echo e(__('ফেসবুক দিয়ে লগইন করুন')); ?></span>
         <span wire:loading><?php echo e(__('রিডাইরেক্ট হচ্ছে...')); ?></span>
      <?php echo $__env->renderComponent(); ?>

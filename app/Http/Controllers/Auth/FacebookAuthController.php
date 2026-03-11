@@ -5,7 +5,11 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\{Auth, Hash, Log, Cookie, DB};
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cookie;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -30,46 +34,46 @@ class FacebookAuthController extends Controller
         try {
             $facebookUser = Socialite::driver('facebook')->user();
 
-            // ১. ইউজার খুঁজে বের করা বা আপডেট করা (Atomic operation)
+            // ১. ইউজার খুঁজে বের করা বা তৈরি করা
             $user = DB::transaction(function () use ($facebookUser) {
-                $user = User::updateOrCreate(
-                    ['email' => $facebookUser->getEmail()],
-                    [
+                $user = User::where('email', $facebookUser->getEmail())->first();
+
+                if (! $user) {
+                    $user = User::create([
                         'name' => $facebookUser->getName(),
+                        'email' => $facebookUser->getEmail(),
                         'facebook_id' => $facebookUser->getId(),
                         'password' => Hash::make(Str::random(24)),
                         'email_verified_at' => now(),
                         'status' => 'active',
-                    ]
-                );
+                    ]);
 
-                if ($user->wasRecentlyCreated) {
                     $user->assignRole('user');
+
+                    // শুধুমাত্র নতুন ইউজারের জন্য অবতার সেভ করা হবে
+                    if ($facebookUser->getAvatar()) {
+                        $user->addMediaFromUrl($facebookUser->getAvatar())
+                            ->toMediaCollection('avatars');
+                    }
                 }
 
                 return $user;
             });
 
-            // ২. প্রোফাইল পিকচার সিঙ্ক (Spatie Media Library)
-            if ($facebookUser->getAvatar()) {
-                $user->clearMediaCollection('avatars');
-                $user->addMediaFromUrl($facebookUser->getAvatar())
-                    ->toMediaCollection('avatars');
-            }
-
-            // ৩. সেশন এবং অথেন্টিকেশন
+            // ২. সেশন এবং অথেন্টিকেশন
             Auth::login($user, true);
             $request->session()->regenerate();
 
-            // ৪. মাল্টিপল ইউজার কুকি সিঙ্ক করা (ইম্প্রুভড মেথড)
+            // ৩. মাল্টিপল ইউজার কুকি সিঙ্ক করা
             $this->syncSavedAccounts($user->id);
 
             return redirect()->intended('/');
 
         } catch (\Exception $e) {
-            Log::error('Facebook Auth Error: ' . $e->getMessage());
+            Log::error('Facebook Auth Error: '.$e->getMessage());
+
             return redirect()->route('login')->withErrors([
-                'email' => 'ফেসবুক লগইন ব্যর্থ হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।'
+                'email' => 'ফেসবুক লগইন ব্যর্থ হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।',
             ]);
         }
     }
@@ -82,7 +86,6 @@ class FacebookAuthController extends Controller
         $cookieName = 'saved_accounts';
         $userIds = [];
 
-        // ১. বিদ্যমান কুকি থেকে ডেটা রিড করা
         if ($existingCookie = request()->cookie($cookieName)) {
             try {
                 $userIds = json_decode(decrypt($existingCookie), true) ?: [];
@@ -91,12 +94,10 @@ class FacebookAuthController extends Controller
             }
         }
 
-        // ২. বর্তমান আইডি যদি লিস্টে না থাকে তবে যুক্ত করা
-        if (!in_array($userId, $userIds)) {
+        if (! in_array($userId, $userIds)) {
             $userIds[] = $userId;
         }
 
-        // ৩. কুকিটি 'Forever' হিসেবে সেভ করা যাতে লগআউট করলেও থেকে যায়
         Cookie::queue(
             cookie()->forever(
                 $cookieName,
@@ -104,7 +105,6 @@ class FacebookAuthController extends Controller
             )
         );
 
-        // ৪. পুরনো সিঙ্গেল ইউজার কুকি থাকলে তা ক্লিনআপ করা
         Cookie::queue(Cookie::forget('last_logged_user'));
     }
 }

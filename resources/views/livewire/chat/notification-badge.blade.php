@@ -2,8 +2,9 @@
 
 use Livewire\Volt\Component;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Notifications\DatabaseNotification;
+use Illuminate\Support\Facades\Cache;
 use App\Models\User;
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Collection;
 
 new class extends Component {
@@ -20,48 +21,43 @@ new class extends Component {
     public function refreshData(): void
     {
         $user = Auth::user();
-        if (!$user)
-            return;
+        if (!$user) return;
 
-        // ১. একবারে নোটিফিকেশন ফেচ করা (৩০টি লিমিট)
-        $query = ($this->filter === 'unread')
-            ? $user->unreadNotifications()
-            : $user->notifications();
+        // ইউজার এবং ফিল্টার অনুযায়ী আলাদা ক্যাশ কি
+        $cacheKey = "user_{$user->id}_notifications_{$this->filter}";
 
-        $fetchedNotifications = $query->latest()->limit(30)->get();
+        // Cache::remember ব্যবহার করে ডেটাবেস কোয়েরি কমানো হয়েছে
+        $data = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($user) {
+            $query = ($this->filter === 'unread') 
+                ? $user->unreadNotifications() 
+                : $user->notifications();
 
-        // ২. কাউন্ট অপ্টিমাইজেশন (Memory-efficient approach)
-        // যদি ৩০টির কম নোটিফিকেশন থাকে, তবে ডেটাবেজে নতুন করে কাউন্ট কুয়েরি করবে না
-        if ($fetchedNotifications->count() < 30 && $this->filter === 'all') {
-            $this->totalCount = $fetchedNotifications->count();
-            $this->unreadCount = $fetchedNotifications->whereNull('read_at')->count();
-        } else {
-            // বড় ডেটাসেটের জন্য ইনডেক্সড কাউন্ট কুয়েরি
-            $this->totalCount = $user->notifications()->count();
-            $this->unreadCount = $user->unreadNotifications()->count();
-        }
+            $fetched = $query->latest()->limit(30)->get();
+            
+            // ইগার লোডিং (N+1 সমস্যার সমাধান)
+            $senderIds = $fetched->pluck('data.sender_id')->filter()->unique();
+            $senders = User::whereIn('id', $senderIds)
+                ->without(['roles', 'permissions']) 
+                ->with(['media'])
+                ->get()
+                ->keyBy('id');
 
-        // ৩. ইগার লোডিং (N+1 সমস্যার সমাধান)
-        // যেহেতু User মডেলে $with=['roles', 'permissions', 'media'] আছে, 
-        // তাই এখানে শুধু ইউজারদের আইডি দিয়ে গেট করলেই সব রিলেশন চলে আসবে।
-        $senderIds = $fetchedNotifications->pluck('data.sender_id')->filter()->unique();
+            return [
+                'list' => $fetched,
+                'senders' => $senders,
+                'total' => $user->notifications()->count(),
+                'unread' => $user->unreadNotifications()->count(),
+            ];
+        });
 
-        $senders = collect();
-        if ($senderIds->isNotEmpty()) {
-            $senders = User::whereIn('id', $senderIds)->get()->keyBy('id');
-        }
-
-        // ৪. ইউআই অবজেক্টে ম্যাপিং
-        $this->notifications = $fetchedNotifications->map(function ($n) use ($senders) {
-            $senderId = $n->data['sender_id'] ?? null;
-            $sender = $senderId ? $senders->get($senderId) : null;
+        // ডেটা এসাইন করা
+        $this->notifications = $data['list']->map(function ($n) use ($data) {
+            $sender = $data['senders']->get($n->data['sender_id'] ?? null);
             return $this->format($n, $sender);
         });
-    }
 
-    public function updatedFilter(): void
-    {
-        $this->refreshData();
+        $this->totalCount = $data['total'];
+        $this->unreadCount = $data['unread'];
     }
 
     private function format(DatabaseNotification $n, ?User $sender): object
@@ -69,7 +65,7 @@ new class extends Component {
         return (object) [
             'id' => $n->id,
             'sender_name' => $sender?->name ?? 'System',
-            'sender_avatar' => $sender?->avatar_url,
+            'sender_avatar' => $sender?->getAvatarUrlAttribute(),
             'is_online' => $sender ? $sender->isOnline() : false,
             'display_title' => $n->data['title'] ?? 'Update',
             'message' => str($n->data['message'] ?? '')->limit(70),
@@ -86,37 +82,36 @@ new class extends Component {
 
         if ($notification && $notification->unread()) {
             $notification->markAsRead();
-            // রিয়েলটাইমে কাউন্ট কমানো (পুরো রিফ্রেশ না করে)
-            $this->unreadCount = max(0, $this->unreadCount - 1);
+            $this->invalidateCache(); // ক্যাশ ক্লিয়ার করা
         }
 
-        if ($url !== '#' && !empty($url)) {
-            return redirect($url);
-        }
-
-        $this->refreshData();
-        return null;
+        return $url !== '#' && !empty($url) ? redirect($url) : null;
     }
 
     public function markAllAsRead(): void
     {
         Auth::user()->unreadNotifications()->update(['read_at' => now()]);
-        $this->unreadCount = 0;
-        $this->refreshData();
+        $this->invalidateCache();
     }
 
     public function clearAll(): void
     {
         Auth::user()->notifications()->delete();
-        $this->totalCount = 0;
-        $this->unreadCount = 0;
-        $this->notifications = collect();
+        $this->invalidateCache();
+    }
+
+    public function invalidateCache(): void
+    {
+        $userId = Auth::id();
+        Cache::forget("user_{$userId}_notifications_all");
+        Cache::forget("user_{$userId}_notifications_unread");
+        $this->refreshData();
     }
 
     public function getListeners(): array
     {
         $userId = Auth::id();
-        return ["echo-private:user.{$userId},.notificationReceived" => 'refreshData'];
+        return ["echo-private:user.{$userId},.notificationReceived" => 'invalidateCache'];
     }
 }; ?>
 

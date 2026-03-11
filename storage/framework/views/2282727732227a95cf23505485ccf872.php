@@ -2,8 +2,9 @@
 
 use Livewire\Volt\Component;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Notifications\DatabaseNotification;
+use Illuminate\Support\Facades\Cache;
 use App\Models\User;
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Collection;
 
 ?>
@@ -20,6 +21,8 @@ use Illuminate\Support\Collection;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['name' => 'notifications_modal']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         <?php if (isset($component)) { $__componentOriginalfe86969babb72517ecf97426e7c9330d = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalfe86969babb72517ecf97426e7c9330d = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::sidebar.item','data' => ['icon' => 'bell','class' => 'cursor-pointer relative','badge' => $unreadCount > 0 ? ($unreadCount > 99 ? '99+' : $unreadCount) : null,'badge:color' => 'red','badge:variant' => 'solid']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -30,6 +33,8 @@ use Illuminate\Support\Collection;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => 'bell','class' => 'cursor-pointer relative','badge' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($unreadCount > 0 ? ($unreadCount > 99 ? '99+' : $unreadCount) : null),'badge:color' => 'red','badge:variant' => 'solid']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
             Notifications
          <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -62,6 +67,8 @@ use Illuminate\Support\Collection;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['name' => 'notifications_modal','flyout' => true,'class' => '!p-0 w-full max-w-[400px]']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         
         <div class="p-5 border-b border-zinc-100 dark:border-zinc-800">
             <div class="flex items-center gap-4 mb-3">
@@ -76,6 +83,8 @@ use Illuminate\Support\Collection;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['class' => 'size-6 ','variant' => 'solid']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalf67e64b87e7f70aa9792ea8ff544a0c9)): ?>
@@ -97,7 +106,9 @@ use Illuminate\Support\Collection;
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['size' => 'lg']); ?>Notifications <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['size' => 'lg']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+Notifications <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginale0fd5b6a0986beffac17a0a103dfd7b9)): ?>
 <?php $attributes = $__attributesOriginale0fd5b6a0986beffac17a0a103dfd7b9; ?>
@@ -117,6 +128,8 @@ use Illuminate\Support\Collection;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['size' => 'sm']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
                         <?php echo e($unreadCount > 0 ? "You have $unreadCount unread notifications" : "You're all caught up!"); ?>
 
                      <?php echo $__env->renderComponent(); ?>
@@ -143,6 +156,8 @@ use Illuminate\Support\Collection;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['wire:model.live' => 'filter','variant' => 'segmented','size' => 'sm','class' => 'flex-1']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
                     <?php if (isset($component)) { $__componentOriginal63a6e9bef56b25b50cfa996fe1154357 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal63a6e9bef56b25b50cfa996fe1154357 = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::radio.index','data' => ['value' => 'all','label' => 'All ('.e($totalCount).')']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -153,6 +168,8 @@ use Illuminate\Support\Collection;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['value' => 'all','label' => 'All ('.e($totalCount).')']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal63a6e9bef56b25b50cfa996fe1154357)): ?>
@@ -173,6 +190,8 @@ use Illuminate\Support\Collection;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['value' => 'unread','label' => 'Unread']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal63a6e9bef56b25b50cfa996fe1154357)): ?>
@@ -205,6 +224,8 @@ use Illuminate\Support\Collection;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['wire:click' => 'markAllAsRead','variant' => 'subtle','size' => 'xs','icon' => 'check-circle','tooltip' => 'Mark all read']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalc04b147acd0e65cc1a77f86fb0e81580)): ?>
@@ -222,8 +243,8 @@ use Illuminate\Support\Collection;
         
         <div
             class="overflow-y-auto max-h-[70vh] min-h-[70vh] divide-y divide-zinc-100 dark:divide-zinc-800 scrollbar-thin">
-            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $notifications; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $notification): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
-                <div wire:key="notif-<?php echo e($notification->id); ?>"
+            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $notifications; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $notification): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
+                <div <?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::$currentLoop['key'] = 'notif-'.e($notification->id).''; ?>wire:key="notif-<?php echo e($notification->id); ?>"
                     wire:click="markAsRead('<?php echo e($notification->id); ?>', '<?php echo e($notification->action_url); ?>')"
                     class="group relative p-4 flex gap-3 transition-colors cursor-pointer dark:hover:bg-zinc-400/10 <?php echo e($notification->is_unread ? 'bg-indigo-50/30 dark:bg-indigo-500/5' : ''); ?>">
 
@@ -239,6 +260,8 @@ use Illuminate\Support\Collection;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['src' => ''.e($notification->sender_avatar).'','size' => 'sm','class' => 'rounded-lg shadow-sm','name' => ''.e($notification->sender_name).'','badge' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($notification->is_online),'badge:color' => 'green']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal4dcb6e757bd07b9aa3bf7ee84cfc8690)): ?>
@@ -279,7 +302,7 @@ use Illuminate\Support\Collection;
                         </div>
                     <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                 </div>
-            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
+            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                 <div class="flex flex-col items-center justify-center py-20 px-10 text-center">
                     <div class="p-4 bg-zinc-50 dark:bg-zinc-900 rounded-full mb-4">
                         <?php if (isset($component)) { $__componentOriginal2357204bbfb73ef228c684f3b7e8f9fa = $component; } ?>
@@ -292,6 +315,8 @@ use Illuminate\Support\Collection;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['class' => 'size-10 text-zinc-300']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal2357204bbfb73ef228c684f3b7e8f9fa)): ?>
@@ -312,7 +337,9 @@ use Illuminate\Support\Collection;
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes([]); ?>All clear! <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes([]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+All clear! <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginale0fd5b6a0986beffac17a0a103dfd7b9)): ?>
 <?php $attributes = $__attributesOriginale0fd5b6a0986beffac17a0a103dfd7b9; ?>
@@ -331,7 +358,9 @@ use Illuminate\Support\Collection;
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes([]); ?>No notifications found in this category. <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes([]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+No notifications found in this category. <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal43e8c568bbb8b06b9124aad3ccf4ec97)): ?>
 <?php $attributes = $__attributesOriginal43e8c568bbb8b06b9124aad3ccf4ec97; ?>
@@ -358,6 +387,8 @@ use Illuminate\Support\Collection;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['wire:click' => 'clearAll','wire:confirm' => 'Are you sure you want to delete all notifications?','variant' => 'subtle','size' => 'sm','icon' => 'trash','class' => 'w-full !text-red-500 hover:!bg-red-50 dark:hover:!bg-red-500/10']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
                     Clear All Notifications
                  <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>

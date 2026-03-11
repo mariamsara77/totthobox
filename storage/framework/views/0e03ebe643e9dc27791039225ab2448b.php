@@ -101,6 +101,8 @@ $classes = Flux::classes()
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['as' => 'div','class' => 'cursor-pointer','size' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($size),'aria-hidden' => 'true']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         <?php if ($multiple) : ?>
             <?php echo __('Choose files'); ?>
 

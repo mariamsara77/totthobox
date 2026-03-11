@@ -1,10 +1,6 @@
+@import url('https://banglawebfonts.pages.dev/css/solaiman-lipi.css');
 @import 'tailwindcss';
 @import '../../vendor/livewire/flux/dist/flux.css';
-
-@source '../views';
-@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
-@source '../../vendor/livewire/flux-pro/stubs/**/*.blade.php';
-@source '../../vendor/livewire/flux/stubs/**/*.blade.php';
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -60,7 +56,9 @@
 }
 
 body{
-   font-family: 'SolaimanLipi', sans-serif;
+font-family: 'Solaiman Lipi', serif;
+    font-weight: 400;
+    font-style: normal;
 }
 
 /* input:focus[data-flux-control],

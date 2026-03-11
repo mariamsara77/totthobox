@@ -1,24 +1,22 @@
 <?php
 
+use App\Http\Controllers\LanguageController;
+use App\Models\User;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
-use App\Models\User;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Artisan;
-use Illuminate\Http\Request;
-use App\Services\TranslationService;
-use App\Http\Controllers\LanguageController;
-
 
 Route::get('lang/{locale}', [LanguageController::class, 'switch'])->name('lang.switch');
 
 // --- Public & Common Routes ---
 Route::get('/quick-login/{id}', function ($id) {
-    if (!request()->hasValidSignature()) {
+    if (! request()->hasValidSignature()) {
         abort(403, 'Unauthorized or expired link.');
     }
     $user = User::findOrFail($id);
     Auth::login($user);
+
     return redirect()->route('home');
 })->name('quick.login');
 
@@ -36,16 +34,18 @@ Route::get('/clean-project', function () {
     Artisan::call('super:clean');
 
     // কমান্ডের আউটপুট দেখতে চাইলে
-    return "Project is cleaned successfully! <br><pre>" . Artisan::output() . "</pre>";
+    return 'Project is cleaned successfully! <br><pre>'.Artisan::output().'</pre>';
 });
 
- Volt::route('/users/{slug}', 'website.users.show')->name('users.show');
+Volt::route('/users/{slug}', 'website.users.show')->name('users.show');
 
 // --- Front-end Content Routes (Public) ---
 Route::prefix('bangladesh/')->name('bangladesh.')->group(function () {
     Volt::route('introduction', 'website.bangladesh.introbd')->name('introduction');
     Volt::route('tourism', 'website.bangladesh.tourism')->name('tourism');
+    Volt::route('tourism/{slug}', 'website.bangladesh.tourism-show')->name('tourism.show');
     Volt::route('history', 'website.bangladesh.historybd')->name('history');
+    Volt::route('history/{slug}', 'website.bangladesh.historybd-show')->name('history.show');
     Volt::route('establishment', 'website.bangladesh.establishment')->name('establishment');
     Volt::route('minister', 'website.bangladesh.minister')->name('minister');
 });
@@ -110,20 +110,23 @@ Route::prefix('buysell/')->name('buysell.')->group(function () {
 
 Volt::route('/excel-expert/{slug?}', 'website.excel.excel')->name('excel.view');
 
-
 // --- Auth Protected Routes ---
 Route::middleware(['auth', 'verified'])->group(function () {
     Volt::route('buysell/produc/create', 'website.buysell.buysell-postad')->name('buysell.post-ad');
     Volt::route('/messages/{slug}', 'chat.messaging')->name('messages');
     Volt::route('notifications', 'chat.notification-bell')->name('notifications');
 
-    Route::prefix('settings')->name('settings.')->group(function () {
-        Route::redirect('', 'profile');
-        Volt::route('/profile', 'settings.profile')->name('profile');
-        Volt::route('/profile/{slug}', 'settings.profile-view')->name('profile.view');
-        Volt::route('/profile/remove/{slug}', 'settings.delete-user-form')->name('profile.remove');
+    Route::prefix('profile')->name('profile.')->group(function () {
+
+        // '/' মানেই /profile। এটি সরাসরি ভিউ পেজ দেখাবে।
+        Volt::route('/', 'settings.profile-view')->name('view');
+
+        // অন্যান্য সাব-রাউটগুলো
+        Volt::route('/settings', 'settings.profile')->name('settings');
+        Volt::route('/remove', 'settings.delete-user-form')->name('remove');
         Volt::route('/password', 'settings.password')->name('password');
         Volt::route('/appearance', 'settings.appearance')->name('appearance');
+        Volt::route('/activity', 'settings.activity')->name('activity');
     });
 });
 
@@ -138,13 +141,16 @@ Route::prefix('admin')->middleware(['auth', 'verified'])->name('admin.')->group(
         Volt::route('/dashboard/visitor-analytics/{visitorId}', 'admin.dashboard.visitor-details')->name('dashboard.visitor.details');
 
         Volt::route('/dashboard/missing-data', 'admin.dashboard.missing-data-manager')->name('dashboard.missing-data');
-        });
+    });
 
     // ২. ইউজার ও রোল ম্যানেজমেন্ট (সবচেয়ে সেনসিটিভ)
     Route::prefix('users')->name('users.')->group(function () {
-      
-            Volt::route('/manage', 'admin.users.users-manage')->name('manage')->middleware('can:manage-users');
-      
+        Route::middleware(['can:manage-users'])->group(function () {
+            Volt::route('/manage', 'admin.users.users-manage')->name('manage');
+            Volt::route('/activity/{slug}', 'admin.users.user-activity')->name('activity');
+            Volt::route('/activity', 'admin.users.all-activity')->name('activity.all');
+        });
+
         Route::middleware(['can:manage-roles'])->group(function () {
             Volt::route('/role-manage', 'admin.users.role-manage')->name('role.manage');
             Volt::route('/permission-manage', 'admin.users.permission-manage')->name('permission.manage');
@@ -211,5 +217,4 @@ Route::prefix('admin')->middleware(['auth', 'verified'])->name('admin.')->group(
     });
 });
 
-
-require __DIR__ . '/auth.php';
+require __DIR__.'/auth.php';

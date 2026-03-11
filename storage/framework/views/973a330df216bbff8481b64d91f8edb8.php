@@ -117,6 +117,8 @@ $classes = Flux::classes()
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['class' => 'size-4 text-zinc-400 dark:text-zinc-500 ml-2']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalcc1305822472ccf8aa9a0b8dc7a9cf8c)): ?>
@@ -148,6 +150,8 @@ $classes = Flux::classes()
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['x-model' => 'search','x-ref' => 'searchInput','@click.stop' => true,'size' => 'sm','icon' => 'magnifying-glass','placeholder' => 'Filter...']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal26c546557cdc09040c8dd00b2090afd0)): ?>

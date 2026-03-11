@@ -1,155 +1,73 @@
 <?php
 
 use Livewire\Volt\Component;
-use App\Models\HistoryBd;
-use App\Models\Division;
-use App\Models\District;
-use App\Models\Thana;
-use Livewire\WithPagination;
+use App\Models\{HistoryBd, Division, District, Thana};
+use Livewire\{WithPagination, Attributes\Computed};
+use Illuminate\Support\Facades\Cache;
 
 new class extends Component {
     use WithPagination;
 
-    public $search = '';
-    public $selectedDivision = null;
-    public $selectedDistrict = null;
-    public $selectedThana = null;
+    public $search = '', $selectedDivision = null, $selectedDistrict = null, $selectedThana = null;
 
     public function updated($property)
     {
         if (in_array($property, ['selectedDivision', 'selectedDistrict', 'selectedThana', 'search'])) {
             $this->resetPage();
         }
+
         if ($property === 'selectedDivision') {
-            $this->selectedDistrict = null;
-            $this->selectedThana = null;
+            $this->reset(['selectedDistrict', 'selectedThana']);
         }
         if ($property === 'selectedDistrict') {
-            $this->selectedThana = null;
+            $this->reset('selectedThana');
         }
     }
 
-    public function with(): array
+    #[Computed]
+    public function histories()
     {
-        $query = HistoryBd::query()
-            ->with(['division', 'district', 'thana'])
-            ->where('status', 1);
-
-        if ($this->search) {
-            $query->where(function ($q) {
-                $q->where('title', 'like', '%' . $this->search . '%')->orWhere('description', 'like', '%' . $this->search . '%');
-            });
-        }
-
-        if ($this->selectedDivision) {
-            $query->where('division_id', $this->selectedDivision);
-        }
-        if ($this->selectedDistrict) {
-            $query->where('district_id', $this->selectedDistrict);
-        }
-        if ($this->selectedThana) {
-            $query->where('thana_id', $this->selectedThana);
-        }
-
-        return [
-            'histories' => $query->latest()->paginate(10),
-            'divisions' => Division::orderBy('name')->get(),
-            'districts' => $this->selectedDivision ? District::where('division_id', $this->selectedDivision)->orderBy('name')->get() : [],
-            'thanas' => $this->selectedDistrict ? Thana::where('district_id', $this->selectedDistrict)->orderBy('name')->get() : [],
-        ];
+        return HistoryBd::query()
+            ->with(['division:id,name', 'district:id,name', 'thana:id,name', 'media'])
+            ->active()
+            ->published()
+            ->when($this->search, fn($q) => $q->where('title', 'like', "%{$this->search}%"))
+            ->when($this->selectedDivision, fn($q) => $q->where('division_id', $this->selectedDivision))
+            ->when($this->selectedDistrict, fn($q) => $q->where('district_id', $this->selectedDistrict))
+            ->when($this->selectedThana, fn($q) => $q->where('thana_id', $this->selectedThana))
+            ->latest('published_at')
+            ->paginate(12);
     }
+}; ?>
 
-    public function resetFilter()
-    {
-        $this->selectedDivision = null;
-        $this->selectedDistrict = null;
-        $this->selectedThana = null;
-        $this->search = '';
-    }
-};
-?>
+<section class="max-w-2xl mx-auto space-y-4">
+    <header class="mb-8">
+        <flux:heading size="xl">ঐতিহাসিক স্থানসমূহ</flux:heading>
+        <flux:subheading>বাংলাদেশের সমৃদ্ধ ইতিহাসের বিভিন্ন নিদর্শনের তালিকা।</flux:subheading>
+    </header>
 
-<section class="max-w-2xl mx-auto">
-
-    <flux:heading size="xl" class="text-center">বাংলাদেশের ইতিহাসের সংক্ষিপ্ত পরিচয়</flux:heading>
-
-    <div class="mt-4 space-y-6">
-
-        {{-- Filters --}}
-        <div class="mb-10 flex items-center gap-3 overflow-x-auto">
-
-
-            <flux:input wire:model.live.debounce.300ms="search" placeholder="ইতিহাসের পাতা খুঁজুন..."
-                icon="magnifying-glass" clearable size="sm" class="rounded-xl! min-w-50" />
-
-
-            <flux:select variant="listbox" placeholder="বিভাগ" wire:model.live="selectedDivision" size="sm"
-                class="min-w-30">
-                @foreach ($divisions as $division)
-                    <flux:select.option value="{{ $division->id }}">{{ $division->name }}</flux:select.option>
-                @endforeach
-            </flux:select>
-
-
-            <flux:select variant="listbox" placeholder="জেলা" wire:model.live="selectedDistrict" size="sm"
-                :disabled="!$selectedDivision" class="min-w-30">
-                @foreach ($districts as $district)
-                    <flux:select.option value="{{ $district->id }}">{{ $district->name }}</flux:select.option>
-                @endforeach
-            </flux:select>
-
-
-            <flux:select variant="listbox" placeholder="থানা" wire:model.live="selectedThana" size="sm"
-                :disabled="!$selectedDistrict" class="min-w-30">
-                @foreach ($thanas as $thana)
-                    <flux:select.option value="{{ $thana->id }}">{{ $thana->name }}</flux:select.option>
-                @endforeach
-            </flux:select>
-
-            @if($search || $selectedDivision || $selectedDistrict || $selectedThana)
-                <flux:button wire:click="resetFilter" size="sm" variant="ghost" icon="x-mark" class="shrink-0">মুছে ফেলুন
-                </flux:button>
-            @endif
-
-        </div>
-
-        {{-- Results --}}
-        <div class="space-y-2">
-            @forelse ($histories as $history)
-                <flux:heading size="xl" level="2" class="text-center">
-                    {{ $history->title }}
-                </flux:heading>
-
-                {{-- Grid Gallery --}}
-                @if($history->hasMedia('images'))
-                    <flux:media :media="$history->getMedia('images')" />
-                @endif
-
-                <flux:text class="leading-relaxed text-base">
-                    {{ $history->description }}
-                </flux:text>
-                <div class="mt-4">
-                    <flux:text size="xs" class="uppercase tracking-widest font-bold">
-                        {{ $history->division?->name }}
-                        @if ($history->district)
-                            • {{ $history->district?->name }}
-                        @endif
-                    </flux:text>
-                </div>
-
-                @if (!$loop->last)
-                    <flux:separator class="mb-5" />
-                @endif
-
-            @empty
-                <livewire:global.nodata-message :title="'বাংলাদেশের তথ্য'" :search="$search" />
-            @endforelse
-        </div>
-
-        {{-- Pagination --}}
-        <div class="mt-12">
-            {{ $histories->links() }}
-        </div>
-
+    {{-- Filters (Tourism এর মতোই) --}}
+    <div class="flex items-center gap-2 overflow-x-auto pb-2">
+        <flux:input wire:model.live.debounce.400ms="search" placeholder="নামে খুঁজুন..." icon="magnifying-glass" />
+        {{-- এখানে ডুপ্লিকেট ড্রপডাউনগুলো আগের মতো বসিয়ে নিন --}}
     </div>
+
+    <div class="space-y-4">
+        @forelse ($this->histories as $item)
+            <a href="{{ route('bangladesh.history.show', $item->slug) }}">
+                <flux:card class="flex gap-4 items-center">
+                    {{-- ইমেজ ডিসপ্লে --}}
+                    <img src="{{ $item->getFirstMediaUrl('images', 'thumb') ?: $item->image_url }}" class="size-16 rounded-lg object-cover" />
+                    <div>
+                        <flux:heading size="lg">{{ $item->title }}</flux:heading>
+                        <p class="text-sm text-zinc-500">{{ $item->short_description }}</p>
+                    </div>
+                </flux:card>
+            </a>
+        @empty
+            <livewire:global.nodata-message :title="'ঐতিহাসিক স্থানসমূহ'" :search="$search" />
+        @endforelse
+    </div>
+
+    <div class="pt-4">{{ $this->histories->links() }}</div>
 </section>

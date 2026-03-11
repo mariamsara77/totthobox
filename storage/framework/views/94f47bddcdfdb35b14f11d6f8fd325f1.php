@@ -47,6 +47,9 @@ foreach ($attributes->all() as $__key => $__value) {
 unset($__defined_vars, $__key, $__value); ?>
 
 <?php
+// Blaze doesn't support View::share, this supplements it...
+$__livewire = $__env->shared('__livewire');
+
 if ($variant === 'flyout') {
     $flyout = true;
     $variant = null;
@@ -95,14 +98,12 @@ if (($wireModel = $attributes->wire('model')) && $wireModel->directive && ! $wir
     $attributes = $attributes->merge([$wireModel->directive => $wireModel->value]);
 }
 
-// Support <flux:modal ... @close="?"> syntax...
 if ($attributes['@close'] ?? null) {
     $attributes['wire:close'] = $attributes['@close'];
 
     unset($attributes['@close']);
 }
 
-// Support <flux:modal ... @cancel="?"> syntax...
 if ($attributes['@cancel'] ?? null) {
     $attributes['wire:cancel'] = $attributes['@cancel'];
 
@@ -126,22 +127,13 @@ if ($dismissible === false) {
         wire:ignore.self 
         <?php echo e($styleAttributes->class($classes)); ?>
 
-        <?php if($name): ?> data-modal="<?php echo e($name); ?>" <?php endif; ?>
-        <?php if($flyout): ?> data-flux-flyout <?php endif; ?>
-        x-data
-        <?php if(isset($__livewire)): ?>
-            x-on:modal-show.document="
-                if ($event.detail.name === <?php echo \Illuminate\Support\Js::from($name)->toHtml() ?> && ($event.detail.scope === <?php echo \Illuminate\Support\Js::from($__livewire->getId())->toHtml() ?>)) $el.showModal();
-                if ($event.detail.name === <?php echo \Illuminate\Support\Js::from($name)->toHtml() ?> && (! $event.detail.scope)) $el.showModal();
-            "
-            x-on:modal-close.document="
-                if ($event.detail.name === <?php echo \Illuminate\Support\Js::from($name)->toHtml() ?> && ($event.detail.scope === <?php echo \Illuminate\Support\Js::from($__livewire->getId())->toHtml() ?>)) $el.close();
-                if (! $event.detail.name || ($event.detail.name === <?php echo \Illuminate\Support\Js::from($name)->toHtml() ?> && (! $event.detail.scope))) $el.close();
-            "
-        <?php else: ?>
-            x-on:modal-show.document="if ($event.detail.name === <?php echo \Illuminate\Support\Js::from($name)->toHtml() ?> && (! $event.detail.scope)) $el.showModal()"
-            x-on:modal-close.document="if (! $event.detail.name || ($event.detail.name === <?php echo \Illuminate\Support\Js::from($name)->toHtml() ?> && (! $event.detail.scope))) $el.close()"
-        <?php endif; ?>
+        <?php if ($name): ?> data-modal="<?php echo e($name); ?>" <?php endif; ?>
+        <?php if ($flyout): ?> data-flux-flyout <?php endif; ?>
+        <?php $__getScope = fn($scope = []) => $scope; ?><?php if (isset($scope)) $__scope = $scope; ?><?php $scope = $__getScope(scope: ['name' => $name]); ?>
+        x-data="fluxModal(<?php echo \Illuminate\Support\Js::from($scope['name'])->toHtml() ?>, <?php echo \Illuminate\Support\Js::from(isset($__livewire) ? $__livewire->getId() : null)->toHtml() ?>)"
+        <?php if (isset($__scope)) { $scope = $__scope; unset($__scope); } ?>
+        x-on:modal-show.document="handleShow($event)"
+        x-on:modal-close.document="handleClose($event)"
     >
         <?php echo e($slot); ?>
 
@@ -158,6 +150,8 @@ if ($dismissible === false) {
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes([]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
                     <?php if (isset($component)) { $__componentOriginalc04b147acd0e65cc1a77f86fb0e81580 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalc04b147acd0e65cc1a77f86fb0e81580 = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::button.index','data' => ['variant' => 'ghost','icon' => 'x-mark','size' => 'sm','ariaLabel' => 'Close modal','class' => 'text-zinc-400! hover:text-zinc-800! dark:text-zinc-500! dark:hover:text-white!']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -167,7 +161,9 @@ if ($dismissible === false) {
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['variant' => 'ghost','icon' => 'x-mark','size' => 'sm','aria-label' => 'Close modal','class' => 'text-zinc-400! hover:text-zinc-800! dark:text-zinc-500! dark:hover:text-white!']); ?> <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['variant' => 'ghost','icon' => 'x-mark','size' => 'sm','aria-label' => 'Close modal','class' => 'text-zinc-400! hover:text-zinc-800! dark:text-zinc-500! dark:hover:text-white!']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+ <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalc04b147acd0e65cc1a77f86fb0e81580)): ?>
 <?php $attributes = $__attributesOriginalc04b147acd0e65cc1a77f86fb0e81580; ?>

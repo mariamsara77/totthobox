@@ -2,20 +2,23 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\{HasMany, HasOne, BelongsTo, HasManyThrough};
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Visitor extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'hash', 'ip_address', 'browser_family', 'os_family', 
-        'device_type', 'device_model', 'country_code', 'city_name', 
-        'timezone', 'is_pwa', 'app_version', 'is_bot', 'first_seen_at', 
+        'user_id', 'hash', 'ip_address', 'browser_family', 'os_family',
+        'device_type', 'device_model', 'country_code', 'city_name',
+        'timezone', 'is_pwa', 'app_version', 'is_bot', 'first_seen_at',
         'last_seen_at',
     ];
 
@@ -32,49 +35,58 @@ class Visitor extends Model
     }
 
     // --- রিলেশনশিপস ---
-    public function sessions(): HasMany {
+    public function sessions(): HasMany
+    {
         return $this->hasMany(VisitorSession::class)->latest('started_at');
     }
 
-    public function lastSession(): HasOne {
+    public function lastSession(): HasOne
+    {
         return $this->hasOne(VisitorSession::class)->latestOfMany('started_at');
     }
 
-    public function pageViews(): HasMany {
+    public function pageViews(): HasMany
+    {
         return $this->hasMany(PageView::class);
     }
 
-    public function events(): HasManyThrough {
+    public function events(): HasManyThrough
+    {
         return $this->hasManyThrough(VisitorEvent::class, VisitorSession::class, 'visitor_id', 'session_id');
     }
 
-    public function user(): BelongsTo {
+    public function user(): BelongsTo
+    {
         return $this->belongsTo(User::class);
     }
 
     // --- স্কোপস ---
-    public function scopeRealUsers(Builder $query) {
+    public function scopeRealUsers(Builder $query)
+    {
         $query->where('is_bot', false);
     }
 
-    public function scopeOnline(Builder $query) {
+    public function scopeOnline(Builder $query)
+    {
         $query->where('last_seen_at', '>=', now()->subMinutes(5));
     }
 
     // --- এক্সেসর ---
-    protected function locationFriendly(): Attribute {
+    protected function locationFriendly(): Attribute
+    {
         return Attribute::make(
-            get: fn() => ($this->city_name && $this->country_code) 
-                ? "{$this->city_name}, {$this->country_code}" 
+            get: fn () => ($this->city_name && $this->country_code)
+                ? "{$this->city_name}, {$this->country_code}"
                 : ($this->country_code ?? 'Unknown')
         );
     }
 
- protected function browserIcon(): Attribute
+    protected function browserIcon(): Attribute
     {
         return Attribute::make(
             get: function () {
                 $browser = strtolower($this->browser_family);
+
                 return match (true) {
                     str_contains($browser, 'chrome') => 'browser-chrome',
                     str_contains($browser, 'firefox') => 'browser-firefox',
@@ -85,5 +97,4 @@ class Visitor extends Model
             }
         );
     }
-
 }

@@ -57,7 +57,7 @@ new class extends Component {
                 হ্যাঁ, অ্যাকাউন্ট মুছুন
             </flux:button>
 
-            <flux:button variant="ghost" :href="route('settings.profile')" wire:navigate>
+            <flux:button variant="ghost" :href="route('profile.settings')" wire:navigate>
                 বাতিল করুন
             </flux:button>
         </div>

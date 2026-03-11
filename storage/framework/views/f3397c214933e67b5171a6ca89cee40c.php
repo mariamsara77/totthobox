@@ -9,6 +9,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['size' => 'xl','class' => 'mb-2']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         সহজেই বিক্রি করুন, মন ভরে কিনুন
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -31,6 +33,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes([]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         সাশ্রয়ী দামে **নতুন ও ব্যবহৃত জিনিস** বিক্রি ও কেনার সহজ প্ল্যাটফর্ম।
      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>

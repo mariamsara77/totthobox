@@ -1,23 +1,32 @@
 {{-- সেটিংস মেনু --}}
-@if (Request::is('settings*'))
+@if (Request::is('profile*'))
     <flux:sidebar.item icon="cog" class="text-center mb-4 text-base">সেটিংস</flux:sidebar.item>
-    <flux:sidebar.item icon="cog" :href="route('settings.profile.view', ['slug' => auth()->user()->slug])"
-        :current="request()->routeIs('settings.profile.view')" wire:navigate.hover>
+    
+    <flux:sidebar.item icon="user" :href="route('profile.view')"
+        :current="request()->routeIs('profile.view')" wire:navigate.hover>
         প্রোফাইল
     </flux:sidebar.item>
-    <flux:sidebar.item icon="cog" :href="route('settings.profile')" :current="request()->routeIs('settings.profile')"
+
+    <flux:sidebar.item icon="cog" :href="route('profile.settings')" :current="request()->routeIs('profile.settings')"
         wire:navigate.hover>
         প্রোফাইল সেটিংস
     </flux:sidebar.item>
-    <flux:sidebar.item icon="key" :href="route('settings.password')" :current="request()->routeIs('settings.password')"
+    <flux:sidebar.item icon="briefcase" :href="route('profile.activity')" :current="request()->routeIs('profile.activity')"
         wire:navigate.hover>
-        পাসওয়ার্ড সেটিংস
+        আমার কার্যক্রম
     </flux:sidebar.item>
-    <flux:sidebar.item icon="trash" :href="route('settings.profile.remove', ['slug' => auth()->user()->slug])"
-        :current="request()->routeIs('settings.profile.remove', ['slug' => auth()->user()->slug])" wire:navigate.hover>
+
+    <flux:sidebar.item icon="key" :href="route('profile.password')" :current="request()->routeIs('profile.password')"
+        wire:navigate.hover>
+        পাসওয়ার্ড সেটিংস
+    </flux:sidebar.item>
+
+    <flux:sidebar.item icon="trash" :href="route('profile.remove')" :current="request()->routeIs('profile.remove')" 
+        wire:navigate.hover>
         প্রোফাইল মুছুন
     </flux:sidebar.item>
-    <flux:sidebar.item icon="eye" :href="route('settings.appearance')" :current="request()->routeIs('settings.appearance')"
+
+    <flux:sidebar.item icon="eye" :href="route('profile.appearance')" :current="request()->routeIs('profile.appearance')"
         wire:navigate.hover>
         প্রদর্শন ব্যবস্থা
     </flux:sidebar.item>

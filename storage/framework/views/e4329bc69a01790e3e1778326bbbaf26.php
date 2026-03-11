@@ -10,10 +10,12 @@ $__propNames = \Illuminate\View\ComponentAttributeBag::extractPropNames(([
     'iconVariant' => 'micro',
     'iconTrailing' => null,
     'variant' => null,
+    'rounded' => null,
     'color' => null,
     'inset' => null,
     'size' => null,
     'icon' => null,
+    'label' => null,
 ]));
 
 foreach ($attributes->all() as $__key => $__value) {
@@ -33,10 +35,12 @@ foreach (array_filter(([
     'iconVariant' => 'micro',
     'iconTrailing' => null,
     'variant' => null,
+    'rounded' => null,
     'color' => null,
     'inset' => null,
     'size' => null,
     'icon' => null,
+    'label' => null,
 ]), 'is_string', ARRAY_FILTER_USE_KEY) as $__key => $__value) {
     $$__key = $$__key ?? $__value;
 }
@@ -50,10 +54,17 @@ foreach ($attributes->all() as $__key => $__value) {
 unset($__defined_vars, $__key, $__value); ?>
 
 <?php
+// Backwards compatibility for 'pill' variant...
+if ($variant === 'pill') {
+    $rounded = true;
+    $variant = null;
+}
+
 $insetClasses = Flux::applyInset($inset, top: '-mt-1', right: '-me-2', bottom: '-mb-1', left: '-ms-2');
 
 // When using the outline icon variant, we need to size it down to match the default icon sizes...
-$iconClasses = Flux::classes()->add($iconVariant === 'outline' ? 'size-4' : '');
+$iconClasses = Flux::classes()
+    ->add($size === 'sm' ? 'size-3' : ($iconVariant === 'outline' ? 'size-4' : ''));
 
 $classes = Flux::classes()
     ->add('inline-flex items-center font-medium whitespace-nowrap')
@@ -62,10 +73,10 @@ $classes = Flux::classes()
     ->add(match ($size) {
         'lg' => 'text-sm py-1.5 **:data-flux-badge-icon:me-2',
         default => 'text-sm py-1 **:data-flux-badge-icon:me-1.5',
-        'sm' => 'text-xs py-1 **:data-flux-badge-icon:size-3 **:data-flux-badge-icon:me-1',
+        'sm' => 'text-xs py-1 **:data-flux-badge-icon:me-1',
     })
-    ->add(match ($variant) {
-        'pill' => 'rounded-full px-3',
+    ->add(match ($rounded) {
+        true => 'rounded-full px-3',
         default => 'rounded-md px-2',
     })
     /**
@@ -123,6 +134,8 @@ $classes = Flux::classes()
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['attributes' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($attributes->class($classes)),'data-flux-badge' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
     <?php if (is_string($icon) && $icon !== ''): ?>
         <?php if (isset($component)) { $__componentOriginalc7d5f44bf2a2d803ed0b55f72f1f82e2 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalc7d5f44bf2a2d803ed0b55f72f1f82e2 = $attributes; } ?>
@@ -134,6 +147,8 @@ $classes = Flux::classes()
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($icon),'variant' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($iconVariant),'class' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($iconClasses),'data-flux-badge-icon' => true]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalc7d5f44bf2a2d803ed0b55f72f1f82e2)): ?>
@@ -149,7 +164,7 @@ $classes = Flux::classes()
 
     <?php endif; ?>
 
-    <?php echo e($slot); ?>
+    <?php echo e($slot->isEmpty() ? $label : $slot); ?>
 
 
     <?php if ($iconTrailing): ?>
@@ -165,6 +180,8 @@ $classes = Flux::classes()
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['icon' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($iconTrailing),'variant' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($iconVariant),'class' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($iconClasses)]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalc7d5f44bf2a2d803ed0b55f72f1f82e2)): ?>

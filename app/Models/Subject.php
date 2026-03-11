@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
-class Subject extends Model
+class Subject extends BaseModel
 {
     use HasFactory, SoftDeletes;
 

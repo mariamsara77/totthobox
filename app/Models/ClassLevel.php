@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Cache;
 
-class ClassLevel extends Model
+class ClassLevel extends BaseModel
 {
     use HasFactory, SoftDeletes;
 

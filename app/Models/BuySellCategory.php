@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 
-class BuySellCategory extends Model
+class BuySellCategory extends BaseModel
 {
     use HasFactory, SoftDeletes;
 

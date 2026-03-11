@@ -24,6 +24,8 @@ use Illuminate\Support\Facades\Notification;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['variant' => 'outline','class' => 'w-12 h-12 text-amber-500']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalc3d062a579167d374258253d48d4177f)): ?>
@@ -45,6 +47,8 @@ use Illuminate\Support\Facades\Notification;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['variant' => 'outline','class' => 'w-12 h-12 text-amber-500']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal7a0deaba543bb0d5d4476ce247f55b31)): ?>
@@ -68,7 +72,9 @@ use Illuminate\Support\Facades\Notification;
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['size' => 'xl','class' => 'mb-3 font-bold']); ?><?php echo e($pageTitle); ?> <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['size' => 'xl','class' => 'mb-3 font-bold']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+<?php echo e($pageTitle); ?> <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginale0fd5b6a0986beffac17a0a103dfd7b9)): ?>
 <?php $attributes = $__attributesOriginale0fd5b6a0986beffac17a0a103dfd7b9; ?>
@@ -89,6 +95,8 @@ use Illuminate\Support\Facades\Notification;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['class' => 'mb-8 px-4 text-base leading-relaxed']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($searchQuery): ?>
                 আপনি <span
                     class="font-bold text-zinc-900 dark:text-white underline decoration-amber-500/50">"<?php echo e($searchQuery); ?>"</span>
@@ -120,6 +128,8 @@ use Illuminate\Support\Facades\Notification;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['wire:click' => 'notifyAdmin','wire:loading.attr' => 'disabled','variant' => 'primary','icon' => 'paper-airplane','class' => 'rounded-full px-10 py-3 font-bold shadow-lg shadow-amber-500/20 active:scale-95 transition-transform']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
                 <span wire:loading.remove>অ্যাডমিনকে জানান</span>
                 <span wire:loading>প্রসেস হচ্ছে...</span>
              <?php echo $__env->renderComponent(); ?>
@@ -146,6 +156,8 @@ use Illuminate\Support\Facades\Notification;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['variant' => 'solid','class' => 'w-6 h-6']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal99e1287553cbf55f278732425b3f00bd)): ?>

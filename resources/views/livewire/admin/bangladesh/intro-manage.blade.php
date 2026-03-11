@@ -20,7 +20,8 @@ new class extends Component {
     public $description = '';
 
     #[Validate('nullable|string')]
-    public $intro_category = '', $new_category = '';
+    public $intro_category = '',
+    $new_category = '';
 
     #[Validate('boolean')]
     public $is_featured = false;
@@ -53,7 +54,7 @@ new class extends Component {
     public function with(): array
     {
         return [
-            'availableCategories' => IntroBd::distinct()->whereNotNull('intro_category')->pluck('intro_category')
+            'availableCategories' => IntroBd::distinct()->whereNotNull('intro_category')->pluck('intro_category'),
         ];
     }
 
@@ -75,11 +76,16 @@ new class extends Component {
         $this->is_featured = (bool) $intro->is_featured;
 
         // গ্লোবাল আপলোডারের জন্য মিডিয়া ম্যাপ করা
-        $this->images = $intro->getMedia('intro_images')->map(fn($m) => [
-            'id' => $m->id,
-            'url' => $m->getUrl('thumb') ?? $m->getUrl(),
-            'is_existing' => true // এটি দেখে ব্লেড চিনবে যে এটি ডাটাবেজে আছে
-        ])->toArray();
+        $this->images = $intro
+            ->getMedia('intro_images')
+            ->map(
+                fn($m) => [
+                    'id' => $m->id,
+                    'url' => $m->getUrl('thumb') ?? $m->getUrl(),
+                    'is_existing' => true, // এটি দেখে ব্লেড চিনবে যে এটি ডাটাবেজে আছে
+                ],
+            )
+            ->toArray();
 
         $this->dispatch('modal-show', name: 'intro-form');
     }
@@ -88,8 +94,9 @@ new class extends Component {
     {
         $file = $this->{$propertyName}[$index] ?? null;
 
-        if (!$file)
+        if (!$file) {
             return;
+        }
 
         // যদি এটি ডাটাবেজের ইমেজ হয়, তবে মিডিয়া লাইব্রেরি থেকে ডিলিট করো
         if (is_array($file) && isset($file['is_existing'])) {
@@ -107,19 +114,23 @@ new class extends Component {
         $this->validate();
         $category = $this->categoryInputType === 'create' ? $this->new_category : $this->intro_category;
 
-        $intro = IntroBd::updateOrCreate(['id' => $this->introBdId], [
-            'title' => $this->title,
-            'description' => $this->description,
-            'intro_category' => $category,
-            'is_featured' => $this->is_featured,
-            'slug' => Str::slug($this->title),
-        ]);
+        $intro = IntroBd::updateOrCreate(
+            ['id' => $this->introBdId],
+            [
+                'title' => $this->title,
+                'description' => $this->description,
+                'intro_category' => $category,
+                'is_featured' => $this->is_featured,
+                'slug' => Str::slug($this->title),
+            ],
+        );
 
         if (!empty($this->images)) {
             foreach ($this->images as $image) {
                 // শুধুমাত্র নতুন আপলোড করা ফাইলগুলো সেভ হবে
                 if ($image instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
-                    $intro->addMedia($image->getRealPath())
+                    $intro
+                        ->addMedia($image->getRealPath())
                         ->usingFileName(Str::random(10) . '.' . $image->getClientOriginalExtension())
                         ->toMediaCollection('intro_images');
                 }
@@ -193,57 +204,62 @@ new class extends Component {
         <flux:table.rows>
             @forelse ($this->introBds as $item)
                 <flux:table.row :key="$item->id">
-                   <flux:table.cell>
-                    @php 
-                        $images = $item->getMedia('intro_images'); 
-                    @endphp
+                    <flux:table.cell>
+                        @php
+                            $images = $item->getMedia('intro_images');
+                        @endphp
 
-                    <flux:avatar.group>
-                        @if($images->isEmpty())
-                            {{-- ইমেজ না থাকলে ডিফল্ট ইমেজ --}}
-                            <flux:icon.photo />
-                        @else
-                            {{-- ইমেজ থাকলে লুপ চলবে --}}
-                            @foreach($images->take(3) as $media)
-                                <flux:avatar src="{{ $media->getUrl('thumb') }}" />
-                            @endforeach
+                        <flux:avatar.group>
+                            @if ($images->isEmpty())
+                                {{-- ইমেজ না থাকলে ডিফল্ট ইমেজ --}}
+                                <flux:icon.photo />
+                            @else
+                                {{-- ইমেজ থাকলে লুপ চলবে --}}
+                                @foreach ($images->take(3) as $media)
+                                    <flux:avatar src="{{ $media->getUrl('thumb') }}" />
+                                @endforeach
 
-                            @if($images->count() > 3)
-                                <flux:avatar initials="+{{ $images->count() - 3 }}" />
+                                @if ($images->count() > 3)
+                                    <flux:avatar initials="+{{ $images->count() - 3 }}" />
+                                @endif
                             @endif
-                        @endif
-                    </flux:avatar.group>
-                </flux:table.cell>
+                        </flux:avatar.group>
+                    </flux:table.cell>
                     <flux:table.cell class="font-medium">{{ $item->title }}</flux:table.cell>
                     <flux:table.cell>
-                        <flux:badge size="sm" color="zinc" inset="top bottom">{{ $item->intro_category ?: 'General' }}
+                        <flux:badge size="sm" color="zinc" inset="top bottom">
+                            {{ $item->intro_category ?: 'General' }}
                         </flux:badge>
                     </flux:table.cell>
                     <flux:table.cell>
-                        <flux:link href="{{ route('users.show', $item->creator?->slug ?: 'unknown' ) }}">
-                        {{ $item->creator?->name ?: 'Unknown' }}
+                        <flux:link href="{{ route('users.show', $item->creator?->slug ?: 'unknown') }}">
+                            {{ $item->creator?->name ?: 'Unknown' }}
                         </flux:link>
                     </flux:table.cell>
-                <flux:table.cell align="end">
-                    @if($viewType === 'active')
-                        <flux:button variant="ghost" size="sm" icon="pencil-square"
-                            wire:click="showEditForm({{ $item->id }})" />
+                    <flux:table.cell align="end">
+                        @if ($viewType === 'active')
+                            <flux:button variant="ghost" size="sm" icon="pencil-square"
+                                wire:click="showEditForm({{ $item->id }})" />
                             <flux:button variant="ghost" size="sm" icon="trash" color="red" wire:confirm="Are you sure?"
-                            wire:click="delete({{ $item->id }})" />
-                    @else
-                        <flux:button variant="ghost" size="sm" icon="arrow-path" color="green"
-                            wire:click="restore({{ $item->id }})" />
-                            <flux:button variant="ghost" size="sm" icon="x-mark" color="red"
-                                wire:confirm="This will be deleted permanently!" wire:click="forceDelete({{ $item->id }})" />
-                    @endif
-                        </flux:table.cell>
-                </flux:table.row>
-            @empty
-            <flux:table.row>
-                <flux:table.cell colspan="4" class="text-center py-10 text-zinc-400">No records found.
+                                wire:click="delete({{ $item->id }})" />
+                        @else
+                            @can('restore data')
+                                <flux:button variant="ghost" size="sm" icon="arrow-path" color="green"
+                                    wire:click="restore({{ $item->id }})" />
+                            @endcan
+                            @can('permanent delete')
+                                <flux:button variant="ghost" size="sm" icon="x-mark" color="red"
+                                    wire:confirm="This will be deleted permanently!" wire:click="forceDelete({{ $item->id }})" />
+                            @endcan
+                        @endif
                     </flux:table.cell>
                 </flux:table.row>
-        @endforelse
+            @empty
+                <flux:table.row>
+                    <flux:table.cell colspan="4" class="text-center py-10 text-zinc-400">No records found.
+                    </flux:table.cell>
+                </flux:table.row>
+            @endforelse
         </flux:table.rows>
     </flux:table>
 
@@ -251,7 +267,8 @@ new class extends Component {
     <flux:modal name="intro-form" class="md:w-[45rem]">
         <form wire:submit="save" class="space-y-6">
             <div>
-                <flux:heading size="lg">{{ $introBdId ? 'Edit Information' : 'Add New Information' }}</flux:heading>
+                <flux:heading size="lg">{{ $introBdId ? 'Edit Information' : 'Add New Information' }}
+                </flux:heading>
                 <flux:subheading>Please fill in all the fields correctly.</flux:subheading>
             </div>
 
@@ -260,14 +277,15 @@ new class extends Component {
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
                 <flux:field>
                     <flux:label>Category</flux:label>
-                <div class="flex gap-2">
-                    @if($categoryInputType === 'select')
-                        <flux:select wire:model="intro_category" class="flex-1">
-                            <option value="">Select Category</option>
-                            @foreach($availableCategories as $cat) <option value="{{ $cat }}">{{ $cat }}</option>
-                            @endforeach
-                        </flux:select>
-                    @else
+                    <div class="flex gap-2">
+                        @if ($categoryInputType === 'select')
+                            <flux:select wire:model="intro_category" class="flex-1">
+                                <option value="">Select Category</option>
+                                @foreach ($availableCategories as $cat)
+                                    <option value="{{ $cat }}">{{ $cat }}</option>
+                                @endforeach
+                            </flux:select>
+                        @else
                             <flux:input wire:model="new_category" class="flex-1" placeholder="New category name..." />
                         @endif
                         <flux:button variant="subtle" size="sm"

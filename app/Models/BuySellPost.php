@@ -15,7 +15,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\Image\Enums\Fit;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
-class BuySellPost extends Model implements HasMedia
+class BuySellPost extends BaseModel implements HasMedia
 {
     use HasFactory, SoftDeletes, HasReactions, InteractsWithMedia;
 

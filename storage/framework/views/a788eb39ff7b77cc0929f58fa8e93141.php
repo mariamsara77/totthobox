@@ -19,6 +19,8 @@ $attributes = $attributes->merge([
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['attributes' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($attributes),'size' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($size === 'sm' || $size === 'xs' ? 'xs' : 'sm'),'x-data' => '{ copied: false }','x-on:click' => 'copied = ! copied; navigator.clipboard && navigator.clipboard.writeText($el.closest(\'[data-flux-input]\').querySelector(\'input\').value); setTimeout(() => copied = false, 2000)','x-bind:data-copyable-copied' => 'copied','aria-label' => ''.e(__('Copy to clipboard')).'']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
     <?php if (isset($component)) { $__componentOriginald1623caf8352e929ab8330cb6301c6be = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginald1623caf8352e929ab8330cb6301c6be = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::icon.clipboard-document-check','data' => ['variant' => 'mini','class' => 'hidden [[data-copyable-copied]>&]:block']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -29,6 +31,8 @@ $attributes = $attributes->merge([
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['variant' => 'mini','class' => 'hidden [[data-copyable-copied]>&]:block']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginald1623caf8352e929ab8330cb6301c6be)): ?>
@@ -49,6 +53,8 @@ $attributes = $attributes->merge([
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['variant' => 'mini','class' => 'block [[data-copyable-copied]>&]:hidden']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal4da0fb5c2f91d5abdd541ee46e42b692)): ?>

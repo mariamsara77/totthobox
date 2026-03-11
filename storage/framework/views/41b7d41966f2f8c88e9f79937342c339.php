@@ -1,6 +1,5 @@
 <meta charset="utf-8" />
-<meta name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
 <meta name="color-scheme" content="light dark">
 <meta name="csrf-token" content="<?php echo e(csrf_token()); ?>">
 
@@ -8,44 +7,45 @@
 <?php echo $__env->yieldPushContent('seo_meta'); ?>
 
 
-<?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(!View::hasSection('seo_pushed')): ?>
-    
+<?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(!session()->pull('seo_applied')): ?>
+    <title><?php echo $__env->yieldContent('title', config('app.name', 'Totthobox')); ?></title>
 <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
 <meta name="author" content="Totthobox Team" />
 <meta name="robots" content="index, follow" />
 
-<link rel="icon" type="image/svg+xml" href="/favicon.svg" /> 
-<link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
 
-<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+<link rel="icon" type="image/svg+xml" href="<?php echo e(asset('favicon.svg')); ?>" />
+<link rel="icon" type="image/png" href="<?php echo e(asset('favicon-96x96.png')); ?>" sizes="96x96" />
+<link rel="apple-touch-icon" sizes="180x180" href="<?php echo e(asset('apple-touch-icon.png')); ?>" />
 <meta name="apple-mobile-web-app-title" content="Totthobox" />
 
+<meta property="fb:app_id" content="888294060752536" />
 
-<link rel="manifest" href="/manifest.json"> 
+
+<link rel="manifest" href="<?php echo e(asset('manifest.json')); ?>">
 <meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+
 
 <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#262626" media="(prefers-color-scheme: dark)">
-
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#18181b" media="(prefers-color-scheme: dark)">
 
 
 <?php echo app('Illuminate\Foundation\Vite')(['resources/css/app.css', 'resources/js/app.js']); ?>
 <?php echo app('flux')->fluxAppearance(); ?>
 
 
-
-<link href="https://fonts.maateen.me/solaiman-lipi/font.css" rel="stylesheet">
-
 <script>
-    // Flux UI যখন .dark ক্লাস অ্যাড/রিমুভ করবে, এটি অটোমেটিক মেটা ট্যাগ আপডেট করবে
-    const observer = new MutationObserver(() => {
+    // থিম পরিবর্তনের সাথে মেটা ট্যাগ আপডেট
+    const updateThemeColor = () => {
         const isDark = document.documentElement.classList.contains('dark');
-        document.querySelector('meta[name="theme-color"]').setAttribute('content', isDark ? '#262626' : '#ffffff');
-    });
+        const color = isDark ? '#18181b' : '#ffffff';
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', color);
+    };
 
+    const observer = new MutationObserver(updateThemeColor);
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 </script>
 
@@ -60,6 +60,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['name' => 'settings','class' => 'md:w-96']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
     <div class="space-y-6">
         <div>
             <?php if (isset($component)) { $__componentOriginale0fd5b6a0986beffac17a0a103dfd7b9 = $component; } ?>
@@ -71,7 +73,9 @@
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['size' => 'lg']); ?>ডিসপ্লে এবং সেটিংস <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['size' => 'lg']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+ডিসপ্লে এবং সেটিংস <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginale0fd5b6a0986beffac17a0a103dfd7b9)): ?>
 <?php $attributes = $__attributesOriginale0fd5b6a0986beffac17a0a103dfd7b9; ?>
@@ -90,7 +94,9 @@
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes([]); ?>আপনার পছন্দ অনুযায়ী ইন্টারফেস সেট করুন। <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes([]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+আপনার পছন্দ অনুযায়ী ইন্টারফেস সেট করুন। <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal43e8c568bbb8b06b9124aad3ccf4ec97)): ?>
 <?php $attributes = $__attributesOriginal43e8c568bbb8b06b9124aad3ccf4ec97; ?>
@@ -101,7 +107,6 @@
 <?php unset($__componentOriginal43e8c568bbb8b06b9124aad3ccf4ec97); ?>
 <?php endif; ?>
         </div>
-
         <?php if (isset($component)) { $__componentOriginalc481942d30cc0ab06077963cf20a45e8 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalc481942d30cc0ab06077963cf20a45e8 = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::separator','data' => []] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -112,6 +117,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes([]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalc481942d30cc0ab06077963cf20a45e8)): ?>
@@ -122,8 +129,6 @@
 <?php $component = $__componentOriginalc481942d30cc0ab06077963cf20a45e8; ?>
 <?php unset($__componentOriginalc481942d30cc0ab06077963cf20a45e8); ?>
 <?php endif; ?>
-
-        
         <section class="space-y-3">
             <?php if (isset($component)) { $__componentOriginal8a84eac5abb8af1e2274971f8640b38f = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal8a84eac5abb8af1e2274971f8640b38f = $attributes; } ?>
@@ -134,7 +139,9 @@
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes([]); ?>অ্যাপের থিম <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes([]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+অ্যাপের থিম <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal8a84eac5abb8af1e2274971f8640b38f)): ?>
 <?php $attributes = $__attributesOriginal8a84eac5abb8af1e2274971f8640b38f; ?>
@@ -154,6 +161,8 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['x-data' => true,'variant' => 'segmented','x-model' => '$flux.appearance']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
                 <?php if (isset($component)) { $__componentOriginal63a6e9bef56b25b50cfa996fe1154357 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal63a6e9bef56b25b50cfa996fe1154357 = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::radio.index','data' => ['value' => 'light','icon' => 'sun']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -163,7 +172,9 @@
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['value' => 'light','icon' => 'sun']); ?>লাইট <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['value' => 'light','icon' => 'sun']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+লাইট <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal63a6e9bef56b25b50cfa996fe1154357)): ?>
 <?php $attributes = $__attributesOriginal63a6e9bef56b25b50cfa996fe1154357; ?>
@@ -182,7 +193,9 @@
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['value' => 'dark','icon' => 'moon']); ?>ডার্ক <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['value' => 'dark','icon' => 'moon']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+ডার্ক <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal63a6e9bef56b25b50cfa996fe1154357)): ?>
 <?php $attributes = $__attributesOriginal63a6e9bef56b25b50cfa996fe1154357; ?>
@@ -201,7 +214,9 @@
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['value' => 'system','icon' => 'computer-desktop']); ?>সিস্টেম <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['value' => 'system','icon' => 'computer-desktop']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+সিস্টেম <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal63a6e9bef56b25b50cfa996fe1154357)): ?>
 <?php $attributes = $__attributesOriginal63a6e9bef56b25b50cfa996fe1154357; ?>
@@ -222,9 +237,6 @@
 <?php unset($__componentOriginale5140a44d7461450cb1378cd5b47dfc8); ?>
 <?php endif; ?>
         </section>
-
-
-
         <div wire:ignore>
             <?php
 $__split = function ($name, $params = []) {
@@ -232,23 +244,27 @@ $__split = function ($name, $params = []) {
 };
 [$__name, $__params] = $__split('global.translator');
 
-$key = null;
+$__keyOuter = $__key ?? null;
 
-$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-2443521028-0', null);
+$__key = null;
+$__componentSlots = [];
 
-$__html = app('livewire')->mount($__name, $__params, $key);
+$__key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-2443521028-0', $__key);
+
+$__html = app('livewire')->mount($__name, $__params, $__key, $__componentSlots);
 
 echo $__html;
 
 unset($__html);
+unset($__key);
+$__key = $__keyOuter;
+unset($__keyOuter);
 unset($__name);
 unset($__params);
+unset($__componentSlots);
 unset($__split);
-if (isset($__slots)) unset($__slots);
 ?>
         </div>
-
-
         <div class="flex justify-end pt-2">
             <?php if (isset($component)) { $__componentOriginalda55eef372798476d918d03158796935 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalda55eef372798476d918d03158796935 = $attributes; } ?>
@@ -260,6 +276,8 @@ if (isset($__slots)) unset($__slots);
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes([]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
                 <?php if (isset($component)) { $__componentOriginalc04b147acd0e65cc1a77f86fb0e81580 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalc04b147acd0e65cc1a77f86fb0e81580 = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::button.index','data' => ['variant' => 'ghost']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -269,7 +287,9 @@ if (isset($__slots)) unset($__slots);
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['variant' => 'ghost']); ?>বন্ধ করুন <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['variant' => 'ghost']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+বন্ধ করুন <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalc04b147acd0e65cc1a77f86fb0e81580)): ?>
 <?php $attributes = $__attributesOriginalc04b147acd0e65cc1a77f86fb0e81580; ?>
@@ -303,15 +323,10 @@ if (isset($__slots)) unset($__slots);
 <?php endif; ?>
 
 
-
-<div id="pwa-smart-bar"
-    class="lg:hidden md:hidden fixed bottom-6 inset-x-4 z-[9999] transition-all duration-500 transform translate-y-10 opacity-0 pointer-events-none">
-    <div
-        class="max-w-md mx-auto bg-white/80 dark:bg-zinc-900/90 backdrop-blur-2xl border border-zinc-200/50 dark:border-zinc-800/50 shadow-2xl rounded-3xl p-4 flex items-center justify-between gap-4">
+<div id="pwa-smart-bar" class="lg:hidden fixed bottom-6 inset-x-4 z-[9999] opacity-0 translate-y-10 transition-all duration-500 pointer-events-none">
+    <div class="max-w-md mx-auto bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl border border-zinc-200/50 dark:border-zinc-800/50 shadow-2xl rounded-3xl p-4 flex items-center justify-between gap-4">
         <div class="flex items-center gap-3">
-            <div
-                class="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
-                
+            <div class="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
                 <?php if (isset($component)) { $__componentOriginal37c717510e7a32140849d8d5dd9d632e = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal37c717510e7a32140849d8d5dd9d632e = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::icon.plus','data' => ['class' => 'text-white w-6 h-6']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -322,6 +337,8 @@ if (isset($__slots)) unset($__slots);
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['class' => 'text-white w-6 h-6']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal37c717510e7a32140849d8d5dd9d632e)): ?>
@@ -343,7 +360,9 @@ if (isset($__slots)) unset($__slots);
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['size' => 'sm']); ?>তথ্যবক্স অ্যাপ <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['size' => 'sm']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+তথ্যবক্স অ্যাপ <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginale0fd5b6a0986beffac17a0a103dfd7b9)): ?>
 <?php $attributes = $__attributesOriginale0fd5b6a0986beffac17a0a103dfd7b9; ?>
@@ -355,15 +374,16 @@ if (isset($__slots)) unset($__slots);
 <?php endif; ?>
                 <?php if (isset($component)) { $__componentOriginal0638ebfbd490c7a414275d493e14cb4e = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal0638ebfbd490c7a414275d493e14cb4e = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::text','data' => ['size' => 'xs','class' => 'whitespace-nowrap overflow-hidden text-ellipsis']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::text','data' => ['size' => 'xs','class' => 'truncate']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('flux::text'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['size' => 'xs','class' => 'whitespace-nowrap overflow-hidden text-ellipsis']); ?>হোম স্ক্রিনে যুক্ত করে
-                    দ্রুত ব্যবহার করুন <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['size' => 'xs','class' => 'truncate']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+হোম স্ক্রিনে যুক্ত করে দ্রুত ব্যবহার করুন <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal0638ebfbd490c7a414275d493e14cb4e)): ?>
 <?php $attributes = $__attributesOriginal0638ebfbd490c7a414275d493e14cb4e; ?>
@@ -375,7 +395,6 @@ if (isset($__slots)) unset($__slots);
 <?php endif; ?>
             </div>
         </div>
-
         <?php if (isset($component)) { $__componentOriginalc04b147acd0e65cc1a77f86fb0e81580 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalc04b147acd0e65cc1a77f86fb0e81580 = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::button.index','data' => ['id' => 'btn-pwa-install','variant' => 'primary','size' => 'sm','class' => 'flex-shrink-0']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -385,7 +404,9 @@ if (isset($__slots)) unset($__slots);
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['id' => 'btn-pwa-install','variant' => 'primary','size' => 'sm','class' => 'flex-shrink-0']); ?>ইনস্টল <?php echo $__env->renderComponent(); ?>
+<?php $component->withAttributes(['id' => 'btn-pwa-install','variant' => 'primary','size' => 'sm','class' => 'flex-shrink-0']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+ইনস্টল <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalc04b147acd0e65cc1a77f86fb0e81580)): ?>
 <?php $attributes = $__attributesOriginalc04b147acd0e65cc1a77f86fb0e81580; ?>

@@ -43,6 +43,8 @@ $attributes = $attributes->merge([
 
         observer.observe(input, { attributes: true, attributeFilter: [\'type\'] });
     ']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
     <?php if (isset($component)) { $__componentOriginale550709c881a3d29c31af0c4e9681688 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginale550709c881a3d29c31af0c4e9681688 = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::icon.eye-slash','data' => ['variant' => 'micro','class' => 'hidden [[data-viewable-open]>&]:block']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -53,6 +55,8 @@ $attributes = $attributes->merge([
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['variant' => 'micro','class' => 'hidden [[data-viewable-open]>&]:block']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginale550709c881a3d29c31af0c4e9681688)): ?>
@@ -73,6 +77,8 @@ $attributes = $attributes->merge([
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['variant' => 'micro','class' => 'block [[data-viewable-open]>&]:hidden']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal2e57535a42d25d5415c31aa83132341b)): ?>

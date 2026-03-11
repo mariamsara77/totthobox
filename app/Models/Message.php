@@ -10,7 +10,7 @@ use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
-class Message extends Model implements HasMedia
+class Message extends BaseModel implements HasMedia
 {
     use HasFactory, SoftDeletes, InteractsWithMedia;
 

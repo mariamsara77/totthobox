@@ -24,6 +24,9 @@
             <flux:sidebar.item icon="user-group" :href="route('admin.users.manage')"
                 :current="request()->routeIs('admin.users.manage')" wire:navigate.hover>{{ __('Manage Users') }}
             </flux:sidebar.item>
+            <flux:sidebar.item icon="user-group" :href="route('admin.users.activity.all')"
+                :current="request()->routeIs('admin.users.activity.all')" wire:navigate.hover>{{ __('All Users Activity') }}
+            </flux:sidebar.item>
         @endcan
 
         @can('manage-roles')

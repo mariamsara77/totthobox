@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\HasReactions;
 
-class Comment extends Model
+class Comment extends BaseModel
 {
     use HasUuids, SoftDeletes, HasReactions;
 

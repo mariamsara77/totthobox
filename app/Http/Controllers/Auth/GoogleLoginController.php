@@ -4,15 +4,15 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Google\Client;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\JsonResponse;
-use Google\Client;
 
 class GoogleLoginController extends Controller
 {
@@ -28,7 +28,8 @@ class GoogleLoginController extends Controller
             $googleUser = Socialite::driver('google')->user();
             $user = User::where('email', $googleUser->getEmail())->first();
 
-            if (!$user) {
+            // ইউজার না থাকলে তৈরি করুন এবং অবতার সেট করুন
+            if (! $user) {
                 $user = User::create([
                     'name' => $googleUser->getName(),
                     'email' => $googleUser->getEmail(),
@@ -37,24 +38,21 @@ class GoogleLoginController extends Controller
                     'status' => 'active',
                 ]);
                 $user->assignRole('user');
-            }
 
-            // Avatar save kora
-            if ($googleUser->getAvatar()) {
-                $user->clearMediaCollection('avatars');
-                $user->addMediaFromUrl($googleUser->getAvatar())
-                    ->toMediaCollection('avatars');
+                if ($googleUser->getAvatar()) {
+                    $user->addMediaFromUrl($googleUser->getAvatar())
+                        ->toMediaCollection('avatars');
+                }
             }
 
             Auth::login($user, true);
-
-            // MULTI-USER COOKIE SET KORA
             $this->syncSavedAccounts($user->id);
 
             return redirect()->intended('/');
 
         } catch (\Exception $e) {
-            \Log::error('Google Auth Error: ' . $e->getMessage());
+            \Log::error('Google Auth Error: '.$e->getMessage());
+
             return redirect()->route('login')->withErrors(['email' => 'Google authentication failed.']);
         }
     }
@@ -64,7 +62,7 @@ class GoogleLoginController extends Controller
     {
         $idToken = $request->input('token');
 
-        if (!$idToken) {
+        if (! $idToken) {
             return response()->json(['success' => false, 'message' => 'Token not provided.'], 400);
         }
 
@@ -72,13 +70,14 @@ class GoogleLoginController extends Controller
             $client = new Client(['client_id' => config('services.google.client_id')]);
             $payload = $client->verifyIdToken($idToken);
 
-            if (!$payload) {
+            if (! $payload) {
                 return response()->json(['success' => false, 'message' => 'Invalid Google Token.'], 401);
             }
 
             $user = User::where('email', $payload['email'])->first();
 
-            if (!$user) {
+            // ইউজার না থাকলে তৈরি করুন এবং অবতার সেট করুন
+            if (! $user) {
                 $user = User::create([
                     'name' => $payload['name'] ?? 'Google User',
                     'email' => $payload['email'],
@@ -87,37 +86,31 @@ class GoogleLoginController extends Controller
                     'status' => 'active',
                 ]);
                 $user->assignRole('user');
-            }
 
-            if (isset($payload['picture'])) {
-                $user->clearMediaCollection('avatars');
-                $user->addMediaFromUrl($payload['picture'])
-                    ->toMediaCollection('avatars');
+                if (isset($payload['picture'])) {
+                    $user->addMediaFromUrl($payload['picture'])
+                        ->toMediaCollection('avatars');
+                }
             }
 
             Auth::login($user, true);
             $request->session()->regenerate();
-
-            // MULTI-USER COOKIE SET KORA
             $this->syncSavedAccounts($user->id);
 
             return response()->json(['success' => true, 'redirect' => url()->intended('/')]);
 
         } catch (\Exception $e) {
-            \Log::error('Google One Tap Error: ' . $e->getMessage());
+            \Log::error('Google One Tap Error: '.$e->getMessage());
+
             return response()->json(['success' => false, 'message' => 'Authentication Failed.'], 500);
         }
     }
 
-    /**
-     * একাধিক ইউজার ডাটা সেভ রাখার জন্য ইম্প্রুভড মেথড
-     */
     private function syncSavedAccounts($userId)
     {
         $cookieName = 'saved_accounts';
         $userIds = [];
 
-        // ১. বিদ্যমান কুকি থেকে আগের ইউজারদের লিস্ট রিড করা
         if ($existingCookie = request()->cookie($cookieName)) {
             try {
                 $userIds = json_decode(decrypt($existingCookie), true) ?: [];
@@ -126,12 +119,10 @@ class GoogleLoginController extends Controller
             }
         }
 
-        // ২. বর্তমান লগইন করা ইউজার যদি লিস্টে না থাকে, তবে যুক্ত করা
-        if (!in_array($userId, $userIds)) {
+        if (! in_array($userId, $userIds)) {
             $userIds[] = $userId;
         }
 
-        // ৩. কুকিটি 'Forever' হিসেবে সেভ করা (যাতে লগআউট করলেও না মুছে যায়)
         Cookie::queue(
             cookie()->forever(
                 $cookieName,
@@ -139,7 +130,6 @@ class GoogleLoginController extends Controller
             )
         );
 
-        // ৪. পুরনো সিঙ্গেল কুকি থাকলে তা ডিলিট করা (Cleanup)
         Cookie::queue(Cookie::forget('last_logged_user'));
     }
 }

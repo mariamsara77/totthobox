@@ -35,5 +35,5 @@ foreach ($attributes->all() as $__key => $__value) {
 unset($__defined_vars, $__key, $__value); ?>
 
 <option <?php echo e($attributes); ?> <?php if(isset($value)): ?> value="<?php echo e($value); ?>" <?php endif; ?>
-    <?php if(isset($value)): ?> wire:key="<?php echo e($value); ?>" <?php endif; ?>><?php echo e($slot); ?></option>
+    <?php if(isset($value)): ?> <?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::$currentLoop['key'] = ''.e($value).''; ?>wire:key="<?php echo e($value); ?>" <?php endif; ?>><?php echo e($slot); ?></option>
 <?php /**PATH /var/www/html/totthobox/resources/views/flux/select/option/variants/default.blade.php ENDPATH**/ ?>

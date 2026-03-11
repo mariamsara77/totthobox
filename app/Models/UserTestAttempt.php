@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -92,7 +92,7 @@ class UserTestAttempt extends Model
      */
     public function isCompleted()
     {
-        return !is_null($this->completed_at);
+        return ! is_null($this->completed_at);
     }
 
     public function percentage()
@@ -132,7 +132,7 @@ class UserTestAttempt extends Model
     protected static function generateUniqueSlug($model)
     {
         // Create a base slug from user_id and test_id (or any field)
-        $baseSlug = Str::slug("attempt-{$model->user_id}-{$model->test_id}-" . now()->timestamp);
+        $baseSlug = Str::slug("attempt-{$model->user_id}-{$model->test_id}-".now()->timestamp);
         $slug = $baseSlug;
         $count = 1;
 

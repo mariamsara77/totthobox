@@ -35,9 +35,9 @@ $variants = [
         class="transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden relative"
     >
         <div class="{{ $variants[$variant] ?? $variants['default'] }} leading-relaxed">
-            <flux:text>
+            <div class="text-zinc-500 dark:text-zinc-300">
                 {!! $content !!}
-            </flux:text>
+</div>
         </div>
 
         {{-- Gradient Overlay for smooth fade (Optional, can be removed) --}}

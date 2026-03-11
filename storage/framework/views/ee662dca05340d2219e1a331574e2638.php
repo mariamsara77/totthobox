@@ -16,6 +16,8 @@ use Illuminate\Support\Facades\Redirect;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['wire:click' => 'redirectToGoogle','wire:loading.attr' => 'disabled','class' => 'w-full !rounded-full py-6','icon' => 'google','variant' => 'primary','color' => 'amber']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         <span wire:loading.remove><?php echo e(__('গুগল দিয়ে লগইন করুন')); ?></span>
         <span wire:loading><?php echo e(__('অপেক্ষা করুন...')); ?></span>
      <?php echo $__env->renderComponent(); ?>

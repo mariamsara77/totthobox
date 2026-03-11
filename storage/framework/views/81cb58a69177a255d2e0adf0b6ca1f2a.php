@@ -8,7 +8,8 @@ use Illuminate\Support\Facades\Cache;
 
 ?>
 
-<div class="relative">
+<section>
+    <div class="relative">
     <div class="flex items-center justify-between mb-6">
         <h3 class="text-xl font-bold text-gray-900 dark:text-white">Live Analytics</h3>
         <div class="flex items-center space-x-3">
@@ -43,6 +44,8 @@ use Illuminate\Support\Facades\Cache;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes([]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal4e4f522adb19cc742fb2b199df7e6c95)): ?>
@@ -80,6 +83,8 @@ use Illuminate\Support\Facades\Cache;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes([]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal82067727c95f13dc4198f80e35cb9c11)): ?>
@@ -117,6 +122,8 @@ use Illuminate\Support\Facades\Cache;
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes([]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalb07d48b1997b1d8be5c0db0dac7941df)): ?>
@@ -131,4 +138,5 @@ use Illuminate\Support\Facades\Cache;
             </div>
         </div>
     </div>
-</div><?php /**PATH /var/www/html/totthobox/resources/views/livewire/admin/dashboard/real-time-visitors.blade.php ENDPATH**/ ?>
+</div>
+</section><?php /**PATH /var/www/html/totthobox/resources/views/livewire/admin/dashboard/real-time-visitors.blade.php ENDPATH**/ ?>

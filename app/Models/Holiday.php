@@ -12,7 +12,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Spatie\Image\Enums\Fit;
 
-class Holiday extends Model implements HasMedia
+class Holiday extends BaseModel implements HasMedia
 {
     use SoftDeletes, HasFactory, InteractsWithMedia;
 

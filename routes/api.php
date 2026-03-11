@@ -23,5 +23,3 @@ Route::prefix('v1')->group(function () {
         Route::get('me', [AuthController::class, 'me']);
     });
 });
-
-Route::get('/buy-sell', BuySellApi::class);

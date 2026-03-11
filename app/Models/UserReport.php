@@ -6,13 +6,13 @@ use Illuminate\Database\Eloquent\Model;
 
 class UserReport extends Model
 {
-     protected $fillable = [
+    protected $fillable = [
         'reported_by',
         'target_type',
         'target_id',
         'reason',
         'details',
-        'status'
+        'status',
     ];
 
     public function reporter()

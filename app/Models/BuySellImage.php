@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class BuySellImage extends Model
+class BuySellImage extends BaseModel
 {
     use HasFactory, SoftDeletes;
 

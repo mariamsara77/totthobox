@@ -95,7 +95,8 @@ new class extends Component {
 };
 ?>
 
-<div class="relative">
+<section>
+    <div class="relative">
     <div class="flex items-center justify-between mb-6">
         <h3 class="text-xl font-bold text-gray-900 dark:text-white">Live Analytics</h3>
         <div class="flex items-center space-x-3">
@@ -159,3 +160,4 @@ new class extends Component {
         </div>
     </div>
 </div>
+</section>

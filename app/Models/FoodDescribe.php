@@ -2,12 +2,12 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 
-class FoodDescribe extends Model
+class FoodDescribe extends BaseModel
 {
     use HasFactory, SoftDeletes;
 
@@ -67,7 +67,6 @@ class FoodDescribe extends Model
     {
         return $this->belongsTo(User::class, 'published_by');
     }
-
 
     /**
      * Scope for filtering by category

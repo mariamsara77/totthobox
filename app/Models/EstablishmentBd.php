@@ -11,7 +11,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Spatie\Image\Enums\Fit;
 
-class EstablishmentBd extends Model implements HasMedia
+class EstablishmentBd extends BaseModel implements HasMedia
 {
     use HasFactory, SoftDeletes, InteractsWithMedia;
 

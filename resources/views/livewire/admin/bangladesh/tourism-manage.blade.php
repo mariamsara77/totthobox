@@ -22,6 +22,9 @@ new class extends Component {
     #[Validate('required|min:3|max:255')]
     public $title = '';
 
+    #[Validate('required|string|max:100')]
+    public $tourism_type = '';
+
     #[Validate('required|min:10')]
     public $description = '';
 
@@ -98,28 +101,14 @@ new class extends Component {
         return [
             'divisions' => $this->divisions,
             'districts' => $this->districts,
-            'thanas' => $this->thanas
+            'thanas' => $this->thanas,
         ];
     }
 
     public function showCreateForm()
     {
         $this->resetValidation();
-        $this->reset([
-            'tourismBdId',
-            'title',
-            'description',
-            'division_id',
-            'district_id',
-            'thana_id',
-            'is_featured',
-            'status',
-            'meta_title',
-            'meta_description',
-            'meta_keywords',
-            'images',
-            'map'
-        ]);
+        $this->reset(['tourismBdId', 'title', 'description', 'division_id', 'district_id', 'thana_id', 'is_featured', 'status', 'meta_title', 'meta_description', 'meta_keywords', 'images', 'map']);
         $this->districts = [];
         $this->thanas = [];
         $this->dispatch('modal-show', name: 'tourism-form');
@@ -132,6 +121,7 @@ new class extends Component {
 
         $this->tourismBdId = $tourism->id;
         $this->title = $tourism->title;
+        $this->tourism_type = $tourism->tourism_type;
         $this->description = $tourism->description;
         $this->division_id = $tourism->division_id;
         $this->district_id = $tourism->district_id;
@@ -147,11 +137,16 @@ new class extends Component {
         $this->thanas = Thana::where('district_id', $this->district_id)->get();
 
         // Load existing media
-        $this->images = $tourism->getMedia('tourism_images')->map(fn($m) => [
-            'id' => $m->id,
-            'url' => $m->getUrl(),
-            'is_existing' => true
-        ])->toArray();
+        $this->images = $tourism
+            ->getMedia('tourism_images')
+            ->map(
+                fn($m) => [
+                    'id' => $m->id,
+                    'url' => $m->getUrl(),
+                    'is_existing' => true,
+                ],
+            )
+            ->toArray();
 
         $this->dispatch('modal-show', name: 'tourism-form');
     }
@@ -160,8 +155,9 @@ new class extends Component {
     {
         $file = $this->{$propertyName}[$index] ?? null;
 
-        if (!$file)
+        if (!$file) {
             return;
+        }
 
         // If it's an existing database image, delete from media library
         if (is_array($file) && isset($file['is_existing'])) {
@@ -178,6 +174,7 @@ new class extends Component {
     {
         $this->validate([
             'title' => 'required|min:3|max:255',
+            'tourism_type' => 'required',
             'description' => 'required|min:10',
             'division_id' => 'required|exists:divisions,id',
             'district_id' => 'nullable|exists:districts,id',
@@ -186,26 +183,31 @@ new class extends Component {
             'status' => 'required|in:1,0',
         ]);
 
-        $tourism = TourismBd::updateOrCreate(['id' => $this->tourismBdId], [
-            'title' => $this->title,
-            'description' => $this->description,
-            'slug' => Str::slug($this->title),
-            'division_id' => $this->division_id,
-            'district_id' => $this->district_id,
-            'thana_id' => $this->thana_id,
-            'is_featured' => $this->is_featured,
-            'status' => $this->status,
-            'meta_title' => $this->meta_title ?: $this->title,
-            'meta_description' => $this->meta_description,
-            'meta_keywords' => $this->meta_keywords,
-            'user_id' => auth()->id(),
-        ]);
+        $tourism = TourismBd::updateOrCreate(
+            ['id' => $this->tourismBdId],
+            [
+                'title' => $this->title,
+                'tourism_type' => $this->tourism_type,
+                'description' => $this->description,
+                'slug' => Str::slug($this->title),
+                'division_id' => $this->division_id,
+                'district_id' => $this->district_id,
+                'thana_id' => $this->thana_id,
+                'is_featured' => $this->is_featured,
+                'status' => $this->status,
+                'meta_title' => $this->meta_title ?: $this->title,
+                'meta_description' => $this->meta_description,
+                'meta_keywords' => $this->meta_keywords,
+                'user_id' => auth()->id(),
+            ],
+        );
 
         // Save images
         if (!empty($this->images)) {
             foreach ($this->images as $image) {
                 if ($image instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
-                    $tourism->addMedia($image->getRealPath())
+                    $tourism
+                        ->addMedia($image->getRealPath())
                         ->usingFileName(Str::random(10) . '.' . $image->getClientOriginalExtension())
                         ->toMediaCollection('tourism_images');
                 }
@@ -214,7 +216,8 @@ new class extends Component {
 
         // Save map if provided
         if ($this->map instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
-            $tourism->addMedia($this->map->getRealPath())
+            $tourism
+                ->addMedia($this->map->getRealPath())
                 ->usingFileName(Str::random(10) . '.' . $this->map->getClientOriginalExtension())
                 ->toMediaCollection('tourism_maps');
         }
@@ -288,6 +291,13 @@ new class extends Component {
             <flux:table.column sortable>Title</flux:table.column>
             <flux:table.column>Location</flux:table.column>
             <flux:table.column>Status</flux:table.column>
+            <flux:table.column>
+                @if ($viewType === 'active')
+                    Creator
+                @else
+                    Deletor
+                @endif
+            </flux:table.column>
             <flux:table.column align="end">Action</flux:table.column>
         </flux:table.columns>
 
@@ -295,17 +305,17 @@ new class extends Component {
             @forelse ($this->tourismBds as $item)
                 <flux:table.row :key="$item->id">
                     <flux:table.cell>
-                           @php 
-                            $images = $item->getMedia('tourism_images'); 
+                        @php
+                            $images = $item->getMedia('tourism_images');
                         @endphp
 
                         <flux:avatar.group>
-                                @foreach($images->take(3) as $media)
-                                    <flux:avatar src="{{ $media->getUrl() }}" />
-                                @endforeach
-                                @if($images->count() > 3)
-                                    <flux:avatar initials="+{{ $images->count() - 3 }}" />
-                                @endif
+                            @foreach ($images->take(3) as $media)
+                                <flux:avatar src="{{ $media->getUrl() }}" />
+                            @endforeach
+                            @if ($images->count() > 3)
+                                <flux:avatar initials="+{{ $images->count() - 3 }}" />
+                            @endif
                         </flux:avatar.group>
                     </flux:table.cell>
                     <flux:table.cell class="font-medium">
@@ -317,23 +327,59 @@ new class extends Component {
                         <div class="text-xs text-zinc-500">{{ $item->division->name ?? '' }}</div>
                     </flux:table.cell>
                     <flux:table.cell>
-                        @if($item->is_featured)
+                        @if ($item->is_featured)
                             <flux:badge size="sm" color="amber">Featured</flux:badge>
                         @else
                             <flux:badge size="sm" color="zinc">Standard</flux:badge>
                         @endif
                     </flux:table.cell>
+                    <flux:table.cell>
+                        <div class="flex flex-col">
+                            @if ($viewType === 'active')
+                                {{-- Creator Info --}}
+                                <div class="flex items-center gap-1">
+                                    <flux:text size="sm" class="text-zinc-500">Creator:</flux:text>
+                                    <flux:link href="{{ route('users.show', $item->creator?->slug ?? 'unknown') }}" size="sm">
+                                        {{ $item->creator?->name ?? 'Unknown' }}
+                                    </flux:link>
+                                </div>
+
+                                {{-- Editor/Updater Info (যদি থাকে) --}}
+                                @if ($item->editor && $item->updated_by !== $item->created_by)
+                                    <div class="flex items-center gap-1">
+                                        <flux:text size="xs" class="text-zinc-400">Editor:</flux:text>
+                                        <flux:link href="{{ route('users.show', $item->editor?->slug ?? 'unknown') }}" size="xs"
+                                            class="text-zinc-500!">
+                                            {{ $item->editor?->name }}
+                                        </flux:link>
+                                    </div>
+                                @endif
+                            @else
+                                {{-- Deleter Info (Trash ভিউর জন্য) --}}
+                                <div class="flex items-center gap-1">
+                                    <flux:text size="sm" class="text-red-500">Deleted By:</flux:text>
+                                    <flux:link href="{{ route('users.show', $item->deleter?->slug ?? 'unknown') }}" size="sm">
+                                        {{ $item->deleter?->name ?? 'Unknown' }}
+                                    </flux:link>
+                                </div>
+                            @endif
+                        </div>
+                    </flux:table.cell>
                     <flux:table.cell align="end">
-                        @if($viewType === 'active')
+                        @if ($viewType === 'active')
                             <flux:button variant="ghost" size="sm" icon="pencil-square"
                                 wire:click="showEditForm({{ $item->id }})" />
                             <flux:button variant="ghost" size="sm" icon="trash" color="red" wire:confirm="Are you sure?"
                                 wire:click="delete({{ $item->id }})" />
                         @else
-                            <flux:button variant="ghost" size="sm" icon="arrow-path" color="green"
-                                wire:click="restore({{ $item->id }})" />
-                            <flux:button variant="ghost" size="sm" icon="x-mark" color="red"
-                                wire:confirm="This will be deleted permanently!" wire:click="forceDelete({{ $item->id }})" />
+                            @can('restore data')
+                                <flux:button variant="ghost" size="sm" icon="arrow-path" color="green"
+                                    wire:click="restore({{ $item->id }})" />
+                            @endcan
+                            @can('permanent delete')
+                                <flux:button variant="ghost" size="sm" icon="x-mark" color="red"
+                                    wire:confirm="This will be deleted permanently!" wire:click="forceDelete({{ $item->id }})" />
+                            @endcan
                         @endif
                     </flux:table.cell>
                 </flux:table.row>
@@ -350,16 +396,41 @@ new class extends Component {
     <flux:modal name="tourism-form" class="md:w-[60rem]">
         <form wire:submit="save" class="space-y-6">
             <div>
-                <flux:heading size="lg">{{ $tourismBdId ? 'Edit Destination' : 'Add New Destination' }}</flux:heading>
+                <flux:heading size="lg">{{ $tourismBdId ? 'Edit Destination' : 'Add New Destination' }}
+                </flux:heading>
                 <flux:subheading>Manage tourism spot details and location information.</flux:subheading>
             </div>
 
             <flux:input wire:model="title" label="Destination Title" placeholder="Enter destination title..." />
 
+            <flux:select wire:model="tourism_type" label="পর্যটনের ধরন (Tourism Type)" placeholder="ধরন নির্বাচন করুন">
+                <option value="">ধরন নির্বাচন করুন</option>
+
+                {{-- ঐতিহাসিক ক্যাটাগরি --}}
+                <option value="historical">ঐতিহাসিক ও প্রত্নতাত্ত্বিক (Historical & Archaeological)</option>
+                <option value="heritage">রাজপ্রাসাদ ও জমিদার বাড়ি (Palaces & Heritage)</option>
+
+                {{-- প্রাকৃতিক ক্যাটাগরি --}}
+                <option value="natural">প্রাকৃতিক সৌন্দর্য (Natural Beauty)</option>
+                <option value="waterfall">ঝর্ণা ও জলপ্রপাত (Waterfalls)</option>
+                <option value="beach">সমুদ্র সৈকত (Sea Beach)</option>
+                <option value="hill_station">পাহাড় ও পার্বত্য এলাকা (Hills & Mountains)</option>
+                <option value="forest">বন ও বন্যপ্রাণী (Forest & Wildlife)</option>
+
+                {{-- ধর্মীয় ও সাংস্কৃতিক --}}
+                <option value="religious">ধর্মীয় ও পবিত্র স্থান (Religious Sites)</option>
+                <option value="cultural">সাংস্কৃতিক ও জাদুঘর (Cultural & Museums)</option>
+
+                {{-- আধুনিক ও বিনোদন --}}
+                <option value="adventure">অ্যাডভেঞ্চার ও ট্র্যাকিং (Adventure & Trekking)</option>
+                <option value="resort">রিসোর্ট ও বিনোদন কেন্দ্র (Resorts & Amusement)</option>
+                <option value="riverine">হাওর ও নদীকেন্দ্রিক (Riverine & Haor)</option>
+                <option value="picnic">পিকনিক স্পট (Picnic Spot)</option>
+            </flux:select>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <flux:select wire:model.live="division_id" label="Division" placeholder="Select Division">
                     <option value="">Select Division</option>
-                    @foreach($divisions as $division)
+                    @foreach ($divisions as $division)
                         <option value="{{ $division->id }}">{{ $division->name }}</option>
                     @endforeach
                 </flux:select>
@@ -367,7 +438,7 @@ new class extends Component {
                 <flux:select wire:model.live="district_id" label="District" placeholder="Select District"
                     :disabled="!$division_id">
                     <option value="">Select District</option>
-                    @foreach($districts as $district)
+                    @foreach ($districts as $district)
                         <option value="{{ $district->id }}">{{ $district->name }}</option>
                     @endforeach
                 </flux:select>
@@ -375,7 +446,7 @@ new class extends Component {
                 <flux:select wire:model.live="thana_id" label="Thana" placeholder="Select Thana"
                     :disabled="!$district_id">
                     <option value="">Select Thana</option>
-                    @foreach($thanas as $thana)
+                    @foreach ($thanas as $thana)
                         <option value="{{ $thana->id }}">{{ $thana->name }}</option>
                     @endforeach
                 </flux:select>

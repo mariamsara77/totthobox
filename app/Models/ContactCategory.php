@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 // যদি schemaless attributes ব্যবহার করতে চান
 use Spatie\SchemalessAttributes\Casts\SchemalessAttributes;
 
-class ContactCategory extends Model
+class ContactCategory extends BaseModel
 {
     use HasFactory, SoftDeletes;
 

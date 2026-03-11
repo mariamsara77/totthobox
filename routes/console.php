@@ -1,7 +1,10 @@
 <?php
 
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Foundation\Inspiring;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
+
+Schedule::command('sitemap:generate')->daily();
 
 // ডিফল্ট ইন্সপায়ার কমান্ড
 Artisan::command('inspire', function () {
@@ -23,7 +26,7 @@ Artisan::command('super:clean', function () {
     Artisan::call('route:cache');
     Artisan::call('view:cache');
 
-    // নোট: composer dump-autoload শুধুমাত্র টার্মিনালে ম্যানুয়ালি চালানো ভালো। 
+    // নোট: composer dump-autoload শুধুমাত্র টার্মিনালে ম্যানুয়ালি চালানো ভালো।
     // যদি খুব দরকার হয় তবে নিচের লাইনটি আন-কমেন্ট করতে পারেন, তবে এটি সাইট স্লো করবে।
     // exec('composer dump-autoload');
 

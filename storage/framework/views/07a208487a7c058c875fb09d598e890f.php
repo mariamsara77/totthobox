@@ -73,6 +73,8 @@ $classes = Flux::classes()
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['position' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($tooltipPosition),'class' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($tooltipClasses)]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
     <button
         <?php echo e($attributes->class($classes)); ?>
 
@@ -90,6 +92,8 @@ $classes = Flux::classes()
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['class' => 'size-4','icon' => 'magnifying-glass','variant' => 'outline']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalc7d5f44bf2a2d803ed0b55f72f1f82e2)): ?>
@@ -125,6 +129,8 @@ $classes = Flux::classes()
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['kbd' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($tooltipKbd),'class' => 'not-in-data-flux-sidebar-collapsed-desktop:hidden cursor-default']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
         <?php echo e($tooltip); ?>
 
      <?php echo $__env->renderComponent(); ?>

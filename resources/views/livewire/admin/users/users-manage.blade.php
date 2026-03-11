@@ -378,6 +378,8 @@ new class extends Component {
                             </flux:badge>
                         </flux:table.cell>
                         <flux:table.cell align="end">
+                              <flux:button href="{{ route('admin.users.activity', $user->slug) }}" variant="ghost" size="sm"
+                                    icon="pencil-square" />
                             @if ($viewType === 'active')
                                 <flux:button wire:click="showEditForm({{ $user->id }})" variant="ghost" size="sm"
                                     icon="pencil-square" />

@@ -8,12 +8,17 @@ use Illuminate\Support\Facades\Cache;
 new class extends Component {
     use WithPagination;
 
-    public $search = '', $selectedDivision = null, $selectedDistrict = null, $selectedThana = null;
+    public $search = '',
+    $selectedDivision = null,
+    $selectedDistrict = null,
+    $selectedThana = null,
+    $selectedType = null;
 
     public function updated($property)
     {
-        if (in_array($property, ['selectedDivision', 'selectedDistrict', 'selectedThana', 'search']))
+        if (in_array($property, ['selectedDivision', 'selectedDistrict', 'selectedThana', 'search'])) {
             $this->resetPage();
+        }
 
         if ($property === 'selectedDivision') {
             $this->reset(['selectedDistrict', 'selectedThana']);
@@ -21,63 +26,61 @@ new class extends Component {
         if ($property === 'selectedDistrict') {
             $this->reset('selectedThana');
         }
+
+        if ($property === 'selectedType') {
+            $this->resetPage();
+        }
     }
 
     #[Computed]
     public function divisions()
     {
-        // বিভাগগুলো ১ ঘণ্টার জন্য ক্যাশ করা হলো এবং শুধু id ও name নেওয়া হলো
-        return Cache::remember('divisions_list_opt', 3600, function () {
-            return Division::orderBy('name')->get(['id', 'name']);
-        });
+        return Cache::remember('divisions_list_opt', 86400, fn() => Division::orderBy('name')->get(['id', 'name']));
     }
 
     #[Computed]
     public function districts()
     {
-        if (!$this->selectedDivision)
+        if (!$this->selectedDivision) {
             return [];
-
-        // নির্দিষ্ট বিভাগের জেলাগুলো ক্যাশ করা
-        return Cache::remember("districts_div_{$this->selectedDivision}", 3600, function () {
-            return District::where('division_id', $this->selectedDivision)
+        }
+        return Cache::remember(
+            "districts_div_{$this->selectedDivision}",
+            86400,
+            fn() => District::where('division_id', $this->selectedDivision)
                 ->orderBy('name')
-                ->get(['id', 'name', 'division_id']);
-        });
+                ->get(['id', 'name', 'division_id']),
+        );
     }
 
     #[Computed]
     public function thanas()
     {
-        if (!$this->selectedDistrict)
+        if (!$this->selectedDistrict) {
             return [];
-
-        // নির্দিষ্ট জেলার থানাগুলো ক্যাশ করা
-        return Cache::remember("thanas_dist_{$this->selectedDistrict}", 3600, function () {
-            return Thana::where('district_id', $this->selectedDistrict)
+        }
+        return Cache::remember(
+            "thanas_dist_{$this->selectedDistrict}",
+            86400,
+            fn() => Thana::where('district_id', $this->selectedDistrict)
                 ->orderBy('name')
-                ->get(['id', 'name', 'district_id']);
-        });
+                ->get(['id', 'name', 'district_id']),
+        );
     }
 
     #[Computed]
     public function tourisms()
     {
         return TourismBd::query()
-            // রিলেশনের শুধু প্রয়োজনীয় কলাম ইগার লোড করা এবং মিডিয়া লাইব্রেরি অপ্টিমাইজ করা
-            ->with([
-                'division:id,name',
-                'district:id,name',
-                'thana:id,name',
-                'media'
-            ])
+            ->with(['division:id,name', 'district:id,name', 'thana:id,name', 'media'])
             ->where('status', 1)
             ->when($this->search, fn($q) => $q->where('title', 'like', "%{$this->search}%"))
+            ->when($this->selectedType, fn($q) => $q->where('tourism_type', $this->selectedType))
             ->when($this->selectedDivision, fn($q) => $q->where('division_id', $this->selectedDivision))
             ->when($this->selectedDistrict, fn($q) => $q->where('district_id', $this->selectedDistrict))
             ->when($this->selectedThana, fn($q) => $q->where('thana_id', $this->selectedThana))
             ->latest()
-            ->paginate(10);
+            ->paginate(12); // কার্ডের জন্য ১২টি আইটেম ভালো দেখায় (৩ কলামে ৪ সারি)
     }
 
     public function resetFilter()
@@ -87,91 +90,158 @@ new class extends Component {
     }
 }; ?>
 
-<section class="max-w-2xl mx-auto">
+@php
+    // প্রথম আইটেমের ইমেজ নেওয়া (যদি থাকে)
+    $firstItem = $this->tourisms->first();
+    $ogImage =
+        $firstItem && $firstItem->hasMedia('default')
+        ? $firstItem->getFirstMediaUrl('default', 'preview')
+        : asset('images/og-default.jpg'); // আপনার পাবলিক ফোল্ডারে একটি ডিফল্ট ইমেজ রাখুন
 
-    <flux:heading size="xl" class="text-center">বাংলাদেশের সকল পর্যটন কেন্দ্র</flux:heading>
+    $pageTitle = $search ? 'খুঁজুন: ' . $search . ' | Totthobox' : 'বাংলাদেশের সকল পর্যটন কেন্দ্র ও ভ্রমণ গাইড';
+    $pageDesc = $search
+        ? $search . ' সম্পর্কিত তথ্য ও পর্যটন কেন্দ্রের বিস্তারিত গাইড।'
+        : 'বাংলাদেশের ৬৪ জেলার সেরা পর্যটন
+                                                                                                                                                                                                                    কেন্দ্র, ঐতিহাসিক স্থান ও প্রাকৃতিক সৌন্দর্যের বিস্তারিত ভ্রমণ গাইড।';
+@endphp
 
-    <div class="mt-4 space-y-6">
+<x-seo :title="$pageTitle" :description="$pageDesc" :keywords="'বাংলাদেশ পর্যটন, ভ্রমণ গাইড, Totthobox, দর্শনীয় স্থান, ' . ($search ? $search : 'বাংলাদেশ')" :image="$ogImage" />
 
-        {{-- Search & Filters --}}
-        <div class="mb-10 flex items-center gap-3 overflow-x-auto">
-            <flux:input wire:model.live.debounce.400ms="search" size="sm" placeholder="দর্শনীয় স্থান খুঁজুন..."
-                icon="magnifying-glass" variant="filled" class="rounded-xl! min-w-50" />
+<section class="max-w-2xl mx-auto space-y-4">
+    <header>
+        {{-- SEO Friendly H1 Header --}}
+        <flux:heading size="xl" level="1" class="font-extrabold tracking-tight text-zinc-900 dark:text-white">
+            @if ($search)
+                '{{ $search }}' এর দর্শনীয় স্থানসমূহ
+            @else
+                বাংলাদেশের সকল পর্যটন কেন্দ্র
+            @endif
+        </flux:heading>
 
-            {{-- বিভাগ --}}
-            <flux:select wire:model.live="selectedDivision" variant="listbox" size="sm" placeholder="বিভাগ"
-                class="min-w-30">
+        {{-- Subheading: Indirect travel guidance --}}
+        <flux:subheading>
+            আমাদের যাচাইকৃত তথ্যভাণ্ডার থেকে আপনার পছন্দের গন্তব্যের খুঁটিনাটি জেনে নিন। ঐতিহাসিক নিদর্শন থেকে প্রাকৃতিক
+            বৈচিত্র্য—সবকিছুর বিস্তারিত তথ্য এখন এক জায়গায়।
+        </flux:subheading>
+    </header>
+
+    {{-- Horizontal Scrollable Filters --}}
+    <div class="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+        <div>
+            <flux:input wire:model.live.debounce.400ms="search" placeholder="নামে খুঁজুন..." icon="magnifying-glass"
+                variant="filled" class="min-w-40 rounded-xl!" />
+        </div>
+        <div>
+            <flux:select wire:model.live="selectedType" variant="listbox" placeholder="সব ধরন" class="min-w-40">
+                <flux:select.option value="">সকল ধরন</flux:select.option>
+                <flux:select.option value="historical">ঐতিহাসিক ও প্রত্নতাত্ত্বিক</flux:select.option>
+                <flux:select.option value="heritage">রাজপ্রাসাদ ও জমিদার বাড়ি</flux:select.option>
+                <flux:select.option value="natural">প্রাকৃতিক সৌন্দর্য</flux:select.option>
+                <flux:select.option value="waterfall">ঝর্ণা ও জলপ্রপাত</flux:select.option>
+                <flux:select.option value="beach">সমুদ্র সৈকত</flux:select.option>
+                <flux:select.option value="hill_station">পাহাড় ও পার্বত্য এলাকা</flux:select.option>
+                <flux:select.option value="forest">বন ও বন্যপ্রাণী</flux:select.option>
+                <flux:select.option value="religious">ধর্মীয় ও পবিত্র স্থান</flux:select.option>
+                <flux:select.option value="cultural">সাংস্কৃতিক ও জাদুঘর</flux:select.option>
+                <flux:select.option value="adventure">অ্যাডভেঞ্চার ও ট্র্যাকিং</flux:select.option>
+                <flux:select.option value="resort">রিসোর্ট ও বিনোদন কেন্দ্র</flux:select.option>
+                <flux:select.option value="riverine">হাওর ও নদীকেন্দ্রিক</flux:select.option>
+                <flux:select.option value="picnic">পিকনিক স্পট</flux:select.option>
+            </flux:select>
+        </div>
+        <div>
+            <flux:select wire:model.live="selectedDivision" variant="listbox" placeholder="বিভাগ" class="min-w-30">
                 <flux:select.option value="">সকল বিভাগ</flux:select.option>
                 @foreach ($this->divisions as $div)
                     <flux:select.option value="{{ $div->id }}">{{ $div->name }}</flux:select.option>
                 @endforeach
             </flux:select>
-
-            {{-- জেলা --}}
-            <flux:select wire:model.live="selectedDistrict" variant="listbox" size="sm" placeholder="জেলা"
-                class="min-w-30" :disabled="!$selectedDivision">
+        </div>
+        <div>
+            <flux:select wire:model.live="selectedDistrict" variant="listbox" placeholder="জেলা" class="min-w-30"
+                :disabled="!$selectedDivision">
                 <flux:select.option value="">সকল জেলা</flux:select.option>
                 @foreach ($this->districts as $dis)
                     <flux:select.option value="{{ $dis->id }}">{{ $dis->name }}</flux:select.option>
                 @endforeach
             </flux:select>
-
-            {{-- থানা --}}
-            <flux:select wire:model.live="selectedThana" variant="listbox" size="sm" placeholder="থানা" class="min-w-30"
+        </div>
+        <div>
+            <flux:select wire:model.live="selectedThana" variant="listbox" placeholder="থানা" class="min-w-30"
                 :disabled="!$selectedDistrict">
                 <flux:select.option value="">সকল থানা</flux:select.option>
                 @foreach ($this->thanas as $thana)
                     <flux:select.option value="{{ $thana->id }}">{{ $thana->name }}</flux:select.option>
                 @endforeach
             </flux:select>
-
-            @if($search || $selectedDivision || $selectedDistrict || $selectedThana)
-                <flux:button wire:click="resetFilter" size="sm" variant="ghost" icon="x-mark" class="shrink-0">মুছে ফেলুন
-                </flux:button>
-            @endif
-        </div>
-
-        {{-- Content List --}}
-        <div class="divide-y divide-zinc-200 dark:divide-zinc-800">
-            @forelse ($this->tourisms as $item)
-                <article class="py-10 first:pt-0 last:pb-0" wire:key="tourism-{{ $item->id }}">
-                    <header class="mb-4">
-                        <flux:heading size="xl">{{ $item->title }}</flux:heading>
-                        <div class="flex items-center gap-3">
-                            <span class="flex text-zinc-400 gap-1">
-                                <flux:icon.map-pin variant="mini" color="zinc" />
-                                <flux:text size="md">
-                                    {{ $item->thana->name ?? 'N/A' }}, {{ $item->district->name ?? 'N/A' }}
-                                </flux:text>
-                            </span>
-                            <span class="w-1 h-1 rounded-full bg-zinc-300"></span>
-                            <span
-                                class="text-xs uppercase tracking-wider font-medium">{{ $item->division->name ?? '' }}</span>
-                        </div>
-                    </header>
-
-                    @if($item->media->isNotEmpty())
-                        <flux:media :media="$item->media" />
-                    @endif
-
-                    <div x-data="{ expanded: false }" class="relative mt-4">
-                        <div @click="expanded = !expanded" class="cursor-pointer" title="বিস্তারিত দেখতে ক্লিক করুন">
-                            <div class="transition-all duration-300" :class="expanded ? '' : 'line-clamp-3'">
-                                <flux:text size="lg">{{ $item->description }}</flux:text>
-                            </div>
-                            @if(mb_strlen($item->description) > 160)
-                                <span x-show="!expanded" class="text-xs text-zinc-400">বিস্তারিত পড়ুন</span>
-                            @endif
-                        </div>
-                    </div>
-                </article>
-            @empty
-                <livewire:global.nodata-message :title="'বাংলাদেশের তথ্য'" :search="$search" />
-            @endforelse
-        </div>
-
-        <div class="mt-12 border-t border-zinc-100 dark:border-zinc-800 pt-6">
-            {{ $this->tourisms->links() }}
         </div>
     </div>
+
+    @php
+        $typeLabels = [
+            'historical' => 'ঐতিহাসিক ও প্রত্নতাত্ত্বিক',
+            'heritage' => 'রাজপ্রাসাদ ও জমিদার বাড়ি',
+            'natural' => 'প্রাকৃতিক সৌন্দর্য',
+            'waterfall' => 'ঝর্ণা ও জলপ্রপাত',
+            'beach' => 'সমুদ্র সৈকত',
+            'hill_station' => 'পাহাড় ও পার্বত্য এলাকা',
+            'forest' => 'বন ও বন্যপ্রাণী',
+            'religious' => 'ধর্মীয় ও পবিত্র স্থান',
+            'cultural' => 'সাংস্কৃতিক ও জাদুঘর',
+            'adventure' => 'অ্যাডভেঞ্চার ও ট্র্যাকিং',
+            'resort' => 'রিসোর্ট ও বিনোদন কেন্দ্র',
+            'riverine' => 'হাওর ও নদীকেন্দ্রিক',
+            'picnic' => 'পিকনিক স্পট',
+        ];
+    @endphp
+
+    {{-- List View --}}
+    <div class="space-y-4">
+        @forelse ($this->tourisms as $item)
+            <a href="{{ route('bangladesh.tourism.show', $item->slug) }}" aria-label="Latest on our blog">
+                <flux:card class="flex gap-6 mb-4 items-center justify-between cursor-pointer">
+                    <div>
+                        {{-- Avatar Group --}}
+                        <flux:avatar.group class="size-16">
+                            @foreach ($item->getMedia('tourism_images')->take(1) as $media)
+                                <flux:avatar src="{{ $media->getUrl() }}" />
+                            @endforeach
+                            @if ($item->getMedia('tourism_images')->count() > 1)
+                                <flux:avatar initials="+{{ bn_num($item->getMedia('tourism_images')->count() - 1) }}" />
+                            @endif
+                        </flux:avatar.group>
+                    </div>
+
+                    {{-- Card Details --}}
+                    <div>
+
+                        <flux:heading size="lg" class="font-bold">{{ $item->title }}
+                        </flux:heading>
+
+                        @if($item->tourism_type && isset($typeLabels[$item->tourism_type]))
+                            <flux:badge size="sm" color="zinc" variant="outline" class="text-[10px] md:text-xs font-medium">
+                                {{ $typeLabels[$item->tourism_type] }}
+                            </flux:badge>
+                        @endif
+
+                        <div class="text-xs text-zinc-500 flex items-center gap-1 mt-0.5">
+                            <flux:icon.map-pin class="size-3" />
+                            {{ $item->thana->name ?? '...' }} • {{ $item->district->name ?? '...' }}
+                        </div>
+
+                        <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2 line-clamp-1">
+                            {{ Str::limit(strip_tags($item->description), 60) }}
+                        </p>
+
+                    </div>
+                    <flux:icon.chevron-right class="" />
+                </flux:card>
+            </a>
+        @empty
+            <livewire:global.nodata-message :title="'বাংলাদেশের সকল পর্যটন কেন্দ্র'" :search="$search" />
+        @endforelse
+    </div>
+
+    {{-- Pagination --}}
+    <div class="flex justify-center pt-2">{{ $this->tourisms->links() }}</div>
 </section>

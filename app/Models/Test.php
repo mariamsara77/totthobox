@@ -54,19 +54,16 @@ class Test extends Model
     /**
      * Relationships
      */
+    protected static function boot()
+    {
+        parent::boot();
 
-protected static function boot()
-{
-    parent::boot();
-
-    static::creating(function ($test) {
-        if (!$test->slug) {
-            $test->slug = \Str::slug($test->title);
-        }
-    });
-}
-
-
+        static::creating(function ($test) {
+            if (! $test->slug) {
+                $test->slug = \Str::slug($test->title);
+            }
+        });
+    }
 
     public function subject()
     {
@@ -121,9 +118,7 @@ protected static function boot()
         return $query->whereNull('deleted_at');
     }
 
-
     protected $dates = ['start_time', 'end_time'];
-
 
     public function questions()
     {
@@ -131,7 +126,6 @@ protected static function boot()
             ->withPivot('order')
             ->orderBy('test_questions.order');
     }
-
 
     public function attempts()
     {
@@ -141,8 +135,9 @@ protected static function boot()
     public function isActive()
     {
         $now = now();
+
         return $this->is_published &&
-            (!$this->start_time || $this->start_time <= $now) &&
-            (!$this->end_time || $this->end_time >= $now);
+            (! $this->start_time || $this->start_time <= $now) &&
+            (! $this->end_time || $this->end_time >= $now);
     }
 }

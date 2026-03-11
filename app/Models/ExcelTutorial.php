@@ -3,13 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
-use Illuminate\Support\Str;
 
-use Illuminate\Database\Eloquent\SoftDeletes;
-
-class ExcelTutorial extends Model implements HasMedia
+class ExcelTutorial extends BaseModel implements HasMedia
 {
     use InteractsWithMedia, SoftDeletes;
 
@@ -22,7 +21,7 @@ class ExcelTutorial extends Model implements HasMedia
         'excel_formula',
         'meta_title',
         'meta_description',
-        'is_published'
+        'is_published',
     ];
 
     // অটোমেটিক স্লাগ তৈরি (SEO এর জন্য)

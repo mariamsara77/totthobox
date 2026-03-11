@@ -69,28 +69,10 @@ $variants = [
         class="transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden relative"
     >
         <div class="<?php echo e($variants[$variant] ?? $variants['default']); ?> leading-relaxed">
-            <?php if (isset($component)) { $__componentOriginal0638ebfbd490c7a414275d493e14cb4e = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginal0638ebfbd490c7a414275d493e14cb4e = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'e60dd9d2c3a62d619c9acb38f20d5aa5::text','data' => []] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('flux::text'); ?>
-<?php if ($component->shouldRender()): ?>
-<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
-<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
-<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
-<?php endif; ?>
-<?php $component->withAttributes([]); ?>
+            <div class="text-zinc-500 dark:text-zinc-300">
                 <?php echo $content; ?>
 
-             <?php echo $__env->renderComponent(); ?>
-<?php endif; ?>
-<?php if (isset($__attributesOriginal0638ebfbd490c7a414275d493e14cb4e)): ?>
-<?php $attributes = $__attributesOriginal0638ebfbd490c7a414275d493e14cb4e; ?>
-<?php unset($__attributesOriginal0638ebfbd490c7a414275d493e14cb4e); ?>
-<?php endif; ?>
-<?php if (isset($__componentOriginal0638ebfbd490c7a414275d493e14cb4e)): ?>
-<?php $component = $__componentOriginal0638ebfbd490c7a414275d493e14cb4e; ?>
-<?php unset($__componentOriginal0638ebfbd490c7a414275d493e14cb4e); ?>
-<?php endif; ?>
+</div>
         </div>
 
         
@@ -112,6 +94,8 @@ $variants = [
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['@click' => 'expanded = !expanded','class' => 'text-xs text-zinc-400/50']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
                 <span x-text="expanded ? '' : 'বিস্তারিত পড়ুন'"></span>
              <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
