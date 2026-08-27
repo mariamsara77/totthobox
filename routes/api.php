@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\TrackingController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\Api\Auth\LoginController;
+use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Auth\RegisterController;
 use App\Http\Controllers\Api\Auth\ForgotPasswordController;
 use App\Http\Controllers\Api\UserController;
@@ -266,40 +267,75 @@ Route::prefix('auth')->group(function () {
     // );
 });
 
-// ── Public Google Auth Routes ─────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────
+// Google Authentication
+// ─────────────────────────────────────────────────────────────────────
+
 Route::prefix('auth/google')->group(function () {
 
-    // Next.js থেকে call করবে → Google OAuth URL পাবে
-    Route::get('/redirect', [GoogleLoginController::class, 'redirectToGoogle'])
-        ->name('auth.google.redirect');
+    /*
+     * Next.js -> Laravel
+     *
+     * Returns the Google OAuth authorization URL.
+     */
+    Route::get(
+        '/redirect',
+        [GoogleLoginController::class, 'redirectToGoogle']
+    )->name('auth.google.redirect');
 
-    // Google redirect করে এখানে আসবে → token সহ frontend-এ যাবে
-    Route::get('/callback', [GoogleLoginController::class, 'handleCallback'])
-        ->name('auth.google.callback');
+    /*
+     * Google -> Laravel
+     *
+     * Validates Google OAuth state and redirects to Next.js with
+     * a short-lived one-time code.
+     */
+    Route::get(
+        '/callback',
+        [GoogleLoginController::class, 'handleCallback']
+    )->name('auth.google.callback');
 
+    /*
+     * Next.js server -> Laravel
+     *
+     * Exchanges the one-time code for a Sanctum access token.
+     */
+    Route::post(
+        '/exchange',
+        [GoogleLoginController::class, 'exchange']
+    )->name('auth.google.exchange');
 });
 
-// ── Protected Routes (Sanctum) ────────────────────────────────────
-Route::middleware('auth:sanctum')->group(function () {
 
-    Route::get('/user', [GoogleLoginController::class, 'me'])
-        ->name('auth.me');
-
-    Route::post('/logout', [GoogleLoginController::class, 'logout'])
-        ->name('auth.logout');
-});
 
 Route::post('/auth/forgot-password', [ForgotPasswordController::class, 'sendResetLink']);
 
-Route::middleware('auth:sanctum')->group(function () {
+// Route::middleware('auth:sanctum')->group(function () {
     
-    //  Route::get('/user', [UserController::class, 'getUser'])
-    //     ->name('api.user');
+//      Route::get('/user', [UserController::class, 'getUser'])
+//         ->name('api.user');
 
+//     Route::get('/users/search', [UserController::class, 'search'])
+//          ->name('api.users.search');
+    
+//     Route::post('/logout', [LoginController::class, 'logout']);
+// });
+
+Route::middleware('auth:sanctum')->group(function () {
+
+    Route::get(
+        '/user',
+        [AuthController::class, 'me']
+    )->name('auth.me');
+
+    
     Route::get('/users/search', [UserController::class, 'search'])
          ->name('api.users.search');
     
-    // Route::post('/logout', [LoginController::class, 'logout']);
+
+    Route::post(
+        '/logout',
+        [AuthController::class, 'logout']
+    )->name('auth.logout');
 });
 
 Route::middleware('auth:sanctum')->group(function () {

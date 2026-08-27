@@ -103,26 +103,17 @@ class LoginController extends Controller
     /**
      * Logout ONLY the current Sanctum token.
      */
-    public function logout(Request $request)
-    {
-        $user = $request->user();
+  public function logout(Request $request)
+{
+    $user = $request->user();
 
-        if ($user) {
-            $token = $user->currentAccessToken();
-
-            if ($token) {
-                $token->delete();
-            }
-        }
-
-        return response()
-            ->json([
-                'message' => 'সফলভাবে লগআউট হয়েছে।',
-            ], 200)
-            ->header(
-                'Cache-Control',
-                'private, no-store, no-cache, must-revalidate, max-age=0'
-            )
-            ->header('Pragma', 'no-cache');
+    if ($user && $user->currentAccessToken()) {
+        $user->currentAccessToken()->delete();
     }
+
+    return response()->json([
+        'success' => true,
+        'message' => 'লগআউট সফল হয়েছে।',
+    ]);
+}
 }
