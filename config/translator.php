@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'default' => 'bn',
+    'default' => 'en',
     'supported' => [
         'bn' => ['name' => 'বাংলা', 'flag' => '🇧🇩', 'code' => 'bn'],
         'en' => ['name' => 'English', 'flag' => '🇬🇧', 'code' => 'en'],

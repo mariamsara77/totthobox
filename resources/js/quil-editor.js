@@ -1,21 +1,40 @@
+/**
+ * quill-editor.js
+ *
+ * Lazy-loads Quill once and caches it on window so multiple editor instances
+ * on the same page never double-download the library.
+ *
+ * Import this in resources/js/app.js:
+ *   import './quill-editor';
+ */
 
-// Quill-কে গ্লোবাললি লোড করার জন্য ডাইনামিক ফাংশন
-window.initQuill = async () => {
-    // যদি অলরেডি উইন্ডোতে Quill থেকে থাকে, তবে নতুন করে ডাউনলোড করবে না
-    if (window.Quill) return window.Quill;
+window.initQuill = (() => {
+    /** @type {Promise<typeof import('quill').default> | null} */
+    let _pending = null;
 
-    try {
-        // ১. Quill লাইব্রেরি ইমপোর্ট করা (এটি একটি আলাদা JS ফাইল তৈরি করবে)
-        const { default: Quill } = await import('quill');
-        
-        // ২. Quill-এর CSS ইমপোর্ট করা (এটি একটি আলাদা CSS ফাইল তৈরি করবে)
-        await import('quill/dist/quill.snow.css');
+    return async function initQuill() {
+        // Already resolved — return the cached constructor immediately.
+        if (window.Quill) return window.Quill;
 
-        // ৩. গ্লোবাললি সেট করা যাতে পরবর্তীতে সরাসরি পাওয়া যায়
-        window.Quill = Quill;
-        
-        return Quill;
-    } catch (error) {
-        console.error("Quill load হতে সমস্যা হয়েছে:", error);
-    }
-};
+        // In-flight — return the same promise so concurrent calls don't race.
+        if (_pending) return _pending;
+
+        _pending = (async () => {
+            const [{ default: Quill }] = await Promise.all([
+                import('quill'),
+                import('quill/dist/quill.snow.css'),
+            ]);
+
+            window.Quill = Quill;
+            return Quill;
+        })();
+
+        try {
+            return await _pending;
+        } catch (err) {
+            _pending = null; // allow retry on next call
+            console.error('[quill-editor] Failed to load Quill:', err);
+            return null;
+        }
+    };
+})();

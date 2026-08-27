@@ -28,7 +28,7 @@ class Logout
 
         // ৪. ইউজারকে রিডাইরেক্ট করা
         // login পেজে পাঠানোই ভালো যাতে সে অন্য অ্যাকাউন্ট সিলেক্ট করতে পারে
-        return redirect()->route('login')
+        return redirect()->route('home')
             ->with('status', 'সফলভাবে লগআউট করা হয়েছে।');
     }
 }

@@ -95,7 +95,12 @@ new class extends Component {
 
 ?>
 
-<div x-data="{ 
+
+<x-seo title="আল-কুরআন | আরবি, বাংলা উচ্চারণ, অর্থ ও ফজিলত"
+    description="আল-কুরআনের সকল সুরার আয়াতসমূহের আরবি পাঠ, বাংলা উচ্চারণ, অর্থ, ইংরেজি অনুবাদ এবং ফজিলতসহ বিস্তারিত পড়ুন।"
+    keywords="আল কুরআন, কুরআনের অনুবাদ, বাংলা অর্থ, আয়াত, সুরা, পারা, quran bangla, quran translation" />
+
+<div x-data="{
     showAyatNo: true,
     showArabic: true,
     showBangla: true,
@@ -104,7 +109,7 @@ new class extends Component {
     showEnglishMeaning: false,
     showBanglaFojilot: false,
     activeAudio: null,
-    
+
     toggleAudio(audioId) {
         if (this.activeAudio && this.activeAudio !== audioId) {
             let prevAudio = this.$refs['audio' + this.activeAudio];
@@ -113,7 +118,7 @@ new class extends Component {
                 prevAudio.currentTime = 0;
             }
         }
-        
+
         let currentAudio = this.$refs['audio' + audioId];
         if (currentAudio.paused) {
             currentAudio.play();
@@ -123,7 +128,7 @@ new class extends Component {
             this.activeAudio = null;
         }
     },
-    
+
     convertToBengaliNumber(num) {
         const bengaliDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
         return num.toString().replace(/\d/g, digit => bengaliDigits[digit]);
@@ -143,12 +148,12 @@ new class extends Component {
 
     <div class="flex overflow-x-auto items-center gap-4 py-2">
 
-        <div class="flex-1">
+        <div class="">
             <flux:input wire:model.live.debounce.500ms="search" variant="filled" icon="magnifying-glass" size="sm"
                 placeholder="আরবি, বাংলা বা ইংরেজিতে অনুসন্ধান..." clearable />
         </div>
 
-        <div class="flex flex-wrap items-center gap-3">
+        <div class="flex items-center gap-4">
             <flux:select wire:model.live="selectedPara" placeholder="পারা" class="w-32 md:w-40" size="sm">
                 @foreach ($paras as $para)
                     <flux:select.option value="{{ $para->id }}">{{ $para->name }}</flux:select.option>
@@ -162,7 +167,7 @@ new class extends Component {
                 @endforeach
             </flux:select>
 
-            @if($search || $selectedPara || $selectedSura)
+            @if ($search || $selectedPara || $selectedSura)
                 <flux:button wire:click="resetFilters" variant="ghost" icon="x-mark" size="sm" />
             @endif
 
@@ -221,16 +226,17 @@ new class extends Component {
 
     <!-- Quran Verses Display -->
     @forelse ($quranData as $index => $ayat)
-        <div class="p-6 hover:bg-zinc-50 dark:hover:bg-zinc-700/50 transition-colors duration-150"
+        <div class="p-6 hover:bg-zinc-50 dark:hover:bg-zinc-700/50 transition-colors duration-200"
             wire:key="ayat-{{ $ayat->id }}">
             <!-- Ayah Header with Number and Play Button -->
             <div class="flex items-center justify-between mb-3">
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-4">
                     @if ($ayat->audio_url)
                         <button x-on:click="toggleAudio({{ $ayat->id }})" type="button"
-                            class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50 transition-colors duration-200 focus: focus:ring-2 focus:ring-emerald-500"
                             x-show="showPlayButton">
-                            <span x-text="$refs['audio{{ $ayat->id }}']?.paused ? '▶' : '⏸'" class="text-sm"></span>
+                            <span x-text="$refs['audio{{ $ayat->id }}']?.paused ? '▶' : '⏸'"
+                                class="text-sm"></span>
                         </button>
                         <audio x-ref="audio{{ $ayat->id }}" src="{{ asset('storage/' . $ayat->audio_url) }}"
                             @ended="activeAudio = null" class="hidden"></audio>
@@ -300,7 +306,7 @@ new class extends Component {
     @endforelse
 
     <!-- Quick Stats Footer -->
-    @if(count($quranData) > 0)
+    @if (count($quranData) > 0)
         <div class="text-center text-sm text-zinc-500 dark:text-zinc-400">
             মোট {{ count($quranData) }}টি আয়াত প্রদর্শিত হচ্ছে
         </div>

@@ -7,8 +7,11 @@ use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 use Flux\Flux;
 use Illuminate\Support\Facades\Storage;
+use Intervention\Image\Laravel\Facades\Image;
+use Illuminate\Support\Str;
+use Livewire\Attributes\Layout;
 
-new class extends Component {
+new #[Layout('components.layouts.admin')] class extends Component {
     use WithFileUploads, WithPagination;
 
     // Form fields
@@ -129,38 +132,45 @@ new class extends Component {
             'food_category_id' => 'nullable|exists:food_categories,id',
             'name_bn' => 'required|string|max:255',
             'name_en' => 'nullable|string|max:255',
-            'description' => 'nullable|string', // NEW
+            'description' => 'nullable|string',
             'calorie' => 'nullable|numeric',
             'carb' => 'nullable|numeric',
             'protein' => 'nullable|numeric',
             'fat' => 'nullable|numeric',
             'fiber' => 'nullable|numeric',
-            'serving_size' => 'nullable|string|max:50', // NEW
+            'serving_size' => 'nullable|string|max:50',
             'status' => 'nullable|integer',
             'image' => 'nullable|image|max:2048',
         ]);
 
-        if ($this->image) {
-            $imagePath = $this->image->store('foods', 'public');
-            $validated['image'] = $imagePath;
-
-            if ($this->formType === 'edit' && $this->imagePreview) {
-                Storage::disk('public')->delete(str_replace('/storage/', '', $this->imagePreview));
-            }
-        } elseif ($this->formType === 'edit') {
-            // Keep existing image
-            $validated['image'] = $this->imagePreview ? str_replace('/storage/', '', $this->imagePreview) : null;
-        }
-
-        $validated['slug'] = \Str::slug($this->name_bn);
+        $validated['slug'] = Str::slug($this->name_bn);
 
         if ($this->formType === 'edit') {
             $item = Food::withTrashed()->find($this->foodId);
             $item->update($validated);
             $message = 'Food updated successfully!';
         } else {
-            Food::create($validated);
+            $item = Food::create($validated);
             $message = 'Food created successfully!';
+        }
+
+        // Upload & Strip Copyright Metadata + convert to WebP (same style as BasicIslam)
+        if ($this->image instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
+            $slug = Str::slug($item->name_bn);
+            $fileName = "{$slug}-totthobox-food-" . Str::lower(Str::random(6)) . '.webp';
+
+            // ১. মূল ইমেজের সব মেটাডেটা রিমুভ করে WebP করা
+            $processedImage = Image::read($this->image->getRealPath());
+            $processedImage->toWebp(85)->save($this->image->getRealPath());
+
+            // ২. আগের ইমেজ মুছে নতুনটা সেভ
+            $item->clearMediaCollection('images');
+
+            $item
+                ->addMedia($this->image->getRealPath())
+                ->usingFileName($fileName)
+                ->usingName("{$item->name_bn} - Totthobox Food")
+                ->toMediaCollection('images');
         }
 
         $this->showForm = false;
@@ -188,11 +198,7 @@ new class extends Component {
     public function forceDeleteItem($id)
     {
         $item = Food::onlyTrashed()->find($id);
-
-        if ($item->image) {
-            Storage::disk('public')->delete($item->image);
-        }
-
+        $item->clearMediaCollection('images');
         $item->forceDelete();
         session()->flash('message', 'Item permanently deleted!');
         $this->resetPage();

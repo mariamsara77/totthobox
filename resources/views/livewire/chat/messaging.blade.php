@@ -8,9 +8,12 @@ use Illuminate\Support\Facades\Auth;
 use Livewire\WithPagination;
 use Livewire\WithFileUploads;
 use App\Notifications\NewMessageNotification;
+use App\Notifications\SendWebPushNotification;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Layout;
+use App\Jobs\SendUserPushJob;
+use Illuminate\Support\Str;
 
 new #[Layout('components.layouts.app.message')] class extends Component {
     use WithPagination, WithFileUploads;
@@ -180,8 +183,7 @@ new #[Layout('components.layouts.app.message')] class extends Component {
 
         $users = User::where('id', '!=', $authId)
             ->where(function ($query) use ($authId) {
-                $query->whereHas('sentMessages', fn($q) => $q->where('receiver_id', $authId))
-                    ->orWhereHas('receivedMessages', fn($q) => $q->where('sender_id', $authId));
+                $query->whereHas('sentMessages', fn($q) => $q->where('receiver_id', $authId))->orWhereHas('receivedMessages', fn($q) => $q->where('sender_id', $authId));
             })
             ->with(['sentMessages', 'receivedMessages', 'media']) // মিডিয়া এবং মেসেজ একসাথে লোড
             ->get();
@@ -225,8 +227,9 @@ new #[Layout('components.layouts.app.message')] class extends Component {
 
     public function markAllAsRead()
     {
-        if (!$this->selectedUser)
+        if (!$this->selectedUser) {
             return;
+        }
 
         Message::where('receiver_id', auth()->id())
             ->where('sender_id', $this->selectedUser)
@@ -234,12 +237,12 @@ new #[Layout('components.layouts.app.message')] class extends Component {
             ->update(['read' => 1, 'read_at' => now()]);
 
         // নোটিফিকেশন আপডেট করার সময় selectedUserModel ব্যবহার করুন
-        auth()->user()
+        auth()
+            ->user()
             ->unreadNotifications()
             ->where('type', NewMessageNotification::class)
             ->where(function ($query) {
-                $query->where('data->sender_id', $this->selectedUser)
-                    ->orWhere('data->url', route('messages', ['slug' => $this->selectedUserModel->slug]));
+                $query->where('data->sender_id', $this->selectedUser)->orWhere('data->url', route('messages', ['slug' => $this->selectedUserModel->slug]));
             })
             ->update(['read_at' => now()]);
     }
@@ -274,7 +277,8 @@ new #[Layout('components.layouts.app.message')] class extends Component {
                         $q->where('sender_id', $this->selectedUser)->where('receiver_id', auth()->id());
                     });
             })
-                ->with(['sender', 'receiver', 'parent'])
+                // with() ফাংশনে এই পরিবর্তনটি করুন
+                ->with(['sender', 'receiver', 'parent', 'media']) // 'media' যোগ করুন
                 ->orderBy('created_at', 'desc')
                 ->paginate($this->perPage);
 
@@ -289,13 +293,14 @@ new #[Layout('components.layouts.app.message')] class extends Component {
 
     public function sendMessage()
     {
-
         // চেক করুন আপনি তাকে ব্লক করেছেন কি না বা সে আপনাকে ব্লক করেছে কি না
         $isBlocked = \App\Models\Block::where(function ($q) {
             $q->where('user_id', auth()->id())->where('blocked_user_id', $this->selectedUser);
-        })->orWhere(function ($q) {
-            $q->where('user_id', $this->selectedUser)->where('blocked_user_id', auth()->id());
-        })->exists();
+        })
+            ->orWhere(function ($q) {
+                $q->where('user_id', $this->selectedUser)->where('blocked_user_id', auth()->id());
+            })
+            ->exists();
 
         if ($isBlocked) {
             session()->flash('error', 'You cannot send messages to this user.');
@@ -334,14 +339,15 @@ new #[Layout('components.layouts.app.message')] class extends Component {
             // ৩. ফাইনাল ফরম্যাট: MyChat_Img_20260116_F2A1.jpg
             $customFileName = sprintf(
                 '%s_%s_%s_%s.%s',
-                $brand,                                 // আপনার অ্যাপের অরিজিনাল নাম
-                $type,                                  // টাইপ
-                now()->format('Ymd_Hi'),               // টাইমস্ট্যাম্প
-                strtoupper(bin2hex(random_bytes(2))),   // ইউনিক র‍্যান্ডম কোড
-                $extension
+                $brand, // আপনার অ্যাপের অরিজিনাল নাম
+                $type, // টাইপ
+                now()->format('Ymd_Hi'), // টাইমস্ট্যাম্প
+                strtoupper(bin2hex(random_bytes(2))), // ইউনিক র‍্যান্ডম কোড
+                $extension,
             );
 
-            $message->addMedia($this->attachment->getRealPath())
+            $message
+                ->addMedia($this->attachment->getRealPath())
                 ->usingFileName($customFileName)
                 ->usingName($this->attachment->getClientOriginalName())
                 ->toMediaCollection('attachments');
@@ -351,7 +357,17 @@ new #[Layout('components.layouts.app.message')] class extends Component {
         $this->loadMessages();
 
         $receiver = User::find($message->receiver_id);
-        $receiver->notify(new NewMessageNotification($message, auth()->user()));
+
+        if ($receiver) {
+            $receiver->notify(new NewMessageNotification($message, auth()->user()));
+
+            SendUserPushJob::dispatch($receiver, [
+                'title' => auth()->user()->name,
+                'body' => $this->messageText !== '' ? Str::limit($this->messageText, 100) : 'পাঠিয়েছে একটি ফাইল',
+                'url' => route('messages', ['slug' => auth()->user()->slug]),
+                'tag' => 'chat-' . min(auth()->id(), $receiver->id) . '-' . max(auth()->id(), $receiver->id),
+            ]);
+        }
 
         // sendMessage ফাংশনের ভেতরে শেষে যোগ করুন
         broadcast(new \App\Events\MessageSent($message))->toOthers();
@@ -376,7 +392,7 @@ new #[Layout('components.layouts.app.message')] class extends Component {
         if ($message && $message->sender_id == auth()->id()) {
             $message->update([
                 'message' => $this->editedMessageText,
-                'edited_at' => now(),
+                'updated_at' => now(),
             ]);
 
             $this->reset(['editMessage', 'editedMessageText']);
@@ -514,17 +530,15 @@ new #[Layout('components.layouts.app.message')] class extends Component {
     {
         if ($this->selectedUser) {
             // আপনার দেওয়া blockedUsers রিলেশনশিপ ব্যবহার করে চেক
-            $this->isBlockedByMe = auth()->user()->blockedUsers()
-                ->where('blocked_user_id', $this->selectedUser)
-                ->exists();
+            $this->isBlockedByMe = auth()->user()->blockedUsers()->where('blocked_user_id', $this->selectedUser)->exists();
         }
     }
 
-
     public function blockUser()
     {
-        if (!$this->selectedUser)
+        if (!$this->selectedUser) {
             return;
+        }
 
         if ($this->isBlockedByMe) {
             // আনব্লক করা
@@ -550,570 +564,596 @@ new #[Layout('components.layouts.app.message')] class extends Component {
 
     @if ($selectedUser)
 
-                @php $selUser = \App\Models\User::find($selectedUser); @endphp
+        @php $selUser = \App\Models\User::find($selectedUser); @endphp
 
-                <div
-                    class="flex-none flex items-center justify-between px-4 shadow-sm z-10 border-b pb-2 pt-1 border-zinc-400/25">
-                    <div class="flex items-center gap-3">
-                        <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" size="xs" />
-                        <div>
-                            <flux:avatar src="{{ $selUser->getFirstMediaUrl('avatars', 'thumb') }}" name="{{ $selectedUserName }}" badge
-                                badge:color="{{ $selectedUserModel->isOnline() ? 'green' : 'zinc' }}" color="auto"
-                                color:seed="{{ $selectedUserModel->id }}" />
-                        </div>
-                        <div>
-                            <flux:heading>
-                                {{ $selectedUserName }}
-                            </flux:heading>
-
-                            <flux:text size="sm" color="{{ $selectedUserModel->isOnline() ? 'green' : null }}">
-                                @if ($selectedUserModel->isOnline())
-                                    Online
-                                @else
-                                    Offline
-                                @endif
-                            </flux:text>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center gap-2">
-                        @if ($isTyping)
-                            <flux:text size="sm" color="red">
-                                typing...
-                            </flux:text>
-                        @endif
-                    </div>
-                    @php
-                        // সরাসরি রিলেশনশিপ চেক
-                        $isBlocked = auth()->user()->blockedUsers->contains($selectedUser);
-                    @endphp
-
-                    <div class="flex items-center gap-2">
-                        {{-- আপনার আগের কোড... --}}
-
-                       <flux:dropdown>
-            <flux:button icon="information-circle" variant="subtle" size="sm"></flux:button>
-
-            <flux:menu class="dark:!bg-zinc-900 !border-0">
-                <flux:menu.item icon="user" href="{{ route('users.show', $selUser) }}">
-                    Profile Details
-                </flux:menu.item>
-
-                {{-- সিম্পল ইফ-এলস --}}
-                @if ($isBlockedByMe)
-                    <flux:menu.item wire:click="blockUser" icon="lock-open">
-                        Unblock Profile
-                    </flux:menu.item>
-                @else
-                    <flux:menu.item wire:click="blockUser" icon="no-symbol" variant="danger">
-                        Block Profile
-                    </flux:menu.item>
-                @endif
-            </flux:menu>
-        </flux:dropdown>
-                    </div>
-
+        <div
+            class="flex-none flex items-center justify-between px-4 shadow-sm z-10 border-b pb-2 pt-1 border-zinc-400/25">
+            <div class="flex items-center gap-4">
+                <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" size="xs" />
+                <div>
+                    <flux:avatar src="{{ $selUser->getFirstMediaUrl('avatars', 'thumb') }}" name="{{ $selectedUserName }}"
+                        badge badge:color="{{ $selectedUserModel->isOnline() ? 'green' : 'zinc' }}" color="auto"
+                        color:seed="{{ $selectedUserModel->id }}" />
                 </div>
+                <div>
+                    <flux:heading>
+                        {{ $selectedUserName }}
+                    </flux:heading>
 
-                <!-- Messages -->
-                <div x-ref="messagesContainer" class="flex-1 pt-8 pb-4 overflow-y-auto scroll-smooth relative overflow-x-hidden"
-                    x-data="{
-                        isScrolling: false,
-                        scrollPosition: 0,
-                        showScrollBottom: false,
+                    <flux:text size="sm" color="{{ $selectedUserModel->isOnline() ? 'green' : null }}">
+                        @if ($selectedUserModel->isOnline())
+                            Online
+                        @else
+                            Offline
+                        @endif
+                    </flux:text>
+                </div>
+            </div>
 
-                        scrollToBottom(behavior = 'smooth') {
-                            this.isScrolling = true;
-                            this.$nextTick(() => {
-                                const container = this.$refs.messagesContainer;
-                                if (!container) return;
+            <div class="flex items-center gap-4">
+                @if ($isTyping)
+                    <flux:text size="sm" color="red">
+                        typing...
+                    </flux:text>
+                @endif
+            </div>
+            @php
+                // সরাসরি রিলেশনশিপ চেক
+                $isBlocked = auth()->user()->blockedUsers->contains($selectedUser);
+            @endphp
 
-                                container.scrollTo({
-                                    top: container.scrollHeight,
-                                    behavior: behavior
-                                });
+            <div class="flex items-center gap-4">
+                {{-- আপনার আগের কোড... --}}
 
-                                setTimeout(() => {
-                                    this.isScrolling = false;
-                                    this.showScrollBottom = false;
-                                }, 500);
-                            });
-                        },
+                <flux:dropdown>
+                    <flux:button icon="information-circle" variant="subtle" size="sm"></flux:button>
 
-                        checkScrollPosition() {
-                            const container = this.$refs.messagesContainer;
-                            if (!container) return;
+                    <flux:menu class="dark:!bg-zinc-900 ">
+                        <flux:menu.item icon="user" href="{{ route('users.show', $selUser) }}">
+                            Profile Details
+                        </flux:menu.item>
 
-                            const threshold = 400;
-                            const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= threshold;
+                        {{-- সিম্পল ইফ-এলস --}}
+                        @if ($isBlockedByMe)
+                            <flux:menu.item wire:click="blockUser" icon="lock-open">
+                                Unblock Profile
+                            </flux:menu.item>
+                        @else
+                            <flux:menu.item wire:click="blockUser" icon="no-symbol" variant="danger">
+                                Block Profile
+                            </flux:menu.item>
+                        @endif
+                    </flux:menu>
+                </flux:dropdown>
+            </div>
 
-                            this.showScrollBottom = !atBottom;
-                            return atBottom;
-                        },
+        </div>
 
-                        scrollToMessage(id) {
-                            const element = document.getElementById(id);
-                            if (element) {
-                                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                element.classList.add('bg-blue-50', 'dark:bg-blue-900', 'bg-opacity-50');
-                                setTimeout(() => {
-                                    element.classList.remove('bg-blue-50', 'dark:bg-blue-900', 'bg-opacity-50');
-                                }, 2000);
-                            }
-                        },
+        <!-- Messages -->
+        <div x-ref="messagesContainer" class="flex-1 pt-8 pb-4 overflow-y-auto scroll-smooth relative overflow-x-hidden"
+            x-data="{
+                isScrolling: false,
+                scrollPosition: 0,
+                showScrollBottom: false,
+            
+                scrollToBottom(behavior = 'smooth') {
+                    this.isScrolling = true;
+                    this.$nextTick(() => {
+                        const container = this.$refs.messagesContainer;
+                        if (!container) return;
+            
+                        container.scrollTo({
+                            top: container.scrollHeight,
+                            behavior: behavior
+                        });
+            
+                        setTimeout(() => {
+                            this.isScrolling = false;
+                            this.showScrollBottom = false;
+                        }, 500);
+                    });
+                },
+            
+                checkScrollPosition() {
+                    const container = this.$refs.messagesContainer;
+                    if (!container) return;
+            
+                    const threshold = 400;
+                    const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= threshold;
+            
+                    this.showScrollBottom = !atBottom;
+                    return atBottom;
+                },
+            
+                scrollToMessage(id) {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        element.classList.add('bg-blue-50', 'dark:bg-blue-900', 'bg-opacity-50');
+                        setTimeout(() => {
+                            element.classList.remove('bg-blue-50', 'dark:bg-blue-900', 'bg-opacity-50');
+                        }, 2000);
+                    }
+                },
+            
+                handleScroll() {
+                    if (!this.isScrolling) {
+                        this.checkScrollPosition();
+                    }
+                }
+            }" x-init="scrollToBottom('auto')" @scroll.debounce.100ms="handleScroll"
+            @new-message.window="scrollToBottom('smooth')" @scroll-to-bottom.window="scrollToBottom('smooth')">
 
-                        handleScroll() {
-                            if (!this.isScrolling) {
-                                this.checkScrollPosition();
-                            }
-                        }
-                    }" 
-                    x-init="scrollToBottom('auto')" 
-                    @scroll.debounce.100ms="handleScroll"
-                    @new-message.window="scrollToBottom('smooth')"
-                    @scroll-to-bottom.window="scrollToBottom('smooth')">
+            <div x-show="showScrollBottom" x-transition:enter="transition ease-out duration-200"
+                x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
+                x-transition:leave="transition ease-in duration-200"
+                x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 translate-y-2"
+                class="fixed bottom-30 left-1/2 transform -translate-x-1/2 z-50">
+                <flux:button @click="scrollToBottom()" size="sm" variant="subtle" icon="arrow-down">
+                </flux:button>
+            </div>
 
-                    <div x-show="showScrollBottom" x-transition:enter="transition ease-out duration-200"
-                        x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
-                        x-transition:leave="transition ease-in duration-150"
-                        x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 translate-y-2"
-                        class="fixed bottom-30 left-1/2 transform -translate-x-1/2 z-50">
-                        <flux:button @click="scrollToBottom()" size="sm" variant="subtle" icon="arrow-down">
+            <div class="space-y-4">
+                @if ($messages->hasMorePages())
+                    <div class="flex justify-center my-4">
+                        <flux:button wire:click="loadMore" class="!rounded-full" variant="ghost" size="sm">
+                            Load More
+                            Messages
                         </flux:button>
                     </div>
+                @endif
+                @foreach ($messages as $message)
+                    <div class="flex {{ $message->sender_id == auth()->id() ? 'justify-end' : 'justify-start' }}"
+                        wire:key="message-{{ $message->id }}" id="message-{{ $message->id }}">
+                        <div class="max-w-[80%] md:max-w-md lg:max-w-lg w-fit w-full">
+                            <flux:callout
+                                class=" relative !pb-0 {{ $message->sender_id == auth()->id() ? '!bg-zinc-400/10' : '!bg-zinc-400/25' }}">
 
-                    <div class="space-y-4">
-                        @if ($messages->hasMorePages())
-                            <div class="flex justify-center my-4">
-                                <flux:button wire:click="loadMore" class="!rounded-full" variant="ghost" size="sm">
-                                    Load More
-                                    Messages
-                                </flux:button>
-                            </div>
-                        @endif
-                        @foreach ($messages as $message)
-                                    <div class="flex {{ $message->sender_id == auth()->id() ? 'justify-end' : 'justify-start' }}"
-                                        wire:key="message-{{ $message->id }}" id="message-{{ $message->id }}">
-                                        <div class="max-w-[80%] md:max-w-md lg:max-w-lg w-fit w-full">
-                                            <flux:callout
-                                                class="!border-0 relative !pb-0 {{ $message->sender_id == auth()->id() ? '!bg-zinc-400/10' : '!bg-zinc-400/25' }}">
+                                @if ($message->parent)
+                                    @php
+                                        $parent = $message->parent;
+                                        $media = $parent->getFirstMedia('attachments');
+                                    @endphp
 
-                                        @if ($message->parent)
-                                            @php
-                                                $parent = $message->parent;
-                                                $media = $parent->getFirstMedia('attachments');
-                                            @endphp
+                                    <div class="mb-3 p-2 rounded-lg border-l-4 border-l-green-500 text-xs bg-black/5 dark:bg-white/5 cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+                                        @click="scrollToMessage('message-{{ $parent->id }}')">
 
-                                            <div class="mb-3 p-2 rounded-lg border-l-4 border-l-green-500 text-xs bg-black/5 dark:bg-white/5 cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
-                                                @click="scrollToMessage('message-{{ $parent->id }}')">
+                                        <div class="flex items-center gap-4">
 
-                                                <div class="flex items-center gap-2">
-
-                                                    {{-- মিডিয়া প্রিভিউ সেকশন --}}
-                                                    @if($media)
+                                            {{-- মিডিয়া প্রিভিউ সেকশন --}}
+                                            @if ($media)
+                                                <div
+                                                    class="flex-shrink-0 w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded overflow-hidden flex items-center justify-center">
+                                                    @if (str_contains($media->mime_type, 'image'))
+                                                        <img src="{{ $media->getUrl('thumb') }}"
+                                                            class="w-full h-full object-cover">
+                                                    @elseif(str_contains($media->mime_type, 'video'))
                                                         <div
-                                                            class="flex-shrink-0 w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded overflow-hidden flex items-center justify-center">
-                                                            @if(str_contains($media->mime_type, 'image'))
-                                                                <img src="{{ $media->getUrl('thumb') }}" class="w-full h-full object-cover">
-                                                            @elseif(str_contains($media->mime_type, 'video'))
-                                                                <div class="relative w-full h-full flex items-center justify-center bg-black">
-                                                                    <flux:icon name="play-circle" variant="micro" class="text-white size-5 z-10" />
-                                                                    {{-- ভিডিওর থাম্বনেইল থাকলে দিতে পারেন, না থাকলে আইকন --}}
-                                                                </div>
-                                                            @elseif(str_contains($media->mime_type, 'audio'))
-                                                                <flux:icon name="musical-note" variant="micro" class="text-gray-500 size-5" />
-                                                            @else
-                                                                {{-- ডকুমেন্ট বা অন্যান্য ফাইলের জন্য আইকন --}}
-                                                                <flux:icon name="document-text" variant="micro" class="text-gray-500 size-5" />
-                                                            @endif
+                                                            class="relative w-full h-full flex items-center justify-center bg-black">
+                                                            <flux:icon name="play-circle" variant="micro"
+                                                                class="text-white size-5 z-10" />
+                                                            {{-- ভিডিওর থাম্বনেইল থাকলে দিতে পারেন, না থাকলে আইকন --}}
                                                         </div>
+                                                    @elseif(str_contains($media->mime_type, 'audio'))
+                                                        <flux:icon name="musical-note" variant="micro"
+                                                            class="text-gray-500 size-5" />
+                                                    @else
+                                                        {{-- ডকুমেন্ট বা অন্যান্য ফাইলের জন্য আইকন --}}
+                                                        <flux:icon name="document-text" variant="micro"
+                                                            class="text-gray-500 size-5" />
                                                     @endif
+                                                </div>
+                                            @endif
 
-                                                    <div class="flex-1 min-w-0">
-                                                        <div class="font-bold text-green-600 dark:text-green-400 flex items-center gap-1">
-                                                            <span class="opacity-70 font-normal">Replying to</span>
-                                                            {{ $parent->sender_id == auth()->id() ? 'You' : ($parent->sender->name ?? 'User') }}
-                                                        </div>
+                                            <div class="flex-1 min-w-0">
+                                                <div
+                                                    class="font-bold text-green-600 dark:text-green-400 flex items-center gap-1">
+                                                    <span class="opacity-70 ">Replying to</span>
+                                                    {{ $parent->sender_id == auth()->id() ? 'You' : $parent->sender->name ?? 'User' }}
+                                                </div>
 
-                                                        <div class="truncate opacity-80 italic flex items-center gap-1">
-                                                            @if($media)
-                                                                {{-- ফাইলের ধরন অনুযায়ী টেক্সট দেখানো --}}
-                                                                @if(str_contains($media->mime_type, 'image'))
-                                                                    <flux:icon name="photo" variant="micro" class="size-3" />
-                                                                    <span>Photo</span>
-                                                                @elseif(str_contains($media->mime_type, 'video'))
-                                                                    <flux:icon name="video-camera" variant="micro" class="size-3" />
-                                                                    <span>Video</span>
-                                                                @elseif(str_contains($media->mime_type, 'audio'))
-                                                                    <flux:icon name="microphone" variant="micro" class="size-3" />
-                                                                    <span>Audio</span>
-                                                                @else
-                                                                    <flux:icon name="paper-clip" variant="micro" class="size-3" />
-                                                                    <span>{{ $media->file_name }}</span>
-                                                                @endif
+                                                <div class="truncate opacity-80 italic flex items-center gap-1">
+                                                    @if ($media)
+                                                        {{-- ফাইলের ধরন অনুযায়ী টেক্সট দেখানো --}}
+                                                        @if (str_contains($media->mime_type, 'image'))
+                                                            <flux:icon name="photo" variant="micro" class="size-3" />
+                                                            <span>Photo</span>
+                                                        @elseif(str_contains($media->mime_type, 'video'))
+                                                            <flux:icon name="video-camera" variant="micro"
+                                                                class="size-3" />
+                                                            <span>Video</span>
+                                                        @elseif(str_contains($media->mime_type, 'audio'))
+                                                            <flux:icon name="microphone" variant="micro"
+                                                                class="size-3" />
+                                                            <span>Audio</span>
+                                                        @else
+                                                            <flux:icon name="paper-clip" variant="micro"
+                                                                class="size-3" />
+                                                            <span>{{ $media->file_name }}</span>
+                                                        @endif
 
-                                                                {{-- যদি ফাইলের সাথে কোনো মেসেজ থাকে --}}
-                                                                @if($parent->message)
-                                                                    <span class="ml-1 text-gray-600 dark:text-gray-400">- {{ $parent->message }}</span>
-                                                                @endif
-                                                            @else
-                                                                {{-- যদি কোনো ফাইল না থাকে শুধু টেক্সট থাকে --}}
-                                                                {{ $parent->message ?? '[Message unavailable]' }}
-                                                            @endif
-                                                        </div>
-                                                    </div>
+                                                        {{-- যদি ফাইলের সাথে কোনো মেসেজ থাকে --}}
+                                                        @if ($parent->message)
+                                                            <span class="ml-1 text-gray-600 dark:text-gray-400">-
+                                                                {{ $parent->message }}</span>
+                                                        @endif
+                                                    @else
+                                                        {{-- যদি কোনো ফাইল না থাকে শুধু টেক্সট থাকে --}}
+                                                        {{ $parent->message ?? '[Message unavailable]' }}
+                                                    @endif
                                                 </div>
                                             </div>
-                                        @endif
+                                        </div>
+                                    </div>
+                                @endif
 
-                              {{-- ২. মাল্টি-মিডিয়া গ্রিড লেআউট --}}
-                                    @if($message->hasMedia('attachments'))
-                                        <div class="mb-2 grid gap-1 {{ $message->getMedia('attachments')->count() > 1 ? 'grid-cols-2' : 'grid-cols-1' }}">
-                                            @foreach($message->getMedia('attachments') as $media)
-                                                <div class="relative rounded-2xl overflow-hidden bg-black/5 border border-black/5 dark:border-white/10 group/media transition-transform active:scale-95">
-                                                    @if(str_contains($media->mime_type, 'image'))
-                                                          <flux:media :media="$message->getMedia('attachments')" columns="3" />
-                                                    @elseif(str_contains($media->mime_type, 'video'))
-                                                        <div class="relative h-48 bg-black flex items-center justify-center cursor-pointer"
-                                                             @click="$dispatch('open-lightbox', { type: 'video', url: '{{ $media->getUrl() }}' })">
-                                                            <video class="w-full h-full object-cover opacity-80"><source src="{{ $media->getUrl() }}"></video>
-                                                            <div class="absolute inset-0 flex items-center justify-center">
-                                                                <div class="p-3 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white"><flux:icon name="play" variant="solid" /></div>
+                                {{-- ২. মাল্টি-মিডিয়া গ্রিড লেআউট --}}
+                                @if ($message->hasMedia('attachments'))
+                                    <div
+                                        class="mb-2 grid gap-1 {{ $message->getMedia('attachments')->count() > 1 ? 'grid-cols-2' : 'grid-cols-1' }}">
+                                        @foreach ($message->getMedia('attachments') as $media)
+                                            <div
+                                                class="relative rounded-2xl overflow-hidden bg-black/5 border border-zinc-400/25 group/media transition-transform active:scale-95">
+                                                @if (str_contains($media->mime_type, 'image'))
+                                                    <flux:media :media="$message->getMedia('attachments')"
+                                                        columns="3" />
+                                                @elseif(str_contains($media->mime_type, 'video'))
+                                                    <div class="relative h-48 bg-black flex items-center justify-center cursor-pointer"
+                                                        @click="$dispatch('open-lightbox', { type: 'video', url: '{{ $media->getUrl() }}' })">
+                                                        <video class="w-full h-full object-cover opacity-80">
+                                                            <source src="{{ $media->getUrl() }}">
+                                                        </video>
+                                                        <div class="absolute inset-0 flex items-center justify-center">
+                                                            <div
+                                                                class="p-3 rounded-full bg-white/20 backdrop-blur border border-white/30 text-white">
+                                                                <flux:icon name="play" variant="solid" />
                                                             </div>
                                                         </div>
-                                                    @else
-                                                        {{-- ডকুমেন্টের জন্য সুন্দর কার্ড ডিজাইন --}}
-                                                        <a href="{{ $media->getUrl() }}" target="_blank" class="flex items-center gap-3 p-3 bg-zinc-50 dark:bg-zinc-800/50">
-                                                            <flux:icon name="document-text" class="text-indigo-500" />
-                                                            <div class="flex-1 truncate text-[11px] font-medium">{{ $media->file_name }}</div>
-                                                        </a>
-                                                    @endif
-                                                </div>
-                                            @endforeach
-                                        </div>
-                                    @endif
-
-                                                @if (!empty($message->meta['url']))
-                                                    <a href="{{ $message->meta['url'] }}" target="_blank"
-                                                        class="block group no-underline">
-                                                        <div
-                                                            class="mb-3 overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-800 shadow-sm transition-all group-hover:shadow-md group-hover:border-zinc-300 dark:group-hover:border-zinc-700">
-                                                            <div class="flex flex-row">
-                                                                @if (isset($message->meta['image']))
-                                                                    <div
-                                                                        class="w-24 flex-shrink-0 border-r border-zinc-100 dark:border-zinc-800">
-                                                                        <img src="{{ $message->meta['image'] }}"
-                                                                            class="h-full w-full object-cover" alt="Meta image">
-                                                                    </div>
-                                                                @endif
-
-                                                                <div class="flex flex-col justify-center p-3 overflow-hidden">
-                                                                    @if (isset($message->meta['title']))
-                                                                        <flux:heading size="sm" class="font-semibold break-words">
-                                                                            {{ $message->meta['title'] }}
-                                                                        </flux:heading>
-                                                                    @endif
-
-                                                                    @if (isset($message->meta['price']))
-                                                                        <div class="mt-1 flex items-center gap-1.5">
-                                                                            <flux:badge size="sm" color="indigo"
-                                                                                inset="top bottom">
-                                                                                ৳ {{ $message->meta['price'] }}
-                                                                            </flux:badge>
-                                                                            <flux:text size="xs" class="text-zinc-400">
-                                                                                টাকা</flux:text>
-                                                                        </div>
-                                                                    @endif
-
-                                                                    <div class="mt-2 flex items-center gap-1">
-                                                                        <flux:text size="xs" class="truncate text-zinc-400 flex-1">
-                                                                            {{ parse_url($message->meta['url'], PHP_URL_HOST) }}
-                                                                        </flux:text>
-                                                                        <flux:icon name="arrow-up-right" variant="micro"
-                                                                            class="size-3 text-zinc-300 group-hover:text-zinc-500" />
-                                                                    </div>
-                                                                </div>
-                                                            </div>
+                                                    </div>
+                                                @else
+                                                    {{-- ডকুমেন্টের জন্য সুন্দর কার্ড ডিজাইন --}}
+                                                    <a href="{{ $media->getUrl() }}" target="_blank"
+                                                        class="flex items-center gap-4 p-3 bg-zinc-50 dark:bg-zinc-800/50">
+                                                        <flux:icon name="document-text" class="text-indigo-500" />
+                                                        <div class="flex-1 truncate text-[11px] font-medium">
+                                                            {{ $media->file_name }}
                                                         </div>
                                                     </a>
                                                 @endif
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @endif
 
-                                                @if ($editMessage == $message->id)
-                                                    <flux:textarea wire:model="editedMessageText" row="auto" resize="none">
-                                                    </flux:textarea>
-                                                    <div class="flex justify-end gap-2 mt-2">
-                                                        <flux:button wire:click="cancelEdit" size="xs">Cancel
-                                                        </flux:button>
-                                                        <flux:button wire:click="updateMessage" size="xs">Save
-                                                        </flux:button>
+                                @if (!empty($message->meta['url']))
+                                    <a href="{{ $message->meta['url'] }}" target="_blank"
+                                        class="block group no-underline">
+                                        <div
+                                            class="mb-3 overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-800 shadow-sm transition-all group-hover:shadow-md group-hover:border-zinc-300 dark:group-hover:border-zinc-700">
+                                            <div class="flex flex-row">
+                                                @if (isset($message->meta['image']))
+                                                    <div class="w-24 flex-shrink-0 border-r border-zinc-400/25">
+                                                        <img src="{{ $message->meta['image'] }}"
+                                                            class="h-full w-full object-cover" alt="Meta image">
                                                     </div>
-                                                @elseif($message->message)
-                                                    <flux:text class="text-sm leading-snug break-words">
-                                                        {!! linkify($message->message) !!}
-                                                    </flux:text>
                                                 @endif
 
-                                                <div class="flex justify-between items-center mt-2 gap-3">
-                                                    <flux:text class="text-xs">
-                                                        {{ $message->updated_at?->diffForHumans(['short' => true]) }}
-                                                        @if ($message->edited_at)
-                                                            (edited)
-                                                        @endif
-                                                    </flux:text>
-                                                    @if ($message->sender_id == auth()->id())
-                                                        <div class="flex items-center ml-1">
-                                                            @if ($message->read_at)
-                                                                <div class="flex items-center">
-                                                                    <flux:icon name="check" class="size-3 -mr-1.5 text-blue-500"
-                                                                        variant="micro" />
-                                                                    <flux:icon name="check" class="size-3 text-blue-500"
-                                                                        variant="micro" />
-                                                                </div>
-                                                            @else
-                                                                <flux:icon name="check" class="size-3 text-zinc-400"
-                                                                    variant="micro" />
-                                                            @endif
+                                                <div class="flex flex-col justify-center p-3 overflow-hidden">
+                                                    @if (isset($message->meta['title']))
+                                                        <flux:heading size="sm"
+                                                            class="font-semibold break-words">
+                                                            {{ $message->meta['title'] }}
+                                                        </flux:heading>
+                                                    @endif
+
+                                                    @if (isset($message->meta['price']))
+                                                        <div class="mt-1 flex items-center gap-2">
+                                                            <flux:badge size="sm" color="indigo"
+                                                                inset="top bottom">
+                                                                ৳ {{ $message->meta['price'] }}
+                                                            </flux:badge>
+                                                            <flux:text size="xs" class="text-zinc-400">
+                                                                টাকা</flux:text>
                                                         </div>
                                                     @endif
+
+                                                    <div class="mt-2 flex items-center gap-1">
+                                                        <flux:text size="xs"
+                                                            class="truncate text-zinc-400 flex-1">
+                                                            {{ parse_url($message->meta['url'], PHP_URL_HOST) }}
+                                                        </flux:text>
+                                                        <flux:icon name="arrow-up-right" variant="micro"
+                                                            class="size-3 text-zinc-300 group-hover:text-zinc-500" />
+                                                    </div>
                                                 </div>
-
-                                                @if ($message->sender_id == auth()->id())
-                                                    <div
-                                                        class="absolute bottom-1/2 {{ $message->sender_id == auth()->id() ? 'left-0 -translate-x-8' : 'right-0 translate-x-8' }}">
-                                                        <flux:dropdown
-                                                            placement="{{ $message->sender_id == auth()->id() ? 'bottom-start' : 'bottom-end' }}">
-                                                            <flux:button size="xs" variant="subtle" icon="ellipsis-vertical">
-                                                            </flux:button>
-
-                                                            <flux:menu class="dark:!bg-zinc-900 !border-0">
-                                                                @if ($message->sender_id == auth()->id())
-                                                                    <flux:menu.item icon="pencil"
-                                                                        wire:click="setEditMessage({{ $message->id }})">
-                                                                        Edit
-                                                                    </flux:menu.item>
-
-                                                                    {{-- <flux:menu.separator /> --}}
-                                                                @endif
-
-                                                                <flux:menu.item icon="arrow-uturn-left"
-                                                                    @click="$wire.setReplyMessage({{ $message->id }})">
-                                                                    Reply
-                                                                </flux:menu.item>
-
-                                                                @if ($message->sender_id == auth()->id())
-                                                                    {{-- <flux:menu.separator /> --}}
-
-                                                                    <flux:menu.item variant="danger" icon="trash"
-                                                                        wire:click="deleteMessage({{ $message->id }})"
-                                                                        wire:confirm="Are Your sure for delete this message? ({{ $message->message }})">
-                                                                        Delete
-                                                                    </flux:menu.item>
-                                                                @endif
-                                                            </flux:menu>
-                                                        </flux:dropdown>
-                                                    </div>
-                                                @else
-                                                    <div
-                                                        class="absolute bottom-1/2 {{ !$message->sender_id == auth()->id() ? 'left-0 -translate-x-8' : 'right-0 translate-x-8' }}">
-                                                        <flux:button icon="arrow-uturn-left" size="xs" variant="subtle"
-                                                            wire:click="setReplyMessage({{ $message->id }})">
-                                                        </flux:button>
-                                                    </div>
-                                                @endif
-                                            </flux:callout>
+                                            </div>
                                         </div>
+                                    </a>
+                                @endif
+
+                                @if ($editMessage == $message->id)
+                                    <flux:textarea wire:model="editedMessageText" row="auto" resize="none">
+                                    </flux:textarea>
+                                    <div class="flex justify-end gap-2 mt-2">
+                                        <flux:button wire:click="cancelEdit" size="xs">Cancel
+                                        </flux:button>
+                                        <flux:button wire:click="updateMessage" size="xs">Save
+                                        </flux:button>
                                     </div>
-                        @endforeach
-                    </div>
-                </div>
-
-                <!-- Message Input -->
-                <flux:callout class="w-full flex-none bottom-0 dark:!border-0 relative !p-0 ">
-
-                    @if ($attachment)
-                        {{-- <div
-                                    class="rounded-xl max-w-2xl border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 p-3 shadow-sm"> --}}
-                        <x:attachements-preview :attachment="$attachment" lazy />
-                        {{-- </div> --}}
-                    @endif
-
-
-
-                    @if ($replyMessage)
-                        @php 
-                                                                                                                                                                    $replyTo = $messages->firstWhere('id', $replyMessage);
-                            $media = $replyTo->getFirstMedia('attachments'); 
-                        @endphp
-
-                        <div class="flex justify-between items-center gap-3 rounded-xl border-l-4 border-l-green-500 p-2 bg-zinc-400/10 dark:bg-zinc-800/40 backdrop-blur-sm shadow-sm transition-all">
-
-                            <div class="flex-1 min-w-0 flex items-center gap-3">
-                                {{-- Right side preview thumbnail --}}
-                                <div class="h-10 w-10 rounded-lg bg-zinc-200 dark:bg-zinc-700 overflow-hidden shrink-0 flex items-center justify-center border border-white/5">
-                                    @if($media)
-                                        @if(str_contains($media->mime_type, 'image'))
-                                            <img src="{{ $media->getUrl('thumb') }}" class="h-full w-full object-cover">
-                                        @elseif(str_contains($media->mime_type, 'video'))
-                                            <div class="bg-indigo-600 w-full h-full flex items-center justify-center italic font-bold text-[10px] text-white">
-                                                <flux:icon name="play-circle" variant="micro" class="size-5" />
-                                            </div>
-                                        @elseif(str_contains($media->mime_type, 'audio'))
-                                            <div class="bg-amber-500 w-full h-full flex items-center justify-center">
-                                                <flux:icon name="musical-note" variant="micro" class="size-5 text-white" />
-                                            </div>
-                                        @else
-                                            {{-- Onnano file er jonno dynamic icon --}}
-                                            <div class="bg-zinc-500 w-full h-full flex items-center justify-center">
-                                                <flux:icon name="document-text" variant="micro" class="size-5 text-white" />
-                                            </div>
-                                        @endif
-                                    @else
-                                        {{-- Shudhu text message hole --}}
-                                        <div class="bg-green-500/20 w-full h-full flex items-center justify-center text-green-600">
-                                            <flux:icon name="chat-bubble-bottom-center-text" variant="micro" class="size-5" />
-                                        </div>
-                                    @endif
-                                </div>
-
-                                <div class="flex-1 min-w-0">
-                                    <flux:text size="sm" color="green" class="font-bold leading-none">
-                                        Replying to: {{ $replyTo->sender_id == auth()->id() ? 'You' : ($replyTo->sender->name ?? 'User') }}
+                                @elseif($message->message)
+                                    <flux:text class="text-sm leading-snug break-words">
+                                        {!! linkify($message->message) !!}
                                     </flux:text>
+                                @endif
 
-                                    <div class="flex items-center gap-1.5 mt-1">
-                                        {{-- "File" lekhar bodole eikhane Icon --}}
-                                     @if($media)
-                                        <flux:badge 
-                                            size="sm" class="gap-2">
-                                            @php
-                                                $mime = $media->mime_type;
-                                                $extension = pathinfo($media->file_name, PATHINFO_EXTENSION);
-
-                                                // টাইপ নির্ধারণ
-                                                $displayType = match (true) {
-                                                    str_contains($mime, 'image') => 'Photo',
-                                                    str_contains($mime, 'video') => 'Video',
-                                                    str_contains($mime, 'audio') => 'Audio',
-                                                    $extension === 'pdf' => 'PDF',
-                                                    default => strtoupper($extension) ?: 'File',
-                                                };
-
-                                                // আইকন নির্ধারণ
-                                                $icon = match (true) {
-                                                    str_contains($mime, 'image') => 'photo',
-                                                    str_contains($mime, 'video') => 'video-camera',
-                                                    str_contains($mime, 'audio') => 'microphone',
-                                                    default => 'paper-clip',
-                                                };
-                                            @endphp
-
-                                            <flux:icon :name="$icon" variant="micro" class="size-3" />
-                                            <span>{{ $displayType }}</span>
-                                        </flux:badge>
+                                <div class="flex justify-between items-center mt-2 gap-4">
+                                    <flux:text class="text-xs">
+                                        {{ $message->updated_at?->diffForHumans(['short' => true]) }}
+                                        @if ($message->updated_at)
+                                            (edited)
+                                        @endif
+                                    </flux:text>
+                                    @if ($message->sender_id == auth()->id())
+                                        <div class="flex items-center ml-1">
+                                            @if ($message->read_at)
+                                                <div class="flex items-center">
+                                                    <flux:icon name="check" class="size-3 -mr-1.5 text-blue-500"
+                                                        variant="micro" />
+                                                    <flux:icon name="check" class="size-3 text-blue-500"
+                                                        variant="micro" />
+                                                </div>
+                                            @else
+                                                <flux:icon name="check" class="size-3 text-zinc-400"
+                                                    variant="micro" />
+                                            @endif
+                                        </div>
                                     @endif
-
-                                        <flux:text class="text-sm dark:text-zinc-300 truncate opacity-90">
-                                            {{ $replyTo->message ?: 'No message' }}
-                                        </flux:text>
-                                    </div>
                                 </div>
-                            </div>
 
-                            {{-- Close Button --}}
-                            <div class="shrink-0">
-                                <flux:button size="xs" icon="x-mark" variant="subtle" square wire:click="closeReplyMessage" />
-                            </div>
-                        </div>
-                    @endif
+                                @if ($message->sender_id == auth()->id())
+                                    <div
+                                        class="absolute bottom-1/2 {{ $message->sender_id == auth()->id() ? 'left-0 -translate-x-8' : 'right-0 translate-x-8' }}">
+                                        <flux:dropdown
+                                            placement="{{ $message->sender_id == auth()->id() ? 'bottom-start' : 'bottom-end' }}">
+                                            <flux:button size="xs" variant="subtle" icon="ellipsis-vertical">
+                                            </flux:button>
 
+                                            <flux:menu class="dark:!bg-zinc-900 ">
+                                                @if ($message->sender_id == auth()->id())
+                                                    <flux:menu.item icon="pencil"
+                                                        wire:click="setEditMessage({{ $message->id }})">
+                                                        Edit
+                                                    </flux:menu.item>
 
-                    <div class="flex items-end gap-1">
-                        <div class="flex items-center" x-data="{
-                            openFile(accept, capture = '') {
-                                let input = $refs.fileInput;
-                                input.accept = accept;
-                                capture ? input.setAttribute('capture', capture) : input.removeAttribute('capture');
-                                input.click();
-                            }
-                        }">
-                            <input type="file" wire:model="attachment" class="hidden" x-ref="fileInput" />
+                                                    {{--
+                                                    <flux:menu.separator /> --}}
+                                                @endif
 
-                            <flux:dropdown>
-                                <flux:button icon="paper-clip" variant="subtle" class="rounded-full" />
-
-                                <flux:menu class="w-48 !bg-zinc-100 dark:!bg-zinc-900 border-0">
-                                    <div class="grid grid-cols-3 gap-2">
-                                        <flux:menu.item x-on:click="openFile('.pdf,.doc,.docx')"
-                                            class="flex-col !items-center gap-2 py-3">
-                                            <flux:icon name="document-text" class="text-blue-500" />
-                                            <span class="text-[10px]">Document</span>
-                                        </flux:menu.item>
-
-                                        <flux:menu.item x-on:click="openFile('image/*', 'environment')"
-                                            class="flex-col !items-center gap-2 py-3">
-                                            <flux:icon name="camera" class="text-pink-500" />
-                                            <span class="text-xs">Camera</span>
-                                        </flux:menu.item>
-
-                                        <flux:menu.item x-on:click="openFile('image/*,video/*')"
-                                            class="flex-col !items-center gap-2 py-3">
-                                            <flux:icon name="photo" class="text-purple-500" />
-                                            <span class="text-xs">Gallery</span>
-                                        </flux:menu.item>
-
-                                        {{-- <flux:menu.item wire:click="shareLocation"
-                                                    class="flex-col !items-center gap-2 py-3">
-                                                    <flux:icon name="map-pin" class="text-green-500" />
-                                                    <span class="text-xs">Location</span>
+                                                <flux:menu.item icon="arrow-uturn-left"
+                                                    @click="$wire.setReplyMessage({{ $message->id }})">
+                                                    Reply
                                                 </flux:menu.item>
 
-                                                <flux:menu.item wire:click="shareContact"
-                                                    class="flex-col !items-center gap-2 py-3">
-                                                    <flux:icon name="user-circle" class="text-blue-600" />
-                                                    <span class="text-xs">Contact</span>
-                                                </flux:menu.item> --}}
+                                                @if ($message->sender_id == auth()->id())
+                                                    {{--
+                                                    <flux:menu.separator /> --}}
+
+                                                    <flux:menu.item variant="danger" icon="trash"
+                                                        wire:click="deleteMessage({{ $message->id }})"
+                                                        wire:confirm="Are Your sure for delete this message? ({{ $message->message }})">
+                                                        Delete
+                                                    </flux:menu.item>
+                                                @endif
+                                            </flux:menu>
+                                        </flux:dropdown>
                                     </div>
-                                </flux:menu>
-                            </flux:dropdown>
+                                @else
+                                    <div
+                                        class="absolute bottom-1/2 {{ !$message->sender_id == auth()->id() ? 'left-0 -translate-x-8' : 'right-0 translate-x-8' }}">
+                                        <flux:button icon="arrow-uturn-left" size="xs" variant="subtle"
+                                            wire:click="setReplyMessage({{ $message->id }})">
+                                        </flux:button>
+                                    </div>
+                                @endif
+                            </flux:callout>
                         </div>
-                        <flux:textarea x-ref="textarea" wire:model="messageText" placeholder="একটি বার্তা টাইপ করুন..."
-                            autofocus
-                            class="!border-0 !bg-transparent w-full !outline-none !resize-none !shadow-none max-h-40 break-all !pb-1 !px-0"
-                            resize="none" rows="auto"></flux:textarea>
-
-                        <flux:button wire:click="sendMessage" icon="paper-airplane" size="sm"
-                            variant="{{ $messageText || $attachment ? 'ghost' : 'subtle' }}" class="shrink-0 !p-0">
-                        </flux:button>
                     </div>
-                </flux:callout>
-    @else
-           <flux:header sticky class="backdrop-blur-lg border-b border-zinc-400/10 !px-2">
-                    <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" size="xs" />
-                        <div class="w-full">
-                        @stack('chat-header')
-                  </div>
-                </flux:header>
-                <div class="flex-1 flex items-center justify-center p-4 md:p-6">
-                    <div class="text-center max-w-md">
-                        <flux:icon name="chat-bubble-left-right" class="mx-auto size-10 md:size-12 text-zinc-400" />
+                @endforeach
+            </div>
+        </div>
 
-                        <flux:heading level="h3" size="lg" class="mt-4">
-                            No conversation selected
-                        </flux:heading>
+        <!-- Message Input -->
+        <flux:callout class="w-full flex-none bottom-0 dark: relative !p-0 ">
 
-                        <flux:text size="base" class="mt-2">
-                            Select a conversation from the sidebar to start chatting.
-                        </flux:text>
+            @if ($attachment)
+                {{-- <div
+                    class="rounded-xl max-w-2xl border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 p-3 shadow-sm">
+                    --}}
+                <x:attachements-preview :attachment="$attachment" lazy />
+                {{--
+                </div> --}}
+            @endif
 
-                        <div class="mt-6">
-                            <flux:modal.trigger name="open-conversations-modal">
-                                <flux:button variant="primary">
-                                    Open Conversations
-                                </flux:button>
-                            </flux:modal.trigger>
+
+
+            @if ($replyMessage)
+                @php
+                    $replyTo = $messages->firstWhere('id', $replyMessage);
+                    $media = $replyTo->getFirstMedia('attachments');
+                @endphp
+
+                <div
+                    class="flex justify-between items-center gap-4 rounded-xl border-l-4 border-l-green-500 p-2 bg-zinc-400/10 dark:bg-zinc-800/40 backdrop-blur shadow-sm transition-all">
+
+                    <div class="flex-1 min-w-0 flex items-center gap-4">
+                        {{-- Right side preview thumbnail --}}
+                        <div
+                            class="h-10 w-10 rounded-lg bg-zinc-200 dark:bg-zinc-700 overflow-hidden shrink-0 flex items-center justify-center border border-white/5">
+                            @if ($media)
+                                @if (str_contains($media->mime_type, 'image'))
+                                    <img src="{{ $media->getUrl('thumb') }}" class="h-full w-full object-cover">
+                                @elseif(str_contains($media->mime_type, 'video'))
+                                    <div
+                                        class="bg-indigo-600 w-full h-full flex items-center justify-center italic font-bold text-xs text-white">
+                                        <flux:icon name="play-circle" variant="micro" class="size-5" />
+                                    </div>
+                                @elseif(str_contains($media->mime_type, 'audio'))
+                                    <div class="bg-amber-500 w-full h-full flex items-center justify-center">
+                                        <flux:icon name="musical-note" variant="micro" class="size-5 text-white" />
+                                    </div>
+                                @else
+                                    {{-- Onnano file er jonno dynamic icon --}}
+                                    <div class="bg-zinc-500 w-full h-full flex items-center justify-center">
+                                        <flux:icon name="document-text" variant="micro" class="size-5 text-white" />
+                                    </div>
+                                @endif
+                            @else
+                                {{-- Shudhu text message hole --}}
+                                <div
+                                    class="bg-green-500/20 w-full h-full flex items-center justify-center text-green-600">
+                                    <flux:icon name="chat-bubble-bottom-center-text" variant="micro"
+                                        class="size-5" />
+                                </div>
+                            @endif
                         </div>
+
+                        <div class="flex-1 min-w-0">
+                            <flux:text size="sm" color="green" class="font-bold leading-none">
+                                Replying to:
+                                {{ $replyTo->sender_id == auth()->id() ? 'You' : $replyTo->sender->name ?? 'User' }}
+                            </flux:text>
+
+                            <div class="flex items-center gap-2 mt-1">
+                                {{-- "File" lekhar bodole eikhane Icon --}}
+                                @if ($media)
+                                    <flux:badge size="sm" class="gap-4">
+                                        @php
+                                            $mime = $media->mime_type;
+                                            $extension = pathinfo($media->file_name, PATHINFO_EXTENSION);
+
+                                            // টাইপ নির্ধারণ
+                                            $displayType = match (true) {
+                                                str_contains($mime, 'image') => 'Photo',
+                                                str_contains($mime, 'video') => 'Video',
+                                                str_contains($mime, 'audio') => 'Audio',
+                                                $extension === 'pdf' => 'PDF',
+                                                default => strtoupper($extension) ?: 'File',
+                                            };
+
+                                            // আইকন নির্ধারণ
+                                            $icon = match (true) {
+                                                str_contains($mime, 'image') => 'photo',
+                                                str_contains($mime, 'video') => 'video-camera',
+                                                str_contains($mime, 'audio') => 'microphone',
+                                                default => 'paper-clip',
+                                            };
+                                        @endphp
+
+                                        <flux:icon :name="$icon" variant="micro" class="size-3" />
+                                        <span>{{ $displayType }}</span>
+                                    </flux:badge>
+                                @endif
+                                <flux:text class="text-sm">
+                                    {{ $replyTo->message ?: 'No message' }}
+                                </flux:text>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Close Button --}}
+                    <div class="shrink-0">
+                        <flux:button size="xs" icon="x-mark" variant="subtle" square
+                            wire:click="closeReplyMessage" />
                     </div>
                 </div>
+            @endif
+
+
+            <div class="flex items-end gap-1">
+                <div class="flex items-center" x-data="{
+                    openFile(accept, capture = '') {
+                        let input = $refs.fileInput;
+                        input.accept = accept;
+                        capture ? input.setAttribute('capture', capture) : input.removeAttribute('capture');
+                        input.click();
+                    }
+                }">
+                    <input type="file" wire:model="attachment" class="hidden" x-ref="fileInput" />
+
+                    <flux:dropdown>
+                        <flux:button icon="paper-clip" variant="subtle" class="rounded-full" />
+
+                        <flux:menu class="w-4 8 !bg-zinc-100 dark:!bg-zinc-900 ">
+                            <div class="grid grid-cols-3 gap-4">
+                                <flux:menu.item x-on:click="openFile('.pdf,.doc,.docx')"
+                                    class="flex-col !items-center gap-2 py-3">
+                                    <flux:icon name="document-text" class="text-blue-500" />
+                                    <span class="text-xs">Document</span>
+                                </flux:menu.item>
+
+                                <flux:menu.item x-on:click="openFile('image/*', 'environment')"
+                                    class="flex-col !items-center gap-2 py-3">
+                                    <flux:icon name="camera" class="text-pink-500" />
+                                    <span class="text-xs">Camera</span>
+                                </flux:menu.item>
+
+                                <flux:menu.item x-on:click="openFile('image/*,video/*')"
+                                    class="flex-col !items-center gap-2 py-3">
+                                    <flux:icon name="photo" class="text-purple-500" />
+                                    <span class="text-xs">Gallery</span>
+                                </flux:menu.item>
+
+                                {{-- <flux:menu.item wire:click="shareLocation" class="flex-col !items-center gap-2 py-3">
+                                    <flux:icon name="map-pin" class="text-green-500" />
+                                    <span class="text-xs">Location</span>
+                                </flux:menu.item>
+
+                                <flux:menu.item wire:click="shareContact" class="flex-col !items-center gap-2 py-3">
+                                    <flux:icon name="user-circle" class="text-blue-600" />
+                                    <span class="text-xs">Contact</span>
+                                </flux:menu.item> --}}
+                            </div>
+                        </flux:menu>
+                    </flux:dropdown>
+                </div>
+                <flux:textarea x-ref="textarea" wire:model="messageText" placeholder="একটি বার্তা টাইপ করুন..."
+                    autofocus
+                    class=" !bg-transparent w-full ! !resize-none !shadow-none max-h-40 break-all !pb-1 !px-0"
+                    resize="none" rows="auto"></flux:textarea>
+
+                <flux:button wire:click="sendMessage" icon="paper-airplane" size="sm"
+                    variant="{{ $messageText || $attachment ? 'ghost' : 'subtle' }}" class="shrink-0 !p-0">
+                </flux:button>
+            </div>
+        </flux:callout>
+    @else
+        <flux:header sticky class="backdrop-blur-lg border-b border-zinc-400/10 !px-2">
+            <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" size="xs" />
+            <div class="w-full">
+                @stack('chat-header')
+            </div>
+        </flux:header>
+        <div class="flex-1 flex items-center justify-center p-4 md:p-6">
+            <div class="text-center max-w-md">
+                <flux:icon name="chat-bubble-left-right" class="mx-auto size-10 md:size-12 text-zinc-400" />
+
+                <flux:heading level="h3" size="lg" class="mt-4">
+                    No conversation selected
+                </flux:heading>
+
+                <flux:text size="base" class="mt-2">
+                    Select a conversation from the sidebar to start chatting.
+                </flux:text>
+
+                <div class="mt-6">
+                    <flux:modal.trigger name="open-conversations-modal">
+                        <flux:button variant="primary">
+                            Open Conversations
+                        </flux:button>
+                    </flux:modal.trigger>
+                </div>
+            </div>
+        </div>
     @endif
 
     @include('partials.toast')
@@ -1125,7 +1165,7 @@ new #[Layout('components.layouts.app.message')] class extends Component {
 
     <flux:modal.trigger name="open-conversations-modal">
         <div class="mb-2">
-                <flux:sidebar.search placeholder="Search..." />
+            <flux:sidebar.search placeholder="Search..." />
         </div>
     </flux:modal.trigger>
     <div x-data="{ activeTab: 'chats' }" class="w-full">
@@ -1147,7 +1187,8 @@ new #[Layout('components.layouts.app.message')] class extends Component {
                         ])>
 
                             <div>
-                                <flux:avatar src="{{ $user->getFirstMediaUrl('avatars', 'thumb') }}" name="{{ $user->name }}" badge
+                                <flux:avatar src="{{ $user->getFirstMediaUrl('avatars', 'thumb') }}"
+                                    name="{{ $user->name }}" badge
                                     badge:color="{{ $user->isOnline() ? 'green' : 'zinc' }}" color="auto"
                                     color:seed="{{ $user->id }}" />
                             </div>
@@ -1161,14 +1202,14 @@ new #[Layout('components.layouts.app.message')] class extends Component {
                                     <flux:text size="sm" color="green"
                                         class="text-xs text-zinc-500 dark:text-zinc-400 whitespace-nowrap ml-2">
                                         @if ($user->sentMessages->first() || $user->receivedMessages->first())
-                                                                                                                                                                                                                                                                                    {{ max(
+                                            {{ max(
                                                 $user->sentMessages->first()->created_at ?? null,
                                                 $user->receivedMessages->first()->created_at ?? null,
                                             )?->shortRelativeDiffForHumans() }}
                                         @endif
                                     </flux:text>
                                 </div>
-                                <div class="flex gap-3 justify-between item-center">
+                                <div class="flex gap-4 justify-between item-center">
                                     <flux:text size="sm"
                                         class="text-sm text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
                                         @php
@@ -1215,7 +1256,8 @@ new #[Layout('components.layouts.app.message')] class extends Component {
                         ])>
 
                             <div>
-                                <flux:avatar src="{{ $user->getFirstMediaUrl('avatars', 'thumb') }}" name="{{ $user->name }}" badge
+                                <flux:avatar src="{{ $user->getFirstMediaUrl('avatars', 'thumb') }}"
+                                    name="{{ $user->name }}" badge
                                     badge:color="{{ $user->isOnline() ? 'green' : 'zinc' }}" color="auto"
                                     color:seed="{{ $user->id }}" />
                             </div>
@@ -1237,12 +1279,6 @@ new #[Layout('components.layouts.app.message')] class extends Component {
                     </div>
                 @endforelse
             </div>
-
         </div>
-
     </div>
-
-
 @endpush
-
-

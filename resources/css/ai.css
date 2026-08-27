@@ -1,0 +1,170 @@
+/* =========================================
+   AI Response Animation
+   ========================================= */
+@keyframes aiBlockIn {
+    from {
+        opacity: 0;
+        transform: translateY(3px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.ai-response-new > * {
+    animation: aiBlockIn 0.25s ease forwards;
+    opacity: 0;
+}
+
+.ai-response-new > *:nth-child(1) { animation-delay: 0ms; }
+.ai-response-new > *:nth-child(2) { animation-delay: 60ms; }
+.ai-response-new > *:nth-child(3) { animation-delay: 120ms; }
+.ai-response-new > *:nth-child(4) { animation-delay: 180ms; }
+.ai-response-new > *:nth-child(5) { animation-delay: 240ms; }
+.ai-response-new > *:nth-child(n+6) { animation-delay: 300ms; }
+
+/* =========================================
+   AI Prose Styles
+   ========================================= */
+.ai-prose pre {
+    position: relative;
+    padding: 0 !important;
+    background: transparent !important;
+}
+
+.ai-prose pre code.hljs {
+    border-radius: 0.5rem;
+    padding: 1rem 1.25rem !important;
+    font-size: 0.8rem !important;
+    line-height: 1.6 !important;
+}
+
+.ai-prose .code-block-wrapper {
+    position: relative;
+    margin: 0.75rem 0;
+}
+
+.ai-prose .code-block-wrapper .code-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.35rem 0.75rem;
+    background: #1e2030;
+    border-radius: 0.5rem 0.5rem 0 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.ai-prose .code-block-wrapper .code-toolbar .lang-label {
+    font-size: 0.7rem;
+    font-family: ui-monospace, monospace;
+    color: rgba(255, 255, 255, 0.45);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.ai-prose .code-block-wrapper .code-toolbar .copy-btn,
+.code-copy-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.4);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0.2rem 0.4rem;
+    border-radius: 0.25rem;
+    transition: color 0.15s, background 0.15s;
+}
+
+.ai-prose .code-block-wrapper .code-toolbar .copy-btn:hover,
+.code-copy-btn:hover {
+    color: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.ai-prose .code-block-wrapper pre {
+    margin: 0 !important;
+    border-radius: 0 0 0.5rem 0.5rem !important;
+    overflow: hidden;
+}
+
+.ai-prose .code-block-wrapper pre code.hljs {
+    border-radius: 0 0 0.5rem 0.5rem !important;
+}
+
+.ai-prose a {
+    color: var(--color-accent, #3b82f6);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, var(--color-accent, #3b82f6) 40%, transparent);
+    text-underline-offset: 2px;
+    transition: text-decoration-color 0.15s;
+}
+
+.ai-prose a:hover {
+    text-decoration-color: var(--color-accent, #3b82f6);
+}
+
+.ai-prose :not(pre) > code {
+    background: rgba(0, 0, 0, 0.06);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 0.25rem;
+    padding: 0.1em 0.35em;
+    font-size: 0.85em;
+    font-family: ui-monospace, 'Cascadia Code', monospace;
+}
+
+.dark .ai-prose :not(pre) > code {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.ai-prose table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+    margin: 0.75rem 0;
+}
+
+.ai-prose thead tr {
+    background: rgba(0, 0, 0, 0.04);
+    border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+}
+
+.dark .ai-prose thead tr {
+    background: rgba(255, 255, 255, 0.05);
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.ai-prose th,
+.ai-prose td {
+    padding: 0.45rem 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.dark .ai-prose th,
+.dark .ai-prose td {
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+.ai-prose img {
+    border-radius: 0.5rem;
+    max-width: 100%;
+    height: auto;
+    margin: 0.5rem 0;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.dark .ai-prose img {
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+.ai-prose blockquote {
+    border-left: 3px solid color-mix(in srgb, currentColor 30%, transparent);
+    padding-left: 0.75rem;
+    margin-left: 0;
+    font-style: normal;
+    opacity: 0.75;
+}

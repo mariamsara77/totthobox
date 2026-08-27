@@ -5,8 +5,9 @@ use App\Models\Para;
 use Livewire\WithPagination;
 use Illuminate\Support\Str;
 use Livewire\Attributes\{Computed, Validate};
+use Livewire\Attributes\Layout;
 
-new class extends Component {
+new #[Layout('components.layouts.admin')] class extends Component {
     use WithPagination;
 
     public $paraId;
@@ -77,7 +78,7 @@ new class extends Component {
     public function save()
     {
         $this->validate([
-            'para_number' => 'unique:paras,para_number,' . $this->paraId
+            'para_number' => 'unique:paras,para_number,' . $this->paraId,
         ]);
 
         $data = [
@@ -128,12 +129,13 @@ new class extends Component {
             <flux:subheading>Manage the 30 Paras of Al-Quran.</flux:subheading>
         </div>
 
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-4">
             <flux:radio.group wire:model.live="viewType" variant="segmented" size="sm">
                 <flux:radio value="active" label="Active" />
                 <flux:radio value="trashed" label="Trashed" />
             </flux:radio.group>
-            <flux:button wire:click="showCreateForm" icon="plus" variant="primary" size="sm">Create New</flux:button>
+            <flux:button wire:click="showCreateForm" icon="plus" variant="primary" size="sm">Create New
+            </flux:button>
         </div>
     </div>
 
@@ -174,16 +176,17 @@ new class extends Component {
 
                     <flux:table.cell align="end">
                         <div class="flex justify-end gap-1">
-                            @if($viewType === 'active')
+                            @if ($viewType === 'active')
                                 <flux:button variant="ghost" size="sm" icon="pencil-square"
                                     wire:click="showEditForm({{ $para->id }})" />
-                                <flux:button variant="ghost" size="sm" icon="trash" color="red" wire:confirm="আর ইউ সিওর?"
-                                    wire:click="delete({{ $para->id }})" />
+                                <flux:button variant="ghost" size="sm" icon="trash" color="red"
+                                    wire:confirm="আর ইউ সিওর?" wire:click="delete({{ $para->id }})" />
                             @else
                                 <flux:button variant="ghost" size="sm" icon="arrow-path" color="green"
                                     wire:click="restore({{ $para->id }})" />
                                 <flux:button variant="ghost" size="sm" icon="x-mark" color="red"
-                                    wire:confirm="স্থায়ীভাবে মুছে ফেলতে চান?" wire:click="forceDelete({{ $para->id }})" />
+                                    wire:confirm="স্থায়ীভাবে মুছে ফেলতে চান?"
+                                    wire:click="forceDelete({{ $para->id }})" />
                             @endif
                         </div>
                     </flux:table.cell>
@@ -191,7 +194,7 @@ new class extends Component {
             @empty
                 <flux:table.row>
                     <flux:table.cell colspan="4" class="text-center py-10 text-zinc-400">
-                        @if($viewType === 'active')
+                        @if ($viewType === 'active')
                             কোনো তথ্য পাওয়া যায়নি।
                         @else
                             তথ্য পাওয়া যায়নি।
@@ -222,7 +225,7 @@ new class extends Component {
 
             <flux:checkbox wire:model="is_active" label="পাবলিশ করুন (Active)" />
 
-            <div class="flex justify-end gap-3 pt-6 border-t border-zinc-100 dark:border-zinc-800">
+            <div class="flex justify-end gap-4 pt-6 border-t border-zinc-400/25">
                 <flux:modal.close>
                     <flux:button variant="ghost">বাতিল</flux:button>
                 </flux:modal.close>

@@ -8,10 +8,16 @@ use App\Models\Thana;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 use Illuminate\Support\Str;
+use Spatie\Activitylog\Models\Activity;
 use Livewire\Attributes\{Computed, Validate, On};
+use Intervention\Image\Laravel\Facades\Image;
+use Livewire\Attributes\Layout;
 
-new class extends Component {
+new #[Layout('components.layouts.admin')] class extends Component {
     use WithFileUploads, WithPagination;
+
+    public array $activities = [];
+    public ?array $selectedActivity = null;
 
     // Collections
     public $divisions = [];
@@ -21,6 +27,9 @@ new class extends Component {
 
     #[Validate('required|min:3|max:255')]
     public $title = '';
+
+    #[Validate('required|min:3|unique:tourism_bds,slug|max:255')]
+    public $slug = '';
 
     #[Validate('required|string|max:100')]
     public $tourism_type = '';
@@ -42,11 +51,6 @@ new class extends Component {
 
     #[Validate('required|in:1,0')]
     public $status = 1;
-
-    // SEO Fields
-    public $meta_title = '';
-    public $meta_description = '';
-    public $meta_keywords = '';
 
     // Media
     public $images = [];
@@ -108,7 +112,7 @@ new class extends Component {
     public function showCreateForm()
     {
         $this->resetValidation();
-        $this->reset(['tourismBdId', 'title', 'description', 'division_id', 'district_id', 'thana_id', 'is_featured', 'status', 'meta_title', 'meta_description', 'meta_keywords', 'images', 'map']);
+        $this->reset(['tourismBdId', 'title', 'slug', 'description', 'division_id', 'district_id', 'thana_id', 'is_featured', 'status', 'images', 'map']);
         $this->districts = [];
         $this->thanas = [];
         $this->dispatch('modal-show', name: 'tourism-form');
@@ -121,6 +125,7 @@ new class extends Component {
 
         $this->tourismBdId = $tourism->id;
         $this->title = $tourism->title;
+        $this->slug = $tourism->slug;
         $this->tourism_type = $tourism->tourism_type;
         $this->description = $tourism->description;
         $this->division_id = $tourism->division_id;
@@ -128,9 +133,6 @@ new class extends Component {
         $this->thana_id = $tourism->thana_id;
         $this->is_featured = (bool) $tourism->is_featured;
         $this->status = $tourism->status;
-        $this->meta_title = $tourism->meta_title;
-        $this->meta_description = $tourism->meta_description;
-        $this->meta_keywords = $tourism->meta_keywords;
 
         // Load dependent dropdowns
         $this->districts = District::where('division_id', $this->division_id)->get();
@@ -174,6 +176,13 @@ new class extends Component {
     {
         $this->validate([
             'title' => 'required|min:3|max:255',
+            'slug' => [
+                'required',
+                'min:3',
+                'max:255',
+                // Ignore current record when editing
+                \Illuminate\Validation\Rule::unique('tourism_bds', 'slug')->ignore($this->tourismBdId),
+            ],
             'tourism_type' => 'required',
             'description' => 'required|min:10',
             'division_id' => 'required|exists:divisions,id',
@@ -189,36 +198,49 @@ new class extends Component {
                 'title' => $this->title,
                 'tourism_type' => $this->tourism_type,
                 'description' => $this->description,
-                'slug' => Str::slug($this->title),
+                'slug' => $this->slug ?: Str::slug($this->title),
                 'division_id' => $this->division_id,
                 'district_id' => $this->district_id,
                 'thana_id' => $this->thana_id,
                 'is_featured' => $this->is_featured,
                 'status' => $this->status,
-                'meta_title' => $this->meta_title ?: $this->title,
-                'meta_description' => $this->meta_description,
-                'meta_keywords' => $this->meta_keywords,
-                'user_id' => auth()->id(),
             ],
         );
 
-        // Save images
+        // ===== Process Gallery Images =====
         if (!empty($this->images)) {
-            foreach ($this->images as $image) {
-                if ($image instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
+            foreach ($this->images as $file) {
+                if ($file instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
+                    $slug = Str::slug($tourism->slug ?: $tourism->title);
+                    $fileName = "{$slug}-totthobox-tourism-bd-" . Str::lower(Str::random(6)) . '.webp';
+
+                    // ১. মেটাডেটা রিমুভ করে WebP এ কনভার্ট
+                    $processedImage = Image::read($file->getRealPath());
+                    $processedImage->toWebp(85)->save($file->getRealPath());
+
+                    // ২. ক্লিন WebP ফাইল সেভ
                     $tourism
-                        ->addMedia($image->getRealPath())
-                        ->usingFileName(Str::random(10) . '.' . $image->getClientOriginalExtension())
+                        ->addMedia($file->getRealPath())
+                        ->usingFileName($fileName)
+                        ->usingName("{$tourism->title} - Totthobox Tourism BD")
                         ->toMediaCollection('tourism_images');
                 }
             }
         }
 
-        // Save map if provided
+        // ===== Process Map =====
         if ($this->map instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
+            $slug = Str::slug($tourism->title);
+            $fileName = "{$slug}-totthobox-tourism-map-" . Str::lower(Str::random(6)) . '.webp';
+
+            // Map-ও WebP + metadata free করা
+            $processedMap = Image::read($this->map->getRealPath());
+            $processedMap->toWebp(85)->save($this->map->getRealPath());
+
             $tourism
                 ->addMedia($this->map->getRealPath())
-                ->usingFileName(Str::random(10) . '.' . $this->map->getClientOriginalExtension())
+                ->usingFileName($fileName)
+                ->usingName("{$tourism->title} - Totthobox Tourism Map")
                 ->toMediaCollection('tourism_maps');
         }
 
@@ -260,6 +282,161 @@ new class extends Component {
         $tourism->forceDelete();
         $this->dispatch('toast', variant: 'error', text: 'Item deleted permanently.');
     }
+
+    // Helper method to safely get nested array values
+    private function safeGet($array, $key, $default = null)
+    {
+        if (!is_array($array) && !is_object($array)) {
+            return $default;
+        }
+
+        $keys = explode('.', $key);
+        $value = $array;
+
+        foreach ($keys as $segment) {
+            if (is_array($value) && isset($value[$segment])) {
+                $value = $value[$segment];
+            } elseif (is_object($value) && isset($value->$segment)) {
+                $value = $value->$segment;
+            } else {
+                return $default;
+            }
+        }
+
+        return $value;
+    }
+
+    // View activity logs with detailed changes
+    public function viewLogs(int $id): void
+    {
+        try {
+            $this->activities = Activity::query()
+                ->with('causer')
+                ->where('subject_id', $id)
+                ->where('subject_type', TourismBd::class)
+                ->latest()
+                ->get()
+                ->map(function ($activity) {
+                    try {
+                        $properties = $activity->properties ?? collect();
+
+                        // Safely convert to array if it's a collection
+                        $propertiesArray = $properties instanceof \Illuminate\Support\Collection ? $properties->toArray() : (array) $properties;
+
+                        // Format the changes for display with null checks
+                        if ($activity->event === 'updated' && isset($propertiesArray['changes'])) {
+                            $activity->formatted_changes = $this->formatChanges($propertiesArray['changes']);
+                        } elseif ($activity->event === 'created' && isset($propertiesArray['created_data'])) {
+                            $activity->formatted_data = $propertiesArray['created_data'];
+                        } elseif ($activity->event === 'deleted' && isset($propertiesArray['deleted_data'])) {
+                            $activity->formatted_data = $propertiesArray['deleted_data'];
+                        } elseif ($activity->event === 'force_deleted' && isset($propertiesArray['permanently_deleted_data'])) {
+                            $activity->formatted_data = $propertiesArray['permanently_deleted_data'];
+                        }
+
+                        return $activity;
+                    } catch (\Exception $e) {
+                        // Return a safe version of the activity if there's an error
+                        $activity->formatted_changes = [];
+                        $activity->formatted_data = [];
+                        return $activity;
+                    }
+                })
+                ->toArray();
+        } catch (\Exception $e) {
+            $this->activities = [];
+            $this->dispatch('toast', variant: 'error', text: 'Error loading activity logs.');
+        }
+
+        $this->dispatch('modal-show', name: 'activity-logs');
+    }
+
+    private function formatChanges($changes): array
+    {
+        $formatted = [];
+
+        if (!is_array($changes) || empty($changes)) {
+            return $formatted;
+        }
+
+        foreach ($changes as $field => $change) {
+            // Skip if change is not an array with old/new structure
+            if (!is_array($change) || !isset($change['old']) || !isset($change['new'])) {
+                continue;
+            }
+
+            // Determine field type for display
+            $type = 'text';
+            if (in_array($field, ['description', 'content', 'details', 'long_description'])) {
+                $type = 'textarea';
+            } elseif (in_array($field, ['categories', 'tags', 'types'])) {
+                $type = 'categories';
+            }
+
+            // Safely get old and new values
+            $oldValue = $change['old'] ?? null;
+            $newValue = $change['new'] ?? null;
+
+            // Format arrays and objects
+            if (is_array($oldValue) || is_object($oldValue)) {
+                $oldValue = json_encode($oldValue, JSON_UNESCAPED_UNICODE);
+            }
+            if (is_array($newValue) || is_object($newValue)) {
+                $newValue = json_encode($newValue, JSON_UNESCAPED_UNICODE);
+            }
+
+            $formatted[] = [
+                'field' => $this->formatFieldName($field),
+                'type' => $type,
+                'old' => $oldValue,
+                'new' => $newValue,
+            ];
+        }
+
+        return $formatted;
+    }
+
+    private function formatFieldName($field): string
+    {
+        $names = [
+            'title' => 'Title',
+            'slug' => 'Slug',
+            'description' => 'Description',
+            'tourism_type' => 'Tourism Type',
+            'division_id' => 'Division',
+            'district_id' => 'District',
+            'thana_id' => 'Thana',
+            'is_featured' => 'Featured Status',
+            'status' => 'Status',
+        ];
+
+        return $names[$field] ?? ucfirst(str_replace('_', ' ', $field));
+    }
+
+    // View specific activity details
+    public function viewActivityDetails(int $activityId): void
+    {
+        try {
+            $activity = Activity::with('causer')->find($activityId);
+
+            if ($activity) {
+                $properties = $activity->properties ?? collect();
+
+                $this->selectedActivity = [
+                    'id' => $activity->id,
+                    'event' => $activity->event ?? 'unknown',
+                    'description' => $activity->description ?? '',
+                    'causer' => $activity->causer?->name ?? 'System',
+                    'created_at' => $activity->created_at ? $activity->created_at->format('d M Y, h:i A') : now()->format('d M Y, h:i A'),
+                    'properties' => $properties instanceof \Illuminate\Support\Collection ? $properties->toArray() : (array) $properties,
+                ];
+
+                $this->dispatch('modal-show', name: 'activity-detail');
+            }
+        } catch (\Exception $e) {
+            $this->dispatch('toast', variant: 'error', text: 'Error loading activity details.');
+        }
+    }
 }; ?>
 
 <div class="">
@@ -269,7 +446,7 @@ new class extends Component {
             <flux:heading size="xl">Tourism BD Management</flux:heading>
             <flux:subheading>Manage tourism destinations in Bangladesh.</flux:subheading>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-4">
             <flux:radio.group wire:model.live="viewType" variant="segmented" size="sm">
                 <flux:radio value="active" label="Active" />
                 <flux:radio value="trashed" label="Trash" />
@@ -291,13 +468,6 @@ new class extends Component {
             <flux:table.column sortable>Title</flux:table.column>
             <flux:table.column>Location</flux:table.column>
             <flux:table.column>Status</flux:table.column>
-            <flux:table.column>
-                @if ($viewType === 'active')
-                    Creator
-                @else
-                    Deletor
-                @endif
-            </flux:table.column>
             <flux:table.column align="end">Action</flux:table.column>
         </flux:table.columns>
 
@@ -333,44 +503,15 @@ new class extends Component {
                             <flux:badge size="sm" color="zinc">Standard</flux:badge>
                         @endif
                     </flux:table.cell>
-                    <flux:table.cell>
-                        <div class="flex flex-col">
-                            @if ($viewType === 'active')
-                                {{-- Creator Info --}}
-                                <div class="flex items-center gap-1">
-                                    <flux:text size="sm" class="text-zinc-500">Creator:</flux:text>
-                                    <flux:link href="{{ route('users.show', $item->creator?->slug ?? 'unknown') }}" size="sm">
-                                        {{ $item->creator?->name ?? 'Unknown' }}
-                                    </flux:link>
-                                </div>
-
-                                {{-- Editor/Updater Info (যদি থাকে) --}}
-                                @if ($item->editor && $item->updated_by !== $item->created_by)
-                                    <div class="flex items-center gap-1">
-                                        <flux:text size="xs" class="text-zinc-400">Editor:</flux:text>
-                                        <flux:link href="{{ route('users.show', $item->editor?->slug ?? 'unknown') }}" size="xs"
-                                            class="text-zinc-500!">
-                                            {{ $item->editor?->name }}
-                                        </flux:link>
-                                    </div>
-                                @endif
-                            @else
-                                {{-- Deleter Info (Trash ভিউর জন্য) --}}
-                                <div class="flex items-center gap-1">
-                                    <flux:text size="sm" class="text-red-500">Deleted By:</flux:text>
-                                    <flux:link href="{{ route('users.show', $item->deleter?->slug ?? 'unknown') }}" size="sm">
-                                        {{ $item->deleter?->name ?? 'Unknown' }}
-                                    </flux:link>
-                                </div>
-                            @endif
-                        </div>
-                    </flux:table.cell>
                     <flux:table.cell align="end">
                         @if ($viewType === 'active')
+                            <flux:button variant="ghost" size="sm" icon="clock"
+                                wire:click="viewLogs({{ $item->id }})" title="View Activity Logs" />
+
                             <flux:button variant="ghost" size="sm" icon="pencil-square"
                                 wire:click="showEditForm({{ $item->id }})" />
-                            <flux:button variant="ghost" size="sm" icon="trash" color="red" wire:confirm="Are you sure?"
-                                wire:click="delete({{ $item->id }})" />
+                            <flux:button variant="ghost" size="sm" icon="trash" color="red"
+                                wire:confirm="Are you sure?" wire:click="delete({{ $item->id }})" />
                         @else
                             @can('restore data')
                                 <flux:button variant="ghost" size="sm" icon="arrow-path" color="green"
@@ -378,7 +519,8 @@ new class extends Component {
                             @endcan
                             @can('permanent delete')
                                 <flux:button variant="ghost" size="sm" icon="x-mark" color="red"
-                                    wire:confirm="This will be deleted permanently!" wire:click="forceDelete({{ $item->id }})" />
+                                    wire:confirm="This will be deleted permanently!"
+                                    wire:click="forceDelete({{ $item->id }})" />
                             @endcan
                         @endif
                     </flux:table.cell>
@@ -393,7 +535,7 @@ new class extends Component {
     </flux:table>
 
     {{-- Modal Form --}}
-    <flux:modal name="tourism-form" class="md:w-[60rem]">
+    <flux:modal name="tourism-form" class="md:w-240">
         <form wire:submit="save" class="space-y-6">
             <div>
                 <flux:heading size="lg">{{ $tourismBdId ? 'Edit Destination' : 'Add New Destination' }}
@@ -402,6 +544,7 @@ new class extends Component {
             </div>
 
             <flux:input wire:model="title" label="Destination Title" placeholder="Enter destination title..." />
+            <flux:input wire:model="slug" label="Slug" placeholder="Enter slug..." />
 
             <flux:select wire:model="tourism_type" label="পর্যটনের ধরন (Tourism Type)" placeholder="ধরন নির্বাচন করুন">
                 <option value="">ধরন নির্বাচন করুন</option>
@@ -479,18 +622,7 @@ new class extends Component {
                 </div>
             </div>
 
-            {{-- <flux:accordion>
-                <flux:accordion.item title="SEO Settings">
-                    <div class="space-y-4 pt-4">
-                        <flux:input wire:model="meta_title" label="SEO Title" />
-                        <flux:textarea wire:model="meta_description" label="Meta Description" />
-                        <flux:input wire:model="meta_keywords" label="Keywords"
-                            placeholder="keyword1, keyword2, keyword3" />
-                    </div>
-                </flux:accordion.item>
-            </flux:accordion> --}}
-
-            <div class="flex justify-end gap-3 pt-6 border-t border-zinc-100 dark:border-zinc-800">
+            <div class="flex justify-end gap-4 pt-6 border-t border-zinc-400/25">
                 <flux:modal.close>
                     <flux:button variant="ghost">Cancel</flux:button>
                 </flux:modal.close>
@@ -499,5 +631,242 @@ new class extends Component {
                 </flux:button>
             </div>
         </form>
+    </flux:modal>
+
+    {{-- Activity Logs Modal --}}
+    <flux:modal name="activity-logs" class="w-full">
+        <div class="space-y-6">
+            <div class="flex justify-between items-center">
+                <div>
+                    <flux:heading size="lg">Activity History</flux:heading>
+                    <flux:subheading>Detailed change log with before/after values</flux:subheading>
+                </div>
+            </div>
+
+            <div class="space-y-6 pr-2">
+                @forelse($activities as $log)
+                    @php
+                        $event = $log['event'] ?? 'unknown';
+                        $createdAt = isset($log['created_at'])
+                            ? \Carbon\Carbon::parse($log['created_at'])->format('d M Y, h:i A')
+                            : '';
+                        $causer = $log['causer'] ?? null;
+                        $causerName = $causer['name'] ?? 'System';
+                        $causerAvatar = $causer['avatar_url'] ?? null;
+                        $formattedChanges = $log['formatted_changes'] ?? [];
+                        $formattedData = $log['formatted_data'] ?? [];
+                    @endphp
+
+                    <div
+                        class="relative pl-4 border-l-2 {{ $event === 'created'
+                            ? 'border-green-500'
+                            : ($event === 'updated'
+                                ? 'border-blue-500'
+                                : ($event === 'restored'
+                                    ? 'border-yellow-500'
+                                    : 'border-red-500')) }}">
+                        <div class="flex flex-col gap-4">
+                            {{-- Header --}}
+                            <div class="flex justify-between items-center">
+                                <div class="flex items-center gap-4">
+                                    <flux:badge size="sm"
+                                        color="{{ $event === 'created'
+                                            ? 'green'
+                                            : ($event === 'updated'
+                                                ? 'blue'
+                                                : ($event === 'restored'
+                                                    ? 'yellow'
+                                                    : 'red')) }}">
+                                        {{ ucfirst($event) }}
+                                    </flux:badge>
+                                    <span class="text-sm font-medium text-zinc-700">
+                                        {{ $log['description'] ?? 'No description' }}
+                                    </span>
+                                </div>
+                                <span class="text-xs text-zinc-500">
+                                    {{ $createdAt }}
+                                </span>
+                            </div>
+
+                            {{-- User --}}
+                            <div class="flex items-center gap-2 text-sm">
+                                <span class="text-zinc-600">By:</span>
+                                <flux:profile :chevron="false" name="{{ $causerName }}"
+                                    avatar="{{ $causerAvatar }}" />
+                            </div>
+
+                            {{-- Changes Display --}}
+                            @if ($event === 'updated' && !empty($formattedChanges))
+                                <div class="mt-2 space-y-3">
+                                    @foreach ($formattedChanges as $change)
+                                        @php
+                                            $field = $change['field'] ?? 'Unknown Field';
+                                            $type = $change['type'] ?? 'text';
+                                            $oldValue = $change['old'] ?? '(empty)';
+                                            $newValue = $change['new'] ?? '(empty)';
+                                        @endphp
+
+                                        <div class="bg-zinc-50 rounded-lg p-3">
+                                            <div class="text-sm font-medium text-zinc-700 mb-2">
+                                                {{ $field }}
+                                            </div>
+
+                                            @if ($type === 'textarea')
+                                                <div class="grid grid-cols-2 gap-4">
+                                                    <div>
+                                                        <div class="text-xs text-red-500 mb-2">Before:</div>
+                                                        <div
+                                                            class="text-xs bg-white p-2 rounded border border-zinc-200 max-h-32 overflow-y-auto">
+                                                            {!! nl2br(e($oldValue)) !!}
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <div class="text-xs text-green-500 mb-2">After:</div>
+                                                        <div
+                                                            class="text-xs bg-white p-2 rounded border border-zinc-200 max-h-32 overflow-y-auto">
+                                                            {!! nl2br(e($newValue)) !!}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            @elseif($type === 'categories')
+                                                <div class="grid grid-cols-2 gap-4">
+                                                    <div>
+                                                        <div class="text-xs text-red-500 mb-2">Before:</div>
+                                                        <div class="flex flex-wrap gap-1">
+                                                            @foreach (explode(', ', $oldValue) as $cat)
+                                                                @if ($cat && $cat !== 'None' && $cat !== '(empty)')
+                                                                    <flux:badge size="sm" color="red"
+                                                                        variant="subtle">{{ $cat }}
+                                                                    </flux:badge>
+                                                                @else
+                                                                    <span class="text-xs text-zinc-400">None</span>
+                                                                @endif
+                                                            @endforeach
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <div class="text-xs text-green-500 mb-2">After:</div>
+                                                        <div class="flex flex-wrap gap-1">
+                                                            @foreach (explode(', ', $newValue) as $cat)
+                                                                @if ($cat && $cat !== 'None' && $cat !== '(empty)')
+                                                                    <flux:badge size="sm" color="green"
+                                                                        variant="subtle">{{ $cat }}
+                                                                    </flux:badge>
+                                                                @else
+                                                                    <span class="text-xs text-zinc-400">None</span>
+                                                                @endif
+                                                            @endforeach
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            @else
+                                                <div class="grid grid-cols-2 gap-4">
+                                                    <div>
+                                                        <div class="text-xs text-red-500 mb-2">Before:</div>
+                                                        <div
+                                                            class="text-sm bg-white p-2 rounded border border-zinc-200 break-words">
+                                                            {{ $oldValue }}
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <div class="text-xs text-green-500 mb-2">After:</div>
+                                                        <div
+                                                            class="text-sm bg-white p-2 rounded border border-zinc-200 break-words">
+                                                            {{ $newValue }}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            @endif
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @elseif(in_array($event, ['created', 'deleted', 'force_deleted']) && !empty($formattedData))
+                                <div class="mt-2 bg-zinc-50 rounded-lg p-3">
+                                    <div class="grid grid-cols-1 gap-4">
+                                        @foreach ($formattedData as $key => $value)
+                                            @php
+                                                $displayValue = is_array($value)
+                                                    ? implode(', ', $value)
+                                                    : (string) $value;
+                                            @endphp
+                                            <div class="flex">
+                                                <span
+                                                    class="text-xs font-medium text-zinc-500 w-24">{{ ucfirst($key) }}:</span>
+                                                <span
+                                                    class="text-sm break-words">{{ $displayValue ?: '(empty)' }}</span>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+
+                            {{-- View Details Button --}}
+                            <div class="flex justify-end">
+                                <flux:button size="xs" variant="ghost" icon="eye"
+                                    wire:click="viewActivityDetails({{ $log['id'] ?? 0 }})">
+                                    View Full Details
+                                </flux:button>
+                            </div>
+                        </div>
+                    </div>
+                @empty
+                    <div class="text-center py-8 text-zinc-400">
+                        <flux:icon name="clock" class="w-12 h-12 mx-auto mb-2" />
+                        <p>No activity logs found.</p>
+                    </div>
+                @endforelse
+            </div>
+        </div>
+    </flux:modal>
+
+    <flux:modal name="activity-detail" class="w-full max-w-3xl">
+        @if ($selectedActivity)
+            @php
+                $event = $selectedActivity['event'] ?? 'unknown';
+                $eventColor = $event === 'created' ? 'green' : ($event === 'updated' ? 'blue' : 'yellow');
+                $description = $selectedActivity['description'] ?? '';
+                $causer = $selectedActivity['causer'] ?? 'System';
+                $createdAt = $selectedActivity['created_at'] ?? '';
+                $properties = $selectedActivity['properties'] ?? null;
+            @endphp
+
+            <div class="space-y-6">
+                <div class="flex justify-between items-center">
+                    <flux:heading size="lg">Activity Details</flux:heading>
+                    <flux:badge color="{{ $eventColor }}">
+                        {{ ucfirst($event) }}
+                    </flux:badge>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="md:col-span-2">
+                        <flux:label>Description</flux:label>
+                        <flux:badge>
+                            {!! $description !!}
+                        </flux:badge>
+                    </div>
+
+                    <flux:field>
+                        <flux:label>Performed by</flux:label>
+                        <flux:input readonly value="{{ $causer }}" />
+                    </flux:field>
+
+                    <flux:field>
+                        <flux:label>Date & Time</flux:label>
+                        <flux:input readonly value="{{ $createdAt }}" />
+                    </flux:field>
+                </div>
+
+                @if ($properties)
+                    <flux:field>
+                        <flux:label>Full Properties</flux:label>
+                        <div
+                            class="bg-zinc-950 p-4 rounded-lg text-emerald-400 text-xs font-mono overflow-auto max-h-60 border border-zinc-800 whitespace-pre-wrap">
+                            {{ json_encode($properties, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}
+                        </div>
+                    </flux:field>
+                @endif
+            </div>
+        @endif
     </flux:modal>
 </div>

@@ -1,35 +1,36 @@
 importScripts('https://storage.googleapis.com/workbox-cdn/releases/6.4.1/workbox-sw.js');
 
 if (workbox) {
-    console.log("✅ Totthobox Professional SW Active!");
+    console.log('✅ Totthobox SW Active (Smart Caching)');
 
-    // ১. Force Update: SW update hole jate instant kaj kore
-    self.addEventListener('install', () => self.skipWaiting());
-    self.addEventListener('activate', () => self.clients.claim());
+    self.skipWaiting();
+    workbox.core.clientsClaim();
 
-    // ২. Static Assets Caching (JS, CSS, Fonts, Images)
+    // Google Translate → always network (optional, চাইলে রাখতে পারো)
     workbox.routing.registerRoute(
-        ({request}) => 
-            request.destination === 'style' || 
-            request.destination === 'script' || 
-            request.destination === 'font' || 
-            request.destination === 'image',
-        new workbox.strategies.CacheFirst({
-            cacheName: 'totthobox-assets',
-            plugins: [
-                new workbox.expiration.ExpirationPlugin({ maxEntries: 200, maxAgeSeconds: 30 * 24 * 60 * 60 })
-            ],
-        })
+        ({ url }) =>
+            url.hostname.includes('translate.google.com') ||
+            url.hostname.includes('translate.googleapis.com'),
+        new workbox.strategies.NetworkOnly()
     );
 
-    // ৩. Every Page Caching (The Heart of your Request)
-    // Ei strategy-ti prottekta visited page-ke automatic save korbe
+    // 1. Static Assets (Vite, Livewire, Flux, CSS, JS, Font, Image)
+    // CacheFirst → একবার load হলে চিরকাল cache থেকে আসবে (hash থাকলে perfect)
     workbox.routing.registerRoute(
-        ({request, url}) => request.mode === 'navigate' || url.origin === self.location.origin,
-        new workbox.strategies.NetworkFirst({
-            cacheName: 'totthobox-pages-cache',
-            networkTimeoutSeconds: 3, // ৩ সেকেন্ডের modhe net na পেলে cache theke load korbe
+        ({ request, url }) =>
+            url.origin === self.location.origin &&
+            (request.destination === 'style' ||
+                request.destination === 'script' ||
+                request.destination === 'font' ||
+                request.destination === 'image' ||
+                request.destination === 'worker'),
+        new workbox.strategies.CacheFirst({
+            cacheName: 'totthobox-assets-v1',
             plugins: [
+                new workbox.expiration.ExpirationPlugin({
+                    maxEntries: 300,
+                    maxAgeSeconds: 60 * 24 * 60 * 60, // 60 days
+                }),
                 new workbox.cacheableResponse.CacheableResponsePlugin({
                     statuses: [0, 200],
                 }),
@@ -37,6 +38,29 @@ if (workbox) {
         })
     );
 
-    // ৪. Offline Fallback
-    workbox.recipes.offlineFallback({ pageFallback: '/offline' });
+    // 2. Page / Navigation → NetworkFirst
+    // নেট থাকলে নতুন data আনবে, না থাকলে cache থেকে দিবে
+    workbox.routing.registerRoute(
+        ({ request, url }) =>
+            url.origin === self.location.origin &&
+            (request.mode === 'navigate' || request.destination === 'document'),
+        new workbox.strategies.NetworkFirst({
+            cacheName: 'totthobox-pages-v1',
+            networkTimeoutSeconds: 4,
+            plugins: [
+                new workbox.cacheableResponse.CacheableResponsePlugin({
+                    statuses: [200],
+                }),
+                new workbox.expiration.ExpirationPlugin({
+                    maxEntries: 50,
+                    maxAgeSeconds: 7 * 24 * 60 * 60, // 7 days
+                }),
+            ],
+        })
+    );
+
+    // 3. Offline fallback
+    workbox.recipes.offlineFallback({
+        pageFallback: '/offline',
+    });
 }

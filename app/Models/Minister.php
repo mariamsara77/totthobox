@@ -61,22 +61,6 @@ class Minister extends BaseModel implements HasMedia
     ];
 
 
-    public function registerMediaCollections(): void
-    {
-        $this->addMediaCollection('images');
-    }
-
-    /**
-     * Spatie Image v3 অনুযায়ী ফিক্সড থাম্বনেইল কনভার্সন
-     */
-    public function registerMediaConversions(?Media $media = null): void
-    {
-        $this->addMediaConversion('thumb')
-            ->fit(Fit::Crop, 300, 300) // ইমেজ ক্রপ করে সুন্দর থাম্বনেইল করবে
-            ->sharpen(10)
-            ->nonQueued();
-    }
-
     /**
      * Relationships
      */
@@ -93,30 +77,5 @@ class Minister extends BaseModel implements HasMedia
     public function thana()
     {
         return $this->belongsTo(Thana::class);
-    }
-
-    public function user()
-    {
-        return $this->belongsTo(User::class);
-    }
-
-    public function creator()
-    {
-        return $this->belongsTo(User::class, 'created_by');
-    }
-
-    public function updater()
-    {
-        return $this->belongsTo(User::class, 'updated_by');
-    }
-
-    public function deleter()
-    {
-        return $this->belongsTo(User::class, 'deleted_by');
-    }
-
-    public function publisher()
-    {
-        return $this->belongsTo(User::class, 'published_by');
     }
 }

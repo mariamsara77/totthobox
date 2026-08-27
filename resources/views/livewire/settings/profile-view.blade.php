@@ -11,13 +11,8 @@ new class extends Component {
     public function mount(): void
     {
         // সরাসরি authenticated user-কে ডাটাবেস থেকে রিলেশনসহ ফেচ করছি
-        $this->user = Auth::user()->load([
-            'classLevel', 
-            'district', 
-            'division', 
-            'thana'
-        ]);
-        
+        $this->user = Auth::user()->load(['classLevel', 'district', 'division', 'thana']);
+
         // যদি roles কাউন্ট করার প্রয়োজন হয়
         $this->user->loadCount('roles');
     }
@@ -31,57 +26,59 @@ new class extends Component {
 
     <x-settings.layout :heading="__('পাবলিক প্রোফাইল')" :subheading="$user->name">
         <div class="mt-6 space-y-6">
-            
+
             {{-- ১. হিরো কার্ড (Main Profile Card) --}}
-          
-                <flux:card>
-                    <div class="flex flex-col items-center text-center md:flex-row md:items-start md:text-left gap-6 relative z-10">
-                        {{-- অবতার সেকশন --}}
-                        <div class="relative shrink-0">
-                            <flux:avatar 
-                                :src="$user->getFirstMediaUrl('avatars', 'thumb')" 
-                                :initials="$user->initials()" 
-                                class="size-28 sm:size-32 md:size-40 shadow-xl border-4 border-white dark:border-zinc-800 ring-1 ring-black/5" 
-                            />
-                        </div>
 
-                        {{-- প্রোফাইল ডিটেইলস --}}
-                        <div class="flex-1 space-y-4">
-                            <div class="space-y-1">
-                                <div class="flex flex-col items-center md:items-start gap-2">
-                                    <h1 class="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-white tracking-tight">
-                                        {{ $user->name }}
-                                    </h1>
-                                    {{-- <flux:badge size="sm" color="zinc" variant="subtle" class="font-mono lowercase px-3">
-                                        @ {{ $user->username }}
-                                    </flux:badge> --}}
-                                </div>
-                                <p class="text-base sm:text-lg text-zinc-500 dark:text-zinc-400 font-medium flex items-center justify-center md:justify-start gap-2 mt-2">
-                                    <flux:icon.briefcase class="size-4 text-primary-500" />
-                                    {{ $user->profession ?? 'সদস্য' }}
-                                </p>
-                            </div>
-
-                            {{-- রোলস --}}
-                            <div class="flex flex-wrap justify-center md:justify-start gap-2">
-                                @foreach ($user->roles as $role)
-                                    <flux:badge variant="solid" color="primary" class="rounded-full px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider">
-                                        {{ $role->name }}
-                                    </flux:badge>
-                                @endforeach
-                            </div>
-
-                            {{-- অ্যাকশন বাটন --}}
-                            @if (auth()->id() === $user->id)
-                                <div class="pt-2">
-                                    <flux:button href="{{ route('profile.settings') }}" variant="filled" size="sm" icon="pencil-square" wire:navigate class="rounded-xl">
-                                        প্রোফাইল এডিট করুন
-                                    </flux:button>
-                                </div>
-                            @endif
-                        </div>
+            <flux:card>
+                <div
+                    class="flex flex-col items-center text-center md:flex-row md:items-start md:text-left gap-6 relative z-10">
+                    {{-- অবতার সেকশন --}}
+                    <div class="relative shrink-0">
+                        <flux:avatar :src="$user->getFirstMediaUrl('avatars', 'thumb')" :initials="$user->initials()"
+                            class="size-28 sm:size-32 md:size-40 shadow-xl border-4 border-white dark:border-zinc-800 ring-1 ring-black/5" />
                     </div>
-                </flux:card>
+
+                    {{-- প্রোফাইল ডিটেইলস --}}
+                    <div class="flex-1 space-y-4">
+                        <div class="space-y-1">
+                            <div class="flex flex-col items-center md:items-start gap-4">
+                                <h1 class="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-white tracking-tight">
+                                    {{ $user->name }}
+                                </h1>
+                                {{-- <flux:badge size="sm" color="zinc" variant="subtle"
+                                    class="font-mono lowercase px-3">
+                                    @ {{ $user->username }}
+                                </flux:badge> --}}
+                            </div>
+                            <p
+                                class="text-base sm:text-lg text-zinc-500 dark:text-zinc-400 font-medium flex items-center justify-center md:justify-start gap-2 mt-2">
+                                <flux:icon.briefcase class="size-4 text-primary-500" />
+                                {{ $user->profession ?? 'সদস্য' }}
+                            </p>
+                        </div>
+
+                        {{-- রোলস --}}
+                        <div class="flex flex-wrap justify-center md:justify-start gap-4">
+                            @foreach ($user->roles as $role)
+                                <flux:badge variant="solid" color="primary"
+                                    class="rounded-full px-3 py-0.5 text-xs font-bold uppercase tracking-wider">
+                                    {{ $role->name }}
+                                </flux:badge>
+                            @endforeach
+                        </div>
+
+                        {{-- অ্যাকশন বাটন --}}
+                        @if (auth()->id() === $user->id)
+                            <div class="pt-2">
+                                <flux:button href="{{ route('profile.settings') }}" variant="filled" size="sm"
+                                    icon="pencil-square" wire:navigate class="rounded-xl">
+                                    প্রোফাইল এডিট করুন
+                                </flux:button>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            </flux:card>
 
             {{-- ২. ইনফরমেশন গ্রিড (মোবাইলে এক কলাম, বড় স্ক্রিনে দুই কলাম হতে পারে) --}}
             <div class="grid grid-cols-1 gap-6">
@@ -89,15 +86,16 @@ new class extends Component {
                 {{-- বায়ো (Bio) --}}
                 @if ($user->bio)
                     <flux:card>
-                        <div class="prose prose-sm sm:prose-base dark:prose-invert max-w-none text-zinc-700 dark:text-zinc-300">
+                        <div
+                            class="prose prose-sm sm:prose-base dark:prose-invert max-w-none text-zinc-700 dark:text-zinc-300">
                             {!! $user->bio !!}
                         </div>
                     </flux:card>
                 @endif
-                
+
                 {{-- পরিচয় ও শিক্ষা কার্ড --}}
                 <flux:card>
-                    <flux:heading size="lg" class="mb-6 flex items-center gap-2">
+                    <flux:heading size="lg" class="mb-6 flex items-center gap-4">
                         <flux:icon.user-circle class="size-5 text-primary-500" />
                         পরিচয় ও শিক্ষা
                     </flux:heading>
@@ -109,8 +107,12 @@ new class extends Component {
                                 <flux:icon.academic-cap class="size-5" />
                             </div>
                             <div>
-                                <span class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block mb-0.5">শিক্ষাগত যোগ্যতা</span>
-                                <p class="text-sm font-semibold text-zinc-800 dark:text-zinc-200">{{ $user->education ?? 'তথ্য নেই' }}</p>
+                                <span
+                                    class="text-xs font-bold text-zinc-400 uppercase tracking-widest block mb-2">শিক্ষাগত
+                                    যোগ্যতা</span>
+                                <p class="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+                                    {{ $user->education ?? 'তথ্য নেই' }}
+                                </p>
                             </div>
                         </div>
 
@@ -120,8 +122,11 @@ new class extends Component {
                                 <flux:icon.list-bullet class="size-5" />
                             </div>
                             <div>
-                                <span class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block mb-0.5">শ্রেণী/স্তর</span>
-                                <p class="text-sm font-semibold text-zinc-800 dark:text-zinc-200">{{ $user->classLevel?->name ?? '—' }}</p>
+                                <span
+                                    class="text-xs font-bold text-zinc-400 uppercase tracking-widest block mb-2">শ্রেণী/স্তর</span>
+                                <p class="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+                                    {{ $user->classLevel?->name ?? '—' }}
+                                </p>
                             </div>
                         </div>
 
@@ -131,8 +136,12 @@ new class extends Component {
                                 <flux:icon.map-pin class="size-5" />
                             </div>
                             <div>
-                                <span class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block mb-0.5">বর্তমান এলাকা</span>
-                                <p class="text-sm font-semibold text-zinc-800 dark:text-zinc-200">{{ $user->location ?? 'গোপন' }}</p>
+                                <span
+                                    class="text-xs font-bold text-zinc-400 uppercase tracking-widest block mb-2">বর্তমান
+                                    এলাকা</span>
+                                <p class="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+                                    {{ $user->location ?? 'গোপন' }}
+                                </p>
                             </div>
                         </div>
 
@@ -142,8 +151,12 @@ new class extends Component {
                                 <flux:icon.calendar-days class="size-5" />
                             </div>
                             <div>
-                                <span class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block mb-0.5">নিবন্ধন তারিখ</span>
-                                <p class="text-sm font-semibold text-zinc-800 dark:text-zinc-200">{{ bn_date($user->created_at?->Format('d M Y')) }}</p>
+                                <span
+                                    class="text-xs font-bold text-zinc-400 uppercase tracking-widest block mb-2">নিবন্ধন
+                                    তারিখ</span>
+                                <p class="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+                                    {{ bn_date($user->created_at?->Format('d M Y')) }}
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -155,18 +168,17 @@ new class extends Component {
                     <flux:card>
                         <flux:heading size="sm" class="mb-4">আঞ্চলিক অবস্থান</flux:heading>
                         <div class="space-y-4">
-                            @foreach([
-                                ['label' => 'বিভাগ', 'value' => $user->division?->name, 'icon' => 'building-office'],
-                                ['label' => 'জেলা', 'value' => $user->district?->name, 'icon' => 'map-pin'],
-                                ['label' => 'থানা', 'value' => $user->thana?->name, 'icon' => 'home']
-                            ] as $loc)
-                                <div class="flex items-center gap-3">
-                                    <div class="size-8 flex items-center justify-center bg-primary-50 dark:bg-primary-900/20 text-primary-600 rounded-lg">
+                            @foreach ([['label' => 'বিভাগ', 'value' => $user->division?->name, 'icon' => 'building-office'], ['label' => 'জেলা', 'value' => $user->district?->name, 'icon' => 'map-pin'], ['label' => 'থানা', 'value' => $user->thana?->name, 'icon' => 'home']] as $loc)
+                                <div class="flex items-center gap-4">
+                                    <div
+                                        class="size-8 flex items-center justify-center bg-primary-50 dark:bg-primary-900/20 text-primary-600 rounded-lg">
                                         <flux:icon :name="$loc['icon']" class="size-4" />
                                     </div>
-                                    <div class="flex-1 border-b border-zinc-100 dark:border-zinc-800 pb-1">
-                                        <span class="text-[9px] font-bold uppercase text-zinc-400 block">{{ $loc['label'] }}</span>
-                                        <span class="text-sm font-medium text-zinc-800 dark:text-zinc-200">{{ $loc['value'] ?? '—' }}</span>
+                                    <div class="flex-1 border-b border-zinc-400/25 pb-1">
+                                        <span
+                                            class="text-[9px] font-bold uppercase text-zinc-400 block">{{ $loc['label'] }}</span>
+                                        <span
+                                            class="text-sm font-medium text-zinc-800 dark:text-zinc-200">{{ $loc['value'] ?? '—' }}</span>
                                     </div>
                                 </div>
                             @endforeach
@@ -175,36 +187,42 @@ new class extends Component {
 
                     {{-- ভেরিফিকেশন কার্ড --}}
                     <flux:card class="relative">
-                        {{-- <flux:icon.shield-check class="absolute -top-2 -right-2 size-20 text-white/5 rotate-12" /> --}}
-                        
+                        {{-- <flux:icon.shield-check class="absolute -top-2 -right-2 size-20 text-white/5 rotate-12" />
+                        --}}
+
                         <div class="relative z-10 space-y-5">
                             <div>
-                                <span class="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">অ্যাকাউন্ট স্ট্যাটাস</span>
+                                <span class="text-xs text-zinc-400 font-bold uppercase tracking-widest">অ্যাকাউন্ট
+                                    স্ট্যাটাস</span>
                                 <div class="flex items-center justify-between mt-2">
                                     <span class="text-sm">ভেরিফিকেশন</span>
-                                    <div class="flex items-center gap-1.5">
-                                        <span class="text-sm font-bold {{ $user->email_verified_at ? 'text-green-400' : 'text-orange-400' }}">
+                                    <div class="flex items-center gap-2">
+                                        <span
+                                            class="text-sm font-bold {{ $user->email_verified_at ? 'text-green-400' : 'text-orange-400' }}">
                                             {{ $user->email_verified_at ? 'Verified' : 'Not verified' }}
                                         </span>
-                                        <flux:icon.check-badge class="size-5 {{ $user->email_verified_at ? 'text-green-400' : 'text-zinc-600' }}" variant="solid" />
+                                        <flux:icon.check-badge
+                                            class="size-5 {{ $user->email_verified_at ? 'text-green-400' : 'text-zinc-600' }}"
+                                            variant="solid" />
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <div class="pt-4 border-t border-white/10">
                                 <span class="text-[9px] text-zinc-500 uppercase font-bold">মেম্বার আইডি</span>
-                                <p class="text-lg font-mono text-primary-400">#{{ str_pad($user->id, 6, '0', STR_PAD_LEFT) }}</p>
+                                <p class="text-lg font-mono text-primary-400">
+                                    #{{ str_pad($user->id, 6, '0', STR_PAD_LEFT) }}</p>
                             </div>
                         </div>
                     </flux:card>
                 </div>
 
                 {{-- বিস্তারিত বর্ণনা --}}
-                @if($user->details || $user->description)
+                @if ($user->bio)
                     <flux:card>
                         <flux:heading class="mb-4">বিস্তারিত তথ্য</flux:heading>
-                        <div class="text-sm sm:text-base leading-relaxed text-zinc-600 dark:text-zinc-400 whitespace-pre-line">
-                            {{ $user->details ?? $user->description }}
+                        <div class="text-sm text-base whitespace-pre-line">
+                            {{ $user->bio }}
                         </div>
                     </flux:card>
                 @endif

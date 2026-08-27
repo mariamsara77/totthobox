@@ -224,52 +224,26 @@ if (! function_exists('bn_diff_for_humans')) {
 if (! function_exists('linkify')) {
     function linkify(string $text): string
     {
-        // Escape input for XSS
-        $text = e($text);
+        // ১. আগে থেকে থাকা HTML <a> ট্যাগগুলোকে <flux:link> এ কনভার্ট করা
+        $text = preg_replace_callback('/<a\s+(?:[^>]*?\s+)?href="([^"]*)"[^>]*>(.*?)<\/a>/is', function ($matches) {
+            $href = $matches[1];
+            $content = $matches[2];
 
-        // Step 1: full URLs with protocol or www.
-        $urlPattern = '/
-            (?<!href=")                   # Negative lookbehind to avoid double linking
-            \b
-            (
-                (?:https?:\/\/|www\.)     # Protocol or www.
-                [^\s<>"\'()]+             # Domain + path (no spaces, <, >, quotes, parentheses)
-                [^\s<>"\'.,;:!?)]         # Last char not punctuation
-            )
-        /ix';
+            // লিংকে http/https না থাকলে যুক্ত করা (যেমন: href="totthobox.com")
+            if (! preg_match('~^(?:f|ht)tps?://~i', $href) && ! str_starts_with($href, '/')) {
+                $href = 'https://'.ltrim($href, '/');
+            }
 
-        $text = preg_replace_callback($urlPattern, function ($matches) {
-            $url = $matches[1];
-
-            // Add protocol if missing
-            $href = preg_match('/^www\./i', $url) ? "http://$url" : $url;
-
-            // Escape output
-            $escapedUrl = e($url);
-            $escapedHref = e($href);
-
-            return "<a href=\"$escapedHref\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"text-blue-500 underline hover:text-blue-700\">$escapedUrl</a>";
+            return sprintf('<flux:link href="%s" target="_blank">%s</flux:link>', $href, $content);
         }, $text);
 
-        // Step 2: bare domains (without protocol or www.), avoid emails
-        $domainPattern = '/
-            (?<![@\/])                   # Negative lookbehind to avoid emails and urls
-            \b
-            (
-                (?:[a-z0-9-]+\.)+        # Subdomains
-                [a-z]{2,}                # TLD
-            )
-            \b
-        /ix';
+        // ২. প্লেইন টেক্সট URL (যা কোনো ট্যাগের ভেতর নেই) সেগুলোকে <flux:link> এ কনভার্ট করা
+        $urlPattern = '/(?<!href="|">|src=")\b(?:https?:\/\/|www\.)[^\s<>"\'()]+/ix';
+        $text = preg_replace_callback($urlPattern, function ($matches) {
+            $url = $matches[0];
+            $href = preg_match('/^www\./i', $url) ? "https://$url" : $url;
 
-        $text = preg_replace_callback($domainPattern, function ($matches) {
-            $domain = $matches[1];
-            $href = "http://$domain";
-
-            $escapedDomain = e($domain);
-            $escapedHref = e($href);
-
-            return "<a href=\"$escapedHref\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"text-blue-500 underline hover:text-blue-700\">$escapedDomain</a>";
+            return sprintf('<flux:link href="%s" target="_blank">%s</flux:link>', $href, $url);
         }, $text);
 
         return $text;

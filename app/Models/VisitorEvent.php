@@ -11,6 +11,7 @@ class VisitorEvent extends Model
 
     protected $fillable = [
         'session_id',
+        'visitor_id',
         'event_category',
         'event_action',
         'event_label',
@@ -19,12 +20,17 @@ class VisitorEvent extends Model
     ];
 
     protected $casts = [
-        'payload' => 'array',
+        'payload'    => 'array',
         'created_at' => 'datetime',
     ];
 
     public function session(): BelongsTo
     {
         return $this->belongsTo(VisitorSession::class, 'session_id');
+    }
+
+    public function visitor(): BelongsTo
+    {
+        return $this->belongsTo(Visitor::class);
     }
 }

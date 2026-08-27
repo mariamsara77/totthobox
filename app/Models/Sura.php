@@ -2,13 +2,13 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Sura extends BaseModel
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'sura_no',
@@ -20,7 +20,7 @@ class Sura extends BaseModel
         'total_ayat',
         'slug',
         'is_active',
-        'is_featured'
+        'is_featured',
     ];
 
     protected $casts = [
@@ -39,10 +39,12 @@ class Sura extends BaseModel
     {
         return $query->where('is_active', true);
     }
+
     public function scopeFeatured($query)
     {
         return $query->where('is_featured', true);
     }
+
     public function scopeMeccan($query)
     {
         return $query->where('revelation_type', 'Meccan');

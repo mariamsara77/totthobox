@@ -2,22 +2,22 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Traits\HasReactions;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
-use Illuminate\Support\Str;
-use App\Traits\HasReactions;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Image\Enums\Fit;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
-use Spatie\Image\Enums\Fit;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class BuySellPost extends BaseModel implements HasMedia
 {
-    use HasFactory, SoftDeletes, HasReactions, InteractsWithMedia;
+    use HasFactory, HasReactions, InteractsWithMedia, LogsActivity, SoftDeletes;
 
     protected $table = 'buy_sell_posts';
 
@@ -47,26 +47,18 @@ class BuySellPost extends BaseModel implements HasMedia
         'whatsapp',
         'imo',
         'email',
-        'images_count',
         'is_active',
         'is_featured',
         'status',
         'published_at',
         'expires_at',
-        'meta_title',
-        'meta_description',
-        'meta_keywords',
-        'view_count',
         'favourite_count',
-        'share_count',
         'attributes',
         'user_id',
         'created_by',
         'updated_by',
         'deleted_by',
         'published_by',
-        'ip_address',
-        'user_agent',
     ];
 
     protected $casts = [
@@ -99,7 +91,7 @@ class BuySellPost extends BaseModel implements HasMedia
             }
 
             if (empty($post->slug)) {
-                $post->slug = Str::slug($post->title . '-' . Str::random(6));
+                $post->slug = Str::slug($post->title.'-'.Str::random(6));
             }
         });
     }
@@ -131,7 +123,6 @@ class BuySellPost extends BaseModel implements HasMedia
             ->nonQueued();
     }
 
-
     /**
      * -------------------------------------------------------------------------
      * Relationships
@@ -145,11 +136,6 @@ class BuySellPost extends BaseModel implements HasMedia
     public function item()
     {
         return $this->belongsTo(BuySellItem::class, 'buy_sell_item_id');
-    }
-
-    public function user()
-    {
-        return $this->belongsTo(User::class);
     }
 
     public function division()
@@ -200,8 +186,8 @@ class BuySellPost extends BaseModel implements HasMedia
     protected function formattedPrice(): Attribute
     {
         return Attribute::make(
-            get: fn() => $this->price
-            ? number_format($this->price, 2) . ' ' . ($this->currency ?? 'BDT')
+            get: fn () => $this->price
+            ? number_format($this->price, 2).' '.($this->currency ?? 'BDT')
             : 'N/A'
         );
     }
@@ -210,7 +196,7 @@ class BuySellPost extends BaseModel implements HasMedia
     protected function shortDescription(): Attribute
     {
         return Attribute::make(
-            get: fn() => Str::limit(strip_tags($this->description ?? ''), 120)
+            get: fn () => Str::limit(strip_tags($this->description ?? ''), 120)
         );
     }
 
@@ -218,7 +204,7 @@ class BuySellPost extends BaseModel implements HasMedia
     protected function status(): Attribute
     {
         return Attribute::make(
-            set: fn($value) => strtolower($value)
+            set: fn ($value) => strtolower($value)
         );
     }
 
@@ -233,7 +219,6 @@ class BuySellPost extends BaseModel implements HasMedia
      * Query Scopes
      * -------------------------------------------------------------------------
      */
-
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
@@ -255,13 +240,14 @@ class BuySellPost extends BaseModel implements HasMedia
     public function scopeSearch(Builder $query, ?string $term): Builder
     {
         if ($term) {
-            $term = '%' . strtolower($term) . '%';
+            $term = '%'.strtolower($term).'%';
             $query->where(function ($q) use ($term) {
                 $q->whereRaw('LOWER(title) LIKE ?', [$term])
                     ->orWhereRaw('LOWER(description) LIKE ?', [$term])
                     ->orWhereRaw('LOWER(note) LIKE ?', [$term]);
             });
         }
+
         return $query;
     }
 

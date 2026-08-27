@@ -4,8 +4,7 @@ use Livewire\Volt\Component;
 use Carbon\Carbon;
 use App\Models\Holiday;
 
-new class extends Component
-{
+new class extends Component {
     public $selectedDate;
     public $currentBanglaDate;
     public $currentEnglishDate;
@@ -41,7 +40,7 @@ new class extends Component
             '03-26' => ['title' => 'Independence Day', 'type' => 'national', 'color' => 'bg-danger'],
             '02-21' => ['title' => 'Language Martyrs Day', 'type' => 'national', 'color' => 'bg-warning'],
             '12-25' => ['title' => 'Christmas', 'type' => 'religious', 'color' => 'bg-primary'],
-            '11-07' => ['title' => 'National Revolution Day', 'type' => 'national', 'color' => 'bg-secondary']
+            '11-07' => ['title' => 'National Revolution Day', 'type' => 'national', 'color' => 'bg-secondary'],
         ];
 
         // Get dynamic holidays from database for current year
@@ -55,8 +54,8 @@ new class extends Component
                         'title' => $holiday->title,
                         'type' => $holiday->type,
                         'color' => $this->getHolidayColor($holiday->type),
-                        'custom' => true // Mark as custom holiday
-                    ]
+                        'custom' => true, // Mark as custom holiday
+                    ],
                 ];
             })
             ->toArray();
@@ -71,7 +70,7 @@ new class extends Component
             'national' => 'bg-blue',
             'religious' => 'bg-purple',
             'government' => 'bg-teal',
-            default => 'bg-secondary'
+            default => 'bg-secondary',
         };
     }
 
@@ -109,31 +108,18 @@ new class extends Component
         $this->updateCalendar();
     }
 
-   public function getBanglaDateDetails($inputDate)
+    public function getBanglaDateDetails($inputDate)
     {
-        $months = [
-            "বৈশাখ",
-            "জ্যৈষ্ঠ", 
-            "আষাঢ়",
-            "শ্রাবণ",
-            "ভাদ্র",
-            "আশ্বিন",
-            "কার্তিক",
-            "অগ্রহায়ণ",
-            "পৌষ",
-            "মাঘ",
-            "ফাল্গুন",
-            "চৈত্র"
-        ];
+        $months = ['বৈশাখ', 'জ্যৈষ্ঠ', 'আষাঢ়', 'শ্রাবণ', 'ভাদ্র', 'আশ্বিন', 'কার্তিক', 'অগ্রহায়ণ', 'পৌষ', 'মাঘ', 'ফাল্গুন', 'চৈত্র'];
 
         $timestamp = strtotime($inputDate);
-        $year = date("Y", $timestamp);
+        $year = date('Y', $timestamp);
 
         $bangla_start = strtotime("14 April $year");
         $current_date = strtotime($inputDate);
 
         if ($current_date < $bangla_start) {
-            $bangla_start = strtotime("14 April " . ($year - 1));
+            $bangla_start = strtotime('14 April ' . ($year - 1));
             $bangla_year = $year - 594;
         } else {
             $bangla_year = $year - 593;
@@ -164,7 +150,7 @@ new class extends Component
             'month' => $months[$i],
             'month_index' => $i,
             'year' => $bangla_year,
-            'month_days' => $month_days[$i]
+            'month_days' => $month_days[$i],
         ];
     }
 
@@ -199,9 +185,9 @@ new class extends Component
                 'banglaMonth' => $banglaDate['month'],
                 'isToday' => $isToday,
                 'isHoliday' => $isHoliday,
-                'holidayInfo' => $isHoliday ? ($this->holidays[$holidayKey] ?? ['title' => $dayOfWeek == 5 ? '' : '', 'type' => 'weekend']) : null,
+                'holidayInfo' => $isHoliday ? $this->holidays[$holidayKey] ?? ['title' => $dayOfWeek == 5 ? '' : '', 'type' => 'weekend'] : null,
                 'date' => $date,
-                'isCurrentMonth' => true
+                'isCurrentMonth' => true,
             ];
         }
 
@@ -225,7 +211,7 @@ new class extends Component
             'isHoliday' => false,
             'holidayInfo' => null,
             'date' => null,
-            'isCurrentMonth' => false
+            'isCurrentMonth' => false,
         ];
     }
 
@@ -246,7 +232,6 @@ new class extends Component
         $this->updateCalendar();
     }
 
-
     public function showModal($date)
     {
         if ($date) {
@@ -260,20 +245,20 @@ new class extends Component
     {
         $this->validate([
             'eventTitle' => 'required|string|max:255',
-            'eventDescription' => 'nullable|string'
+            'eventDescription' => 'nullable|string',
         ]);
 
         $this->showEventModal = false;
         $this->reset(['eventTitle', 'eventDescription']);
         $this->dispatch('refreshCalendar');
     }
-};?>
+}; ?>
 
 <div class="bilingual-calendar-container space-y-4">
     <!-- Header -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <div class="rounded">
-        <h3 class="text-lg font-semibold flex items-center gap-2">
+        <h3 class="text-lg font-semibold flex items-center gap-4">
             English Calendar with Bangla Dates
         </h3>
         <div class="flex items-center mt-3 space-x-2">
@@ -290,7 +275,8 @@ new class extends Component
         <div class="py-3 flex justify-between items-center ">
             <flux:button size="sm" wire:click="navigateMonth('previous')" variant="subtle">
                 <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                    <path d="m3.86 8.753 5.482 4.796c.646.566 1.658.106 1.658-.753V3.204a1 1 0 0 0-1.659-.753l-5.48 4.796a1 1 0 0 0 0 1.506z" />
+                    <path
+                        d="m3.86 8.753 5.482 4.796c.646.566 1.658.106 1.658-.753V3.204a1 1 0 0 0-1.659-.753l-5.48 4.796a1 1 0 0 0 0 1.506z" />
                 </svg>
             </flux:button>
             <div class="flex flex-col md:flex-row items-center gap-x-4 text-center">
@@ -299,13 +285,14 @@ new class extends Component
             </div>
             <flux:button size="sm" wire:click="navigateMonth('next')" variant="subtle">
                 <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                    <path d="m12.14 8.753-5.482 4.796c-.646.566-1.658.106-1.658-.753V3.204a1 1 0 0 1 1.659-.753l5.48 4.796a1 1 0 0 1 0 1.506z" />
+                    <path
+                        d="m12.14 8.753-5.482 4.796c-.646.566-1.658.106-1.658-.753V3.204a1 1 0 0 1 1.659-.753l5.48 4.796a1 1 0 0 1 0 1.506z" />
                 </svg>
             </flux:button>
         </div>
 
         <!-- Weekday Headers -->
-        <div class="grid grid-cols-7 text-center  text-sm rounded-xl mb-1">
+        <div class="grid grid-cols-7 text-center  text-sm rounded-xl mb-2">
             <div class="py-2">Sun<br><span class="text-xs">রবি</span></div>
             <div class="py-2">Mon<br><span class="text-xs">সোম</span></div>
             <div class="py-2">Tue<br><span class="text-xs">মঙ্গল</span></div>
@@ -317,36 +304,38 @@ new class extends Component
 
         <!-- Calendar Grid -->
         <div class="divide-">
-            @foreach($calendarDays as $week)
-            <div class="grid grid-cols-7">
-                @foreach($week as $day)
-                <div wire:click="selectDate('{{ $day['date'] }}')" class="rounded-xl m-0.5 border-0  border-gray-600 cursor-pointer p-1 text-center flex flex-col justify-start items-center 
-                                {{ $day['isToday'] ? ' bg-green-300/25' : '' }}
-                                {{ $day['isHoliday'] ? 'text-red-600' : '' }}
-                                {{ !$day['isCurrentMonth'] ? 'text-gray-400 ' : '' }}
-                                {{ $day['date'] === $selectedDate ? ' bg-zinc-500/10' : '' }}">
+            @foreach ($calendarDays as $week)
+                <div class="grid grid-cols-7">
+                    @foreach ($week as $day)
+                        <div wire:click="selectDate('{{ $day['date'] }}')"
+                            class="rounded-xl m-0.5   border-gray-600 cursor-pointer p-1 text-center flex flex-col justify-start items-center 
+                                                {{ $day['isToday'] ? ' bg-green-300/25' : '' }}
+                                                {{ $day['isHoliday'] ? 'text-red-600' : '' }}
+                                                {{ !$day['isCurrentMonth'] ? 'text-gray-400 ' : '' }}
+                                                {{ $day['date'] === $selectedDate ? ' bg-zinc-500/10' : '' }}">
 
-                    <!-- English Date -->
-                    <div class="text-base font-bold">{{ $day['englishDay'] }}</div>
+                            <!-- English Date -->
+                            <div class="text-base font-bold">{{ $day['englishDay'] }}</div>
 
-                    <!-- Bangla Date -->
-                    <div class="text-green-600 font-noto text-sm">
-                        @if($day['banglaDay'] == 1 && $day['isCurrentMonth'])
-                        {{ bn_num($day['banglaDay']) }} <small class="text-[8px]">{{ $day['banglaMonth'] }}</small>
-                        @else
-                        {{ bn_num($day['banglaDay']) }}
-                        @endif
-                    </div>
+                            <!-- Bangla Date -->
+                            <div class="text-green-600 font-noto text-sm">
+                                @if ($day['banglaDay'] == 1 && $day['isCurrentMonth'])
+                                    {{ bn_num($day['banglaDay']) }} <small
+                                        class="text-[8px]">{{ $day['banglaMonth'] }}</small>
+                                @else
+                                    {{ bn_num($day['banglaDay']) }}
+                                @endif
+                            </div>
 
-                    <!-- Holiday Badge -->
-                    @if($day['isHoliday'])
-                    <div class="mt-1 text-yellow-500 rounded text-[8px] truncat">
-                        {{ $day['holidayInfo']['title'] }}
-                    </div>
-                    @endif
+                            <!-- Holiday Badge -->
+                            @if ($day['isHoliday'])
+                                <div class="mt-1 text-yellow-500 rounded text-[8px] truncat">
+                                    {{ $day['holidayInfo']['title'] }}
+                                </div>
+                            @endif
+                        </div>
+                    @endforeach
                 </div>
-                @endforeach
-            </div>
             @endforeach
         </div>
     </div>

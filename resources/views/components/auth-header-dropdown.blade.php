@@ -7,12 +7,12 @@
         </flux:profile>
         <flux:menu>
             <flux:menu.radio.group>
-                <div class="p-0 text-sm font-normal">
-                    <div class="flex items-center gap-2 px-1 py-1.5 text-start text-sm">
+                <div class="p-0 text-sm ">
+                    <div class="flex items-center gap-2 px-1 py-1.5  text-sm">
                         <flux:profile :avatar="auth()->user()->avatar ? auth()->user()->avatar : null"
                             class="cursor-pointer" :initials="auth()->user()->initials()" :icon-trailing="false" />
 
-                        <div class="grid flex-1 text-start text-sm leading-tight">
+                        <div class="grid flex-1  text-sm leading-tight">
                             <span class="truncate font-semibold">{{ auth()->user()->name }}</span>
                             <span class="truncate text-xs">{{ auth()->user()->email }}</span>
                         </div>

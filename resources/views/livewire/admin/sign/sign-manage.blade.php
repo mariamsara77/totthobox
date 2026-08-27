@@ -1,444 +1,545 @@
 <?php
 
 use Livewire\Volt\Component;
-use Livewire\WithPagination;
-use Livewire\WithFileUploads;
-use Illuminate\Support\Str;
 use App\Models\Sign;
 use App\Models\SignCategory;
+use Livewire\WithFileUploads;
+use Livewire\WithPagination;
+use Illuminate\Support\Str;
+use Spatie\Activitylog\Models\Activity;
+use Livewire\Attributes\{Computed, Validate};
+use Intervention\Image\Laravel\Facades\Image;
 use Illuminate\Support\Facades\Storage;
-use Intervention\Image\ImageManager;
 
-new class extends Component {
-    use WithPagination, WithFileUploads;
+new #[Layout('components.layouts.admin')] class extends Component {
+    use WithFileUploads, WithPagination;
 
-    // Properties
-    public $signId;
-    public $sign_category_id;
-    public $name_bn;
-    public $name_en;
-    public $image;
-    public $description_bn;
-    public $description_en;
-    public $details;
-    public $others;
-    public $status = 1;
+    public ?int $signId = null;
 
-    // Table & Search properties
-    public $search = '';
-    public $perPage = 10;
-    public $sortField = 'name_bn';
-    public $sortDirection = 'asc';
-    public $showTrashed = false;
-    public $activeTab = 'index';
+    // Activity log properties
+    public array $activities = [];
+    public ?array $selectedActivity = null;
 
-    public $imagePreview;
-    public $currentImage;
+    #[Validate('required|min:3|max:255')]
+    public string $name = '';
 
-    // Options for dropdowns
-    public $categories = [];
+    #[Validate('required|min:3|max:255|unique:signs,slug,{signId}')]
+    public string $slug = '';
 
-    // Initialize component
-    public function mount()
+    #[Validate('required|min:10')]
+    public string $description = '';
+
+    #[Validate('nullable|integer')]
+    public ?int $sign_category_id = null;
+
+    #[Validate('nullable|string|min:3|required_if:categoryInputType,create')]
+    public string $new_category = '';
+
+    #[Validate('boolean')]
+    public bool $is_featured = false;
+
+    // Holds existing array format or new UploadedFile objects
+    public array $images = [];
+
+    // Table Filter States
+    public string $viewType = 'active';
+    public string $search = '';
+    public string $categoryInputType = 'select';
+
+    public function updatedSearch(): void
     {
-        $this->loadCategories();
+        $this->resetPage();
     }
 
-    public function loadCategories()
+    public function updatedViewType(): void
     {
-        $this->categories = SignCategory::latest()->get();
+        $this->resetPage();
     }
 
-    // Validation rules
-    protected function rules()
+    /**
+     * Auto-generate slug from name only when creating a new record
+     * and the slug field is still empty.
+     */
+    public function updatedName(string $value): void
+    {
+        if (!$this->signId && blank($this->slug)) {
+            $this->slug = Str::slug($value);
+        }
+    }
+
+    #[Computed]
+    public function signs()
+    {
+        return ($this->viewType === 'trashed' ? Sign::onlyTrashed() : Sign::query())
+            ->with(['category', 'media'])
+            ->when($this->search, fn($q) => $q->where('name', 'like', "%{$this->search}%")->orWhere('slug', 'like', "%{$this->search}%"))
+            ->latest()
+            ->paginate(10);
+    }
+
+    public function with(): array
     {
         return [
-            'sign_category_id' => 'required|exists:sign_categories,id',
-            'name_bn' => 'required|string|max:255',
-            'name_en' => 'nullable|string|max:255',
-            'image' => 'nullable|image|max:2048',
-            'description_bn' => 'nullable|string',
-            'description_en' => 'nullable|string',
-            'details' => 'nullable|string',
-            'others' => 'nullable|string',
-            'status' => 'required|boolean',
+            'availableCategories' => SignCategory::active()->get(),
         ];
     }
 
-    // Switch tabs
-    public function showTab($tabName)
+    public function showCreateForm(): void
     {
-        $this->activeTab = $tabName;
-        $this->resetFields();
+        $this->resetValidation();
+        $this->reset(['signId', 'name', 'slug', 'description', 'sign_category_id', 'new_category', 'is_featured', 'images', 'categoryInputType']);
+        $this->dispatch('modal-show', name: 'sign-form');
     }
 
-    // Reset form fields
-    public function resetFields()
+    public function showEditForm(int $id): void
     {
-        $this->reset([
-            'signId',
-            'sign_category_id',
-            'name_bn',
-            'name_en',
-            'image',
-            'description_bn',
-            'description_en',
-            'details',
-            'others',
-            'status',
-            'imagePreview',
-            'currentImage',
-        ]);
-        $this->resetErrorBag();
-    }
+        $this->resetValidation();
 
-    // Load sign for editing
-    public function editSign($id)
-    {
         $sign = Sign::withTrashed()->findOrFail($id);
 
         $this->signId = $sign->id;
+        $this->name = $sign->name;
+        $this->slug = $sign->slug;
+        $this->description = $sign->description;
         $this->sign_category_id = $sign->sign_category_id;
-        $this->name_bn = $sign->name_bn;
-        $this->name_en = $sign->name_en;
-        $this->description_bn = $sign->description_bn;
-        $this->description_en = $sign->description_en;
-        $this->details = $sign->details;
-        $this->others = $sign->others;
-        $this->status = $sign->status;
-        $this->currentImage = $sign->image;
+        $this->is_featured = (bool) $sign->is_featured;
+        $this->categoryInputType = 'select';
 
-        $this->activeTab = 'edit';
+        $this->images = $sign
+            ->getMedia('images')
+            ->map(
+                fn($m) => [
+                    'id' => $m->id,
+                    'url' => $m->getUrl('thumb'),
+                    'original_url' => $m->getUrl(),
+                    'is_existing' => true,
+                ],
+            )
+            ->toArray();
+
+        $this->dispatch('modal-show', name: 'sign-form');
     }
 
-    // Create or update sign
-    public function saveSign()
+    public function removeImage(string $propertyName, int $index): void
     {
+        $file = $this->{$propertyName}[$index] ?? null;
+
+        if (!$file) {
+            return;
+        }
+
+        // Existing media → delete from media library
+        if (is_array($file) && ($file['is_existing'] ?? false)) {
+            $sign = Sign::withTrashed()->findOrFail($this->signId);
+            $sign->deleteMedia($file['id']);
+        }
+
+        unset($this->{$propertyName}[$index]);
+        $this->{$propertyName} = array_values($this->{$propertyName});
+    }
+
+    public function save(): void
+    {
+        // Make unique rule ignore current record on edit
+        $this->validate([
+            'slug' => ['required', 'min:3', 'max:255', 'unique:signs,slug,' . ($this->signId ?? 'NULL')],
+        ]);
+
         $this->validate();
 
-        $data = [
-            'sign_category_id' => $this->sign_category_id,
-            'name_bn' => $this->name_bn,
-            'name_en' => $this->name_en,
-            'description_bn' => $this->description_bn,
-            'description_en' => $this->description_en,
-            'details' => $this->details,
-            'others' => $this->others,
-            'status' => $this->status,
-            'created_by' => auth()->id(),
-            'updated_by' => auth()->id(),
-        ];
+        // Create new category if needed
+        if ($this->categoryInputType === 'create' && filled($this->new_category)) {
+            $category = SignCategory::firstOrCreate(
+                ['slug' => Str::slug($this->new_category)],
+                [
+                    'name' => $this->new_category,
+                    'status' => 1,
+                ],
+            );
 
-        // Handle image upload
-        if ($this->image) {
-            if ($this->currentImage) {
-                Storage::disk('public')->delete('signs/' . basename($this->currentImage));
+            $this->sign_category_id = $category->id;
+        }
+
+        $sign = Sign::updateOrCreate(
+            ['id' => $this->signId],
+            [
+                'name' => $this->name,
+                'slug' => $this->slug, // fully custom
+                'description' => $this->description,
+                'sign_category_id' => $this->sign_category_id ?: null,
+                'is_featured' => $this->is_featured,
+                'status' => 1,
+            ],
+        );
+
+        // Process & upload new images (strip metadata + convert to WebP)
+        foreach ($this->images as $file) {
+            if (is_array($file)) {
+                continue; // existing media
             }
 
-            $baseName = Str::slug($this->name_bn);
-            $imageName = $baseName . '-' . time() . '.webp';
-            $savePath = storage_path('app/public/signs/' . $imageName);
+            $fileName = $this->slug . '-totthobox-sign-' . Str::lower(Str::random(6)) . '.webp';
 
-            // Intervention with GD
-            $manager = new ImageManager(\Intervention\Image\Drivers\Gd\Driver::class);
-            $manager->read($this->image->getRealPath())
-                ->toWebp(80)
-                ->save($savePath);
+            // Create a clean temporary WebP file
+            $tempPath = sys_get_temp_dir() . '/' . $fileName;
 
-            $data['image'] = 'signs/' . $imageName;
+            Image::read($file->getRealPath())->toWebp(85)->save($tempPath);
+
+            $sign
+                ->addMedia($tempPath)
+                ->usingFileName($fileName)
+                ->usingName("{$sign->name} - Totthobox Sign")
+                ->toMediaCollection('images');
+
+            // Clean up temp file
+            @unlink($tempPath);
         }
 
-        if ($this->signId) {
-            // Update existing sign
-            $sign = Sign::find($this->signId);
-            $sign->update($data);
-            session()->flash('success', 'Sign updated successfully.');
-        } else {
-            // Create new sign
-            Sign::create($data);
-            session()->flash('success', 'Sign created successfully.');
-        }
+        $this->dispatch('modal-close', name: 'sign-form');
+        $this->dispatch('toast', variant: 'success', heading: 'Success', text: 'Data saved successfully.');
 
-        $this->resetFields();
-        $this->activeTab = 'index';
+        $this->reset(['images', 'signId', 'new_category', 'slug']);
     }
 
-    // Delete sign
-    public function deleteSign($id)
+    public function delete(int $id): void
     {
-        $sign = Sign::findOrFail($id);
-        $sign->deleted_by = auth()->id();
-        $sign->save();
-        $sign->delete();
-        session()->flash('success', 'Sign moved to trash.');
+        Sign::findOrFail($id)->delete();
+        $this->dispatch('toast', variant: 'warning', text: 'Item moved to trash.');
     }
 
-    // Restore sign
-    public function restoreSign($id)
+    public function restore(int $id): void
     {
-        $sign = Sign::withTrashed()->findOrFail($id);
-        $sign->restore();
-        session()->flash('success', 'Sign restored successfully.');
+        Sign::onlyTrashed()->findOrFail($id)->restore();
+        $this->dispatch('toast', variant: 'success', text: 'Item restored successfully.');
     }
 
-    // Force delete sign
-    public function forceDeleteSign($id)
+    public function forceDelete(int $id): void
     {
-        $sign = Sign::withTrashed()->findOrFail($id);
-        if ($sign->image) {
-            Storage::disk('public')->delete($sign->image);
-        }
+        $sign = Sign::onlyTrashed()->findOrFail($id);
+        $sign->clearMediaCollection('images');
         $sign->forceDelete();
-        session()->flash('success', 'Sign permanently deleted.');
+
+        $this->dispatch('toast', variant: 'error', text: 'Item deleted permanently.');
     }
 
-    // Remove image
-    public function removeImage()
+    public function viewLogs(int $id): void
     {
-        if ($this->signId && $this->currentImage) {
-            Storage::disk('public')->delete($this->currentImage);
-            Sign::find($this->signId)->update(['image' => null]);
-            $this->currentImage = null;
+        $this->activities = Activity::query()
+            ->with('causer')
+            ->where('subject_id', $id)
+            ->where('subject_type', Sign::class)
+            ->latest()
+            ->get()
+            ->map(function ($activity) {
+                $properties = $activity->properties;
+
+                if ($activity->event === 'updated' && isset($properties['attributes'], $properties['old'])) {
+                    $activity->formatted_changes = $this->formatChanges($properties->toArray());
+                } elseif (in_array($activity->event, ['created', 'deleted', 'force_deleted'])) {
+                    $activity->formatted_data = $properties['attributes'] ?? [];
+                }
+
+                return $activity;
+            })
+            ->toArray();
+
+        $this->dispatch('modal-show', name: 'activity-logs');
+    }
+
+    public function viewActivityDetails(int $activityId): void
+    {
+        $activity = Activity::with('causer')->find($activityId);
+
+        if ($activity) {
+            $this->selectedActivity = [
+                'id' => $activity->id,
+                'event' => $activity->event,
+                'description' => $activity->description,
+                'causer' => $activity->causer?->name ?? 'System',
+                'created_at' => $activity->created_at->format('d M Y, h:i A'),
+                'properties' => $activity->properties,
+            ];
+
+            $this->dispatch('modal-show', name: 'activity-detail');
         }
-        $this->image = null;
-        $this->imagePreview = null;
     }
 
-    // Updated image preview
-    public function updatedImage()
+    private function formatChanges(array $changes): array
     {
-        $this->validate(['image' => 'nullable|image|max:2048']);
-        $this->imagePreview = $this->image->temporaryUrl();
-    }
+        $formatted = [];
+        $old = $changes['old'] ?? [];
+        $new = $changes['attributes'] ?? [];
 
-    // Sort function
-    public function sortBy($field)
-    {
-        if ($this->sortField === $field) {
-            $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
-        } else {
-            $this->sortDirection = 'asc';
-        }
-        $this->sortField = $field;
-    }
-
-    // Get signs for display
-    public function getSignsProperty()
-    {
-        $query = Sign::query()->with('category');
-
-        if ($this->showTrashed) {
-            $query->onlyTrashed();
+        foreach ($new as $key => $value) {
+            $formatted[] = [
+                'field' => ucfirst(str_replace('_', ' ', $key)),
+                'old' => is_scalar($old[$key] ?? null) ? $old[$key] : 'None',
+                'new' => is_scalar($value ?? null) ? $value : 'None',
+            ];
         }
 
-        return $query->when($this->search, function ($query) {
-            return $query->where(function ($q) {
-                $q->where('name_bn', 'like', '%' . $this->search . '%')
-                    ->orWhere('name_en', 'like', '%' . $this->search . '%')
-                    ->orWhereHas('category', function ($q) {
-                        $q->where('name', 'like', '%' . $this->search . '%');
-                    });
-            });
-        })
-            ->orderBy($this->sortField, $this->sortDirection)
-            ->paginate($this->perPage);
+        return $formatted;
     }
-}; ?>
+};
+?>
 
-<section class="p-6">
-    <div class="flex flex-col space-y-6">
-
-        @if($activeTab === 'create' || $activeTab === 'edit')
-        <div class="p-6 rounded-lg shadow-xl">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-bold">
-                    {{ $activeTab === 'create' ? 'Create New Sign' : 'Edit Sign' }}
-                </h3>
-                <flux:button wire:click="showTab('index')" size="sm">
-                    Back to List
-                </flux:button>
-            </div>
-
-            <form wire:submit="saveSign" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-
-                <div class="lg:col-span-1">
-                    <flux:select wire:model="sign_category_id" label="Category" required>
-                        <option value="">Select Category</option>
-                        @foreach($categories as $category)
-                        <option value="{{ $category->id }}">{{ $category->name }}</option>
-                        @endforeach
-                    </flux:select>
-                </div>
-
-                <div class="lg:col-span-1">
-                    <flux:input type="text" wire:model="name_bn" label="চিহ্নের নাম (বাংলা)" required />
-                </div>
-                <div class="lg:col-span-1">
-                    <flux:input type="text" wire:model="name_en" label="Sign Name (English)" />
-                </div>
-
-                <div class="lg:col-span-1">
-                    <flux:select wire:model="status" label="Status">
-                        <option value="1">Active</option>
-                        <option value="0">Inactive</option>
-                    </flux:select>
-                </div>
-
-                <div class="md:col-span-2 lg:col-span-3">
-                    <flux:textarea wire:model="description_bn" label="ব্যাখ্যা (বাংলা)" rows="3" />
-                </div>
-
-                <div class="md:col-span-2 lg:col-span-3">
-                    <flux:textarea wire:model="description_en" label="Description (English)" rows="3" />
-                </div>
-
-                <div class="md:col-span-2 lg:col-span-3">
-                    <flux:textarea wire:model="details" label="Details" rows="3" />
-                </div>
-
-                <div class="md:col-span-2 lg:col-span-3">
-                    <flux:textarea wire:model="others" label="Others" rows="3" />
-                </div>
-
-                <div class="md:col-span-2 lg:col-span-3">
-                    <flux:input type="file" wire:model="image" accept="image/*" label="Image" />
-                    @error('image') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                    <div class="mt-2">
-                        @if ($imagePreview)
-                        <img src="{{ $imagePreview }}" alt="Image Preview" class="h-20 w-auto rounded">
-                        @elseif ($currentImage)
-                        <img src="{{ asset('storage/' . $currentImage) }}" alt="Current Image" class="h-20 w-auto rounded">
-                        <button type="button" wire:click="removeImage" class="mt-2 text-red-600 text-sm hover:text-red-800">
-                            Remove Image
-                        </button>
-                        @endif
-                    </div>
-                </div>
-
-                <div class="md:col-span-2 lg:col-span-3 flex justify-end space-x-3 mt-4">
-                    <flux:button type="button" wire:click="resetFields">
-                        Reset
-                    </flux:button>
-                    <flux:button type="submit" variant="primary">
-                        {{ $signId ? 'Update Sign' : 'Create Sign' }}
-                    </flux:button>
-                </div>
-            </form>
-        </div>
-
-        @else
-
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
-            <h2 class="text-2xl font-bold">Sign Management</h2>
-
-            <div class="flex space-x-2">
-                <flux:button wire:click="showTab('create')" size="sm">
-                    Create New
-                </flux:button>
-                <flux:button wire:click="$set('showTrashed', false)" size="sm" variant="{{ !$showTrashed ? 'primary' : 'outline' }}">
-                    Active
-                </flux:button>
-                <flux:button wire:click="$set('showTrashed', true)" size="sm" variant="{{ $showTrashed ? 'primary' : 'outline' }}">
-                    Trashed
-                </flux:button>
-            </div>
-        </div>
-
+<div class="p-1">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div>
-            <flux:input wire:model.live.debounce.300ms="search" placeholder="Search by Bangla or English name..." class="w-full" />
+            <flux:heading size="xl">Sign Management</flux:heading>
+            <flux:subheading>Manage your visual signals and records safely.</flux:subheading>
         </div>
-
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="">
-                    <tr>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium  uppercase tracking-wider">
-                            Image
-                        </th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium  uppercase tracking-wider cursor-pointer" wire:click="sortBy('name_bn')">
-                            Name (Bangla)
-                            @if($sortField === 'name_bn')
-                            <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
-                            @endif
-                        </th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium  uppercase tracking-wider">
-                            Category
-                        </th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium  uppercase tracking-wider cursor-pointer" wire:click="sortBy('status')">
-                            Status
-                            @if($sortField === 'status')
-                            <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
-                            @endif
-                        </th>
-                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium  uppercase tracking-wider">
-                            Actions
-                        </th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200">
-                    @forelse ($this->signs as $sign)
-                    <tr class="hover:bg-zinc-400/10">
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            @if($sign->image)
-                            <img src="{{ asset('storage/' . $sign->image) }}" alt="{{ $sign->name_bn }}" class="h-10 w-10 rounded-full">
-                            @else
-                            <div class="h-10 w-10 rounded-full0 flex items-center justify-center">
-                                <span class=" text-sm">N/A</span>
-                            </div>
-                            @endif
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm ">
-                            {{ $sign->name_bn }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm ">
-                            {{ $sign->category->name ?? 'N/A' }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm">
-                            @if($sign->deleted_at)
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                                Trashed
-                            </span>
-                            @else
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ $sign->status ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800' }}">
-                                {{ $sign->status ? 'Active' : 'Inactive' }}
-                            </span>
-                            @endif
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            @if($sign->deleted_at)
-                            <button wire:click="restoreSign({{ $sign->id }})" class="text-green-600 hover:text-green-900 mr-3">
-                                Restore
-                            </button>
-                            <button wire:click="forceDeleteSign({{ $sign->id }})" class="text-red-600 hover:text-red-900" onclick="return confirm('Are you sure you want to permanently delete this sign?')">
-                                Permanently Delete
-                            </button>
-                            @else
-                            <button wire:click="editSign({{ $sign->id }})" class="text-blue-600 hover:text-blue-900 mr-3">
-                                Edit
-                            </button>
-                            <button wire:click="deleteSign({{ $sign->id }})" class="text-red-600 hover:text-red-900" onclick="return confirm('Are you sure you want to move this sign to trash?')">
-                                Delete
-                            </button>
-                            @endif
-                        </td>
-                    </tr>
-                    @empty
-                    <tr class="hover:bg-zinc-400/10">
-                        <td colspan="5" class="px-6 py-4 text-center text-sm ">
-                            No {{ $showTrashed ? 'trashed' : 'active' }} signs found.
-                        </td>
-                    </tr>
-                    @endforelse
-                </tbody>
-            </table>
-
-            @if($this->signs->hasPages())
-            <div class="px-6 py-3 border-t border-gray-200">
-                {{ $this->signs->links() }}
-            </div>
-            @endif
+        <div class="flex items-center gap-4">
+            <flux:radio.group wire:model.live="viewType" variant="segmented" size="sm">
+                <flux:radio value="active" label="Active" />
+                <flux:radio value="trashed" label="Trash" />
+            </flux:radio.group>
+            <flux:button wire:click="showCreateForm" icon="plus" variant="primary" size="sm">
+                Create New
+            </flux:button>
         </div>
-        @endif
-
     </div>
-</section>
+
+    <div class="mb-4">
+        <flux:input wire:model.live.debounce.400ms="search" placeholder="Search by name or slug..."
+            icon="magnifying-glass" />
+    </div>
+
+    <flux:table :paginate="$this->signs">
+        <flux:table.columns>
+            <flux:table.column>Media</flux:table.column>
+            <flux:table.column>Name</flux:table.column>
+            <flux:table.column>Slug</flux:table.column>
+            <flux:table.column>Category</flux:table.column>
+            <flux:table.column align="end">Action</flux:table.column>
+        </flux:table.columns>
+
+        <flux:table.rows>
+            @forelse ($this->signs as $item)
+                <flux:table.row :key="$item->id">
+                    <flux:table.cell>
+                        @php $mediaItems = $item->getMedia('images'); @endphp
+                        <flux:avatar.group>
+                            @if ($mediaItems->isEmpty())
+                                <flux:icon.photo class="text-zinc-300 w-8 h-8" />
+                            @else
+                                @foreach ($mediaItems->take(3) as $media)
+                                    <flux:avatar src="{{ $media->getUrl('thumb') }}" />
+                                @endforeach
+                                @if ($mediaItems->count() > 3)
+                                    <flux:avatar initials="+{{ $mediaItems->count() - 3 }}" />
+                                @endif
+                            @endif
+                        </flux:avatar.group>
+                    </flux:table.cell>
+
+                    <flux:table.cell class="font-medium">
+                        {{ $item->name }}
+                    </flux:table.cell>
+
+                    <flux:table.cell>
+                        <code class="text-xs text-zinc-500">{{ $item->slug }}</code>
+                    </flux:table.cell>
+
+                    <flux:table.cell>
+                        <flux:badge size="sm" color="zinc" inset="top bottom">
+                            {{ $item->category->name ?? 'General' }}
+                        </flux:badge>
+                    </flux:table.cell>
+
+                    <flux:table.cell align="end">
+                        @if ($viewType === 'active')
+                            <flux:button variant="ghost" size="sm" icon="clock"
+                                wire:click="viewLogs({{ $item->id }})" title="Logs" />
+                            <flux:button variant="ghost" size="sm" icon="pencil-square"
+                                wire:click="showEditForm({{ $item->id }})" />
+                            <flux:button variant="ghost" size="sm" icon="trash" color="red"
+                                wire:confirm="Are you sure?" wire:click="delete({{ $item->id }})" />
+                        @else
+                            <flux:button variant="ghost" size="sm" icon="arrow-path" color="green"
+                                wire:click="restore({{ $item->id }})" />
+                            <flux:button variant="ghost" size="sm" icon="x-mark" color="red"
+                                wire:confirm="Permanently delete this?" wire:click="forceDelete({{ $item->id }})" />
+                        @endif
+                    </flux:table.cell>
+                </flux:table.row>
+            @empty
+                <flux:table.row>
+                    <flux:table.cell colspan="5" class="text-center py-10 text-zinc-400">
+                        No records found.
+                    </flux:table.cell>
+                </flux:table.row>
+            @endforelse
+        </flux:table.rows>
+    </flux:table>
+
+    {{-- ==================== CREATE / EDIT MODAL ==================== --}}
+    <flux:modal name="sign-form" class="md:w-180">
+        <form wire:submit="save" class="space-y-6">
+            <div>
+                <flux:heading size="lg">
+                    {{ $signId ? 'Edit Sign Record' : 'Add New Sign' }}
+                </flux:heading>
+                <flux:subheading>
+                    Update details and asset images safely.
+                </flux:subheading>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <flux:input wire:model.live="name" label="Name" placeholder="Enter sign name..." />
+
+                <flux:input wire:model="slug" label="Slug" placeholder="custom-slug-here"
+                    description="Fully custom. Auto-generated from name only on create if left empty." />
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                <flux:field>
+                    <flux:label>Category</flux:label>
+                    <div class="flex gap-4">
+                        @if ($categoryInputType === 'select')
+                            <flux:select wire:model="sign_category_id" class="flex-1">
+                                <option value="">Select Category</option>
+                                @foreach ($availableCategories as $cat)
+                                    <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                                @endforeach
+                            </flux:select>
+                        @else
+                            <flux:input wire:model="new_category" class="flex-1" placeholder="New category name..." />
+                        @endif
+
+                        <flux:button variant="subtle" size="sm" type="button"
+                            wire:click="$set('categoryInputType', '{{ $categoryInputType === 'select' ? 'create' : 'select' }}')">
+                            {{ $categoryInputType === 'select' ? 'New' : 'List' }}
+                        </flux:button>
+                    </div>
+                </flux:field>
+
+                <div class="pb-2">
+                    <flux:checkbox wire:model="is_featured" label="Show as Featured" />
+                </div>
+            </div>
+
+            <div wire:ignore>
+                <flux:editor wire:model="description" label="Detailed Description" />
+            </div>
+
+            <flux:field>
+                <flux:label>Images</flux:label>
+                <flux:file-upload wire:model.live="images" multiple accept="image/*" />
+            </flux:field>
+
+            <div class="flex justify-end gap-4 pt-6 border-t border-zinc-400/25">
+                <flux:modal.close>
+                    <flux:button variant="ghost" type="button">Cancel</flux:button>
+                </flux:modal.close>
+                <flux:button type="submit" variant="primary">
+                    Save Configuration
+                </flux:button>
+            </div>
+        </form>
+    </flux:modal>
+
+    {{-- ==================== ACTIVITY LOGS ==================== --}}
+    <flux:modal name="activity-logs" class="w-full max-w-2xl">
+        <div class="space-y-6">
+            <div>
+                <flux:heading size="lg">Sign History Trail</flux:heading>
+                <flux:subheading>Full structural lifecycle changes logging</flux:subheading>
+            </div>
+
+            <div class="space-y-6 overflow-y-auto max-h-[60vh] pr-2">
+                @forelse ($activities as $log)
+                    <div
+                        class="relative pl-4 border-l-2
+                                                {{ $log['event'] === 'created'
+                                                    ? 'border-green-500'
+                                                    : ($log['event'] === 'updated'
+                                                        ? 'border-blue-500'
+                                                        : ($log['event'] === 'restored'
+                                                            ? 'border-yellow-500'
+                                                            : 'border-red-500')) }}">
+                        <div class="flex flex-col gap-4">
+                            <div class="flex justify-between items-center">
+                                <div class="flex items-center gap-4">
+                                    <flux:badge size="sm"
+                                        color="{{ $log['event'] === 'created'
+                                            ? 'green'
+                                            : ($log['event'] === 'updated'
+                                                ? 'blue'
+                                                : ($log['event'] === 'restored'
+                                                    ? 'yellow'
+                                                    : 'red')) }}">
+                                        {{ ucfirst($log['event']) }}
+                                    </flux:badge>
+                                    <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                                        {{ $log['description'] }}
+                                    </span>
+                                </div>
+                                <span class="text-xs text-zinc-500">
+                                    {{ \Carbon\Carbon::parse($log['created_at'])->format('d M Y, h:i A') }}
+                                </span>
+                            </div>
+
+                            <div class="text-xs text-zinc-600 dark:text-zinc-400">
+                                Actor:
+                                <strong class="text-zinc-800 dark:text-zinc-200">
+                                    {{ $log['causer']['name'] ?? 'System Process' }}
+                                </strong>
+                            </div>
+
+                            @if ($log['event'] === 'updated' && isset($log['formatted_changes']))
+                                <div class="mt-2 space-y-2">
+                                    @foreach ($log['formatted_changes'] as $change)
+                                        <div
+                                            class="bg-zinc-50 dark:bg-zinc-900 rounded-lg p-3 border border-zinc-400/25">
+                                            <div class="text-xs font-semibold text-zinc-500 mb-2">
+                                                {{ $change['field'] }}
+                                            </div>
+                                            <div class="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <span class="text-xs text-red-500 block">Before:</span>
+                                                    <div class="text-xs font-mono truncate">{{ $change['old'] }}</div>
+                                                </div>
+                                                <div>
+                                                    <span class="text-xs text-green-500 block">After:</span>
+                                                    <div class="text-xs font-mono truncate">{{ $change['new'] }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @endif
+
+                            <div class="flex justify-end">
+                                <flux:button size="xs" variant="ghost" icon="eye"
+                                    wire:click="viewActivityDetails({{ $log['id'] }})">
+                                    Full Meta Payload
+                                </flux:button>
+                            </div>
+                        </div>
+                    </div>
+                @empty
+                    <div class="text-center py-8 text-zinc-400">
+                        <p>No lifecycle logs captured for this record.</p>
+                    </div>
+                @endforelse
+            </div>
+        </div>
+    </flux:modal>
+
+    {{-- ==================== ACTIVITY DETAIL ==================== --}}
+    <flux:modal name="activity-detail" class="w-full max-w-2xl">
+        @if ($selectedActivity)
+            <div class="space-y-6">
+                <div class="flex justify-between items-center">
+                    <flux:heading size="lg">Activity Meta Stack</flux:heading>
+                    <flux:badge size="sm">{{ $selectedActivity['event'] }}</flux:badge>
+                </div>
+                <div
+                    class="bg-zinc-950 p-4 rounded-lg text-emerald-400 text-xs font-mono overflow-auto max-h-72 border border-zinc-800 whitespace-pre-wrap">
+                    {{ json_encode($selectedActivity['properties'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}
+                </div>
+            </div>
+        @endif
+    </flux:modal>
+</div>

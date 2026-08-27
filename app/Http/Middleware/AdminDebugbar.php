@@ -9,16 +9,17 @@ use Symfony\Component\HttpFoundation\Response;
 
 class AdminDebugbar
 {
+    // App\Http\Middleware\AdminDebugbar.php
+
     public function handle(Request $request, Closure $next): Response
     {
-        // ১. চেক করুন ডিবাগবার ক্লাসটি আছে কি না
-        if (class_exists('\Barryvdh\Debugbar\Facades\Debugbar')) {
+        if (app()->bound(\Barryvdh\Debugbar\LaravelDebugbar::class)) {
+            // Disable by default, enable only for User ID 1
+            $isAdmin = auth()->check() && auth()->id() === 1;
 
-            // ২. চেক করুন ইউজার কি অ্যাডমিন?
-            if (Auth::check() && Auth::id() === 1) { // আপনার আইডি যদি ১ হয়
+            if ($isAdmin) {
                 \Barryvdh\Debugbar\Facades\Debugbar::enable();
             } else {
-                // অ্যাডমিন না হলে পুরোপুরি ডিজেবল
                 \Barryvdh\Debugbar\Facades\Debugbar::disable();
             }
         }

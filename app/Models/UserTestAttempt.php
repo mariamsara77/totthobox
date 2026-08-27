@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class UserTestAttempt extends Model
 {
@@ -54,45 +55,49 @@ class UserTestAttempt extends Model
         'view_count' => 'integer',
     ];
 
+    protected $with = ['test'];
+
     /**
      * Relationships
      */
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+
     public function test()
     {
-        return $this->belongsTo(Test::class);
+        return $this->belongsTo(Test::class, 'test_id'); // সঠিক ফরেন কি নিশ্চিত করুন
     }
 
-    public function createdBy()
+    public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    public function updatedBy()
+    public function updatedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'updated_by');
     }
 
-    public function deletedBy()
+    public function deletedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'deleted_by');
     }
 
-    public function publishedBy()
+    public function publishedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'published_by');
     }
+
 
     /**
      * Helper methods
      */
     public function isCompleted()
     {
-        return ! is_null($this->completed_at);
+        return !is_null($this->completed_at);
     }
 
     public function percentage()
@@ -132,7 +137,7 @@ class UserTestAttempt extends Model
     protected static function generateUniqueSlug($model)
     {
         // Create a base slug from user_id and test_id (or any field)
-        $baseSlug = Str::slug("attempt-{$model->user_id}-{$model->test_id}-".now()->timestamp);
+        $baseSlug = Str::slug("attempt-{$model->user_id}-{$model->test_id}-" . now()->timestamp);
         $slug = $baseSlug;
         $count = 1;
 

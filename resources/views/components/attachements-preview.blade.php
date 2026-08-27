@@ -24,7 +24,7 @@
 
         {{-- Other Files --}}
     @else
-        <div class="p-3 flex items-center gap-3 rounded-xl">
+        <div class="p-3 flex items-center gap-4 rounded-xl">
             <flux:icon name="document" variant="solid" color="green" />
             <flux:text class="break-all">
                 {{ $attachment->getClientOriginalName() }}

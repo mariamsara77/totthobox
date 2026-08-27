@@ -6,7 +6,6 @@ use App\Models\BasicHealth;
 use App\Models\BasicIslam;
 use App\Models\Block;
 use App\Models\BuySellCategory;
-use App\Models\BuySellImage;
 use App\Models\BuySellItem;
 use App\Models\BuySellPost;
 use App\Models\ClassLevel;
@@ -24,12 +23,8 @@ use App\Models\FoodNutrient;
 use App\Models\HistoryBd;
 use App\Models\Holiday;
 use App\Models\Hospital;
-use App\Models\Institution;
 use App\Models\IntroBd;
-use App\Models\Item;
 use App\Models\Message;
-use App\Models\Minister;
-use App\Models\Notification;
 use App\Models\Nutrient;
 use App\Models\PageView;
 use App\Models\Para;
@@ -54,6 +49,8 @@ use App\Models\VisitorSession;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Spatie\Activitylog\Models\Activity;
 
 trait UserRelationships
 {
@@ -92,11 +89,6 @@ trait UserRelationships
     public function buySellCategories(): HasMany
     {
         return $this->hasMany(BuySellCategory::class);
-    }
-
-    public function buySellImages(): HasMany
-    {
-        return $this->hasMany(BuySellImage::class);
     }
 
     public function sentMessages(): HasMany
@@ -213,6 +205,7 @@ trait UserRelationships
     {
         return $this->hasMany(Reaction::class);
     }
+
     public function userReports(): HasMany
     {
         return $this->hasMany(UserReport::class);
@@ -228,7 +221,6 @@ trait UserRelationships
         return $this->hasMany(Block::class);
     }
 
-   
     public function visitors(): HasMany
     {
         return $this->hasMany(Visitor::class);
@@ -254,11 +246,6 @@ trait UserRelationships
         return $this->hasMany(ExcelTutorial::class);
     }
 
-    public function institutions(): HasMany
-    {
-        return $this->hasMany(Institution::class);
-    }
-
     public function historyBd(): HasMany
     {
         return $this->hasMany(HistoryBd::class);
@@ -279,11 +266,6 @@ trait UserRelationships
         return $this->hasMany(Hospital::class);
     }
 
-    public function ministers(): HasMany
-    {
-        return $this->hasMany(Minister::class);
-    }
-
     public function signs(): HasMany
     {
         return $this->hasMany(Sign::class);
@@ -295,6 +277,11 @@ trait UserRelationships
     }
 
     public function introbds(): HasMany
+    {
+        return $this->hasMany(IntroBd::class);
+    }
+
+    public function introBd(): HasMany
     {
         return $this->hasMany(IntroBd::class);
     }
@@ -313,5 +300,10 @@ trait UserRelationships
     public function blockedUsers(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'blocks', 'user_id', 'blocked_user_id');
+    }
+
+    public function actions(): MorphMany
+    {
+        return $this->morphMany(Activity::class, 'causer');
     }
 }

@@ -22,6 +22,8 @@ new class extends Component {
 
         <hr class="my-6 border-gray-200 dark:border-gray-700">
 
-        @livewire('global.translator')
+        <div wire:ignore>
+            <livewire:global.translator />
+        </div>
     </x-settings.layout>
 </section>

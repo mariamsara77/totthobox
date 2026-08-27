@@ -11,10 +11,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class BuySellItem extends BaseModel
 {
     use HasFactory, SoftDeletes;
-
-    /**
-     * Mass Assignment Protection
-     */
     protected $fillable = [
         'title',
         'slug',
@@ -28,16 +24,6 @@ class BuySellItem extends BaseModel
         'is_active',
         'is_featured',
         'published_at',
-        'meta_title',
-        'meta_description',
-        'meta_keywords',
-        'view_count',
-        'created_by',
-        'updated_by',
-        'deleted_by',
-        'published_by',
-        'ip_address',
-        'user_agent',
     ];
 
     /**
@@ -48,6 +34,9 @@ class BuySellItem extends BaseModel
         'is_featured' => 'boolean',
         'price' => 'decimal:2',
         'published_at' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+        'deleted_at' => 'datetime',
     ];
 
     /**
@@ -55,9 +44,9 @@ class BuySellItem extends BaseModel
      */
     protected $attributes = [
         'status' => 'draft',
-        'view_count' => 0,
+        'is_active' => true,
+        'is_featured' => false,
     ];
-
     /**
      * ======================
      *  🔗 RELATIONSHIPS

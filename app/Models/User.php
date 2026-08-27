@@ -17,19 +17,40 @@ use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Spatie\Permission\Traits\HasRoles;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable implements HasMedia, MustVerifyEmail
 {
-    use HasFactory, HasPushSubscriptions, HasRoles, InteractsWithMedia, LogsActivity, Notifiable, SoftDeletes, UserRelationships;
+    use HasApiTokens, HasFactory, HasPushSubscriptions, HasRoles, InteractsWithMedia, LogsActivity, Notifiable, SoftDeletes, UserRelationships;
 
     protected $fillable = [
-        'name', 'slug', 'email', 'password', 'phone', 'is_student', 'class_level_id',
-        'google_id', 'avatar', 'location', 'division_id', 'district_id', 'thana_id',
-        'address', 'profession', 'occupation', 'education', 'bio', 'note', 'status',
-        'last_active_at', 'email_verified_at',
+        'name',
+        'slug',
+        'email',
+        'password',
+        'phone',
+        'is_student',
+        'class_level_id',
+        'google_id',
+        'avatar',
+        'location',
+        'division_id',
+        'district_id',
+        'thana_id',
+        'address',
+        'profession',
+        'occupation',
+        'education',
+        'bio',
+        'note',
+        'status',
+        'last_active_at',
+        'email_verified_at',
     ];
 
     protected $hidden = ['password', 'remember_token'];
+
+    protected $appends = ['avatar_url'];
 
     protected $with = ['roles', 'permissions', 'media'];
 
@@ -53,12 +74,18 @@ class User extends Authenticatable implements HasMedia, MustVerifyEmail
 
     public function getAvatarUrlAttribute(): string
     {
-        if ($this->hasMedia('avatars')) {
-            return $this->getFirstMediaUrl('avatars', 'thumb') ?: $this->getFirstMediaUrl('avatars');
+        // media রিলেশন ইতিমধ্যে লোড করা থাকলে তা সরাসরি ব্যবহার করবে
+        $avatarMedia = $this->media->where('collection_name', 'avatars')->first();
+
+        if ($avatarMedia) {
+            return $avatarMedia->getUrl('thumb') ?: $avatarMedia->getUrl();
         }
 
-        return $this->avatar ? asset('storage/'.$this->avatar) :
-               'https://ui-avatars.com/api/?name='.urlencode($this->name).'&color=7F9CF5&background=EBF4FF';
+        if ($this->avatar) {
+            return filter_var($this->avatar, FILTER_VALIDATE_URL) ? $this->avatar : asset('storage/'.$this->avatar);
+        }
+
+        return 'https://ui-avatars.com/api/?name='.urlencode($this->name).'&color=7F9CF5&background=EBF4FF';
     }
 
     public function getActivitylogOptions(): LogOptions

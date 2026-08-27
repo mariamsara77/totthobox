@@ -5,20 +5,21 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
-class Food extends BaseModel
+class Food extends Model implements HasMedia
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, InteractsWithMedia, LogsActivity, SoftDeletes;
 
     protected $table = 'foods';
 
     protected $fillable = [
-        'name_bn', 'name_en', 'slug', 'description',
-        'calorie', 'carb', 'protein', 'fat', 'fiber', 'serving_size',
-        'food_category_id', 'status', 'image',
-        'meta_title', 'meta_description', 'meta_keywords',
-        'user_id', 'created_by', 'updated_by', 'deleted_by', 'published_by',
-        'published_at', 'view_count', 'is_featured', 'ip_address', 'user_agent',
+        'name_bn', 'name_en', 'slug', 'description', 'calorie',
+        'carb', 'protein', 'fat', 'fiber', 'serving_size',
+        'food_category_id', 'status', 'is_featured',
     ];
 
     protected $casts = [
@@ -26,6 +27,15 @@ class Food extends BaseModel
         'view_count' => 'integer',
         'is_featured' => 'boolean',
     ];
+
+    // Spatie Activitylog Options
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logFillable()
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
+    }
 
     // Relations
     public function category()
@@ -36,34 +46,17 @@ class Food extends BaseModel
     public function nutrients()
     {
         return $this->belongsToMany(Nutrient::class, 'food_nutrients')
-            ->using(FoodNutrient::class)   // custom pivot model
+            ->using(FoodNutrient::class)
             ->withPivot('amount')
             ->withTimestamps();
     }
 
-    public function user()
+    public function vitamins()
     {
-        return $this->belongsTo(User::class, 'user_id');
-    }
-
-    public function creator()
-    {
-        return $this->belongsTo(User::class, 'created_by');
-    }
-
-    public function updater()
-    {
-        return $this->belongsTo(User::class, 'updated_by');
-    }
-
-    public function deleter()
-    {
-        return $this->belongsTo(User::class, 'deleted_by');
-    }
-
-    public function publisher()
-    {
-        return $this->belongsTo(User::class, 'published_by');
+        return $this->belongsToMany(Vitamin::class, 'food_vitamins')
+            ->using(FoodVitamin::class)
+            ->withPivot('amount')
+            ->withTimestamps();
     }
 
     public function scopeSearch($query, $term)
@@ -75,11 +68,9 @@ class Food extends BaseModel
             ->orWhere('description', 'like', $term);
     }
 
-    public function vitamins()
+    public function registerMediaCollections(): void
     {
-        return $this->belongsToMany(Vitamin::class, 'food_vitamins')
-            ->using(FoodVitamin::class)   // custom pivot model
-            ->withPivot('amount')
-            ->withTimestamps();
+        $this->addMediaCollection('food_images')
+            ->singleFile(); // যদি একাধিক ছবি চান, তাহলে singleFile() রিমুভ করবেন
     }
 }

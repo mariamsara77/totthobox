@@ -8,15 +8,13 @@
     ];
 @endphp
 
-<div
-    class="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] w-full max-w-sm px-4 flex flex-col gap-3 pointer-events-none">
+<div class="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] w-full px-4 flex flex-col gap-4 pointer-events-none">
 
     {{-- 1. Session Notifications (Flash Messages) --}}
     @foreach ($notifications as $type => $settings)
         @if (session()->has($type))
             <div class="pointer-events-auto">
-                <x-notification-card :icon="$settings['icon']" :color="$settings['color']" :message="session($type)"
-                    :type="$type" />
+                <x-notification-card :icon="$settings['icon']" :color="$settings['color']" :message="session($type)" :type="$type" />
             </div>
         @endif
     @endforeach

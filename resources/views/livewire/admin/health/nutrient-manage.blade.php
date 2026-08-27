@@ -4,8 +4,9 @@ use Livewire\Volt\Component;
 use App\Models\Nutrient;
 use Livewire\WithPagination;
 use Flux\Flux;
+use Livewire\Attributes\Layout;
 
-new class extends Component {
+new #[Layout('components.layouts.admin')] class extends Component {
     use WithPagination;
 
     public $nutrientId;

@@ -41,10 +41,14 @@ return [
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
-            'url' => env('APP_URL').'/storage',
+            'url' => env('APP_URL') . '/storage',
             'visibility' => 'public',
             'throw' => false,
             'report' => false,
+            'permissions' => [
+                'file' => ['public' => 0664, 'private' => 0600],
+                'dir' => ['public' => 0775, 'private' => 0700],
+            ],
         ],
 
         's3' => [
@@ -63,9 +67,20 @@ return [
         'media' => [
             'driver' => 'local',
             'root' => public_path('media'),
-            'url' => env('APP_URL').'/media',
+            'url' => env('APP_URL') . '/media',
             'visibility' => 'public',
             'throw' => false,
+            // মিডিয়া ফোল্ডারে ফ্লাইসিস্টেমের পারমিশন এনফোর্স করা হলো
+            'permissions' => [
+                'file' => [
+                    'public' => 0664,
+                    'private' => 0600,
+                ],
+                'dir' => [
+                    'public' => 0775,
+                    'private' => 0700,
+                ],
+            ],
         ],
 
         'private' => [
@@ -79,7 +94,7 @@ return [
             'clientId' => env('GOOGLE_DRIVE_CLIENT_ID'),
             'clientSecret' => env('GOOGLE_DRIVE_CLIENT_SECRET'),
             'refreshToken' => env('GOOGLE_DRIVE_REFRESH_TOKEN'),
-            'folderId' => env('GOOGLE_DRIVE_FOLDER_ID'),
+            'folder' => env('GOOGLE_DRIVE_FOLDER_ID'),
         ],
 
     ],
@@ -94,9 +109,9 @@ return [
     | the locations of the links and the values should be their targets.
     |
     */
-
     'links' => [
         public_path('storage') => storage_path('app/public'),
+        public_path('media') => storage_path('app/media'),
     ],
 
 ];

@@ -43,6 +43,9 @@ return [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
         'redirect' => env('GOOGLE_REDIRECT'),
+        'indexing_key' => env('GOOGLE_INDEXING_CREDENTIALS_PATH', 'storage/app/google-credentials.json'),
+        'indexing_credentials' => env('GOOGLE_INDEXING_CREDENTIALS_PATH'),
+        'indexing_daily_quota' => env('GOOGLE_INDEXING_DAILY_QUOTA', 200),
     ],
 
     'facebook' => [
@@ -50,6 +53,38 @@ return [
         'client_secret' => env('FACEBOOK_CLIENT_SECRET'),
         'redirect' => env('FACEBOOK_REDIRECT'),
         'app_id' => env('FACEBOOK_APP_ID'),
+    ],
+
+    'groq' => [
+        'api_key' => env('GROQ_API_KEY'),
+    ],
+
+    'ai' => [
+        'groq' => env('GROQ_API_KEY'),
+        'gemini' => env('GEMINI_API_KEY'),
+        'cerebras' => env('CEREBRAS_API_KEY'),
+        'mistral' => env('MISTRAL_API_KEY'),
+        'huggingface' => env('HUGGINGFACE_API_KEY'),
+    ],
+
+    'unsplash' => [
+        'access_key' => env('UNSPLASH_ACCESS_KEY'),
+    ],
+    'youtube' => [
+        'api_key' => env('YOUTUBE_API_KEY'),
+    ],
+
+    'libreoffice' => [
+        'binary' => env('LIBREOFFICE_BINARY_PATH', '/usr/bin/soffice'),
+    ],
+
+    'ffmpeg' => [
+        'binary' => env('FFMPEG_BINARY', '/usr/bin/ffmpeg'),
+        'ffprobe' => env('FFPROBE_BINARY', '/usr/bin/ffprobe'),
+    ],
+
+    'cloudconvert' => [
+        'api_key' => env('CLOUDCONVERT_API_KEY'),
     ],
 
 ];

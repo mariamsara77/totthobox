@@ -2,88 +2,114 @@
 
 namespace App\Models;
 
+use App\Traits\AutoCacheable;
+use App\Traits\HasReactions;
+use CyrildeWit\EloquentViewable\Contracts\Viewable;
+use CyrildeWit\EloquentViewable\InteractsWithViews;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
-class Sign extends BaseModel
+class Sign extends Model implements HasMedia, Viewable
 {
-    use HasFactory, SoftDeletes;
+    use AutoCacheable, HasFactory, HasReactions, InteractsWithMedia, InteractsWithViews, LogsActivity, SoftDeletes;
 
     protected $table = 'signs';
 
-    /**
-     * Mass assignable attributes.
-     */
     protected $fillable = [
         'sign_category_id',
-        'image',
-        'name_bn',
-        'name_en',
-        'description_bn',
-        'description_en',
+        'name',
+        'description',
         'details',
         'others',
+        'slug',
+        'is_featured',
         'status',
-        'created_by',
-        'updated_by',
-        'deleted_by',
     ];
 
-    /**
-     * Attribute casting.
-     */
     protected $casts = [
         'status' => 'integer',
+        'is_featured' => 'boolean',
     ];
 
-    /**
-     * Default attributes.
-     */
     protected $attributes = [
         'status' => 1,
+        'is_featured' => false,
     ];
+
+    protected static function booted(): void
+    {
+        static::saved(function () {
+            cache()->forget('basic_islam_v1');
+        });
+
+        static::deleted(function () {
+            cache()->forget('basic_islam_v1');
+        });
+    }
+
+    // Activity Log Configuration
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['name', 'description', 'sign_category_id', 'is_featured', 'status'])
+            ->logOnlyDirty()
+            ->useLogName('sign');
+    }
 
     /**
      * Relationships
      */
-
-    // Category that this sign belongs to
-    public function category()
+    public function category(): BelongsTo
     {
         return $this->belongsTo(SignCategory::class, 'sign_category_id');
-    }
-
-
-    // Audit users
-    public function creator()
-    {
-        return $this->belongsTo(User::class, 'created_by');
-    }
-
-    public function updater()
-    {
-        return $this->belongsTo(User::class, 'updated_by');
-    }
-
-    public function deleter()
-    {
-        return $this->belongsTo(User::class, 'deleted_by');
     }
 
     /**
      * Scopes
      */
-
-    // Scope for only active signs
     public function scopeActive($query)
     {
         return $query->where('status', 1);
     }
 
-    // Scope for only inactive signs
     public function scopeInactive($query)
     {
         return $query->where('status', 0);
+    }
+
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('images');
+    }
+
+    public function registerMediaConversions(?Media $media = null): void
+    {
+
+        $this->addMediaConversion('thumb')
+            ->width(100)
+            ->height(100)
+            ->sharpen(10)
+            ->format('webp')
+            ->nonQueued();
+
+        // রিয়েল-টাইমে ইমেজের সব EXIF/Copyright ডেটা ডিলিট করে WebP করা হবে
+        $this->addMediaConversion('optimized')
+            ->format('webp')
+            ->quality(85)
+            ->optimize()
+            ->nonQueued();
+    }
+
+    public function incrementViews(): void
+    {
+        $this->view_count++;
+        $this->save();
     }
 }

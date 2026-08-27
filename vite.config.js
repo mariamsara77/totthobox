@@ -5,18 +5,19 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
     plugins: [
         laravel({
-            input: ["resources/css/app.css", "resources/js/app.js"],
+            input: [
+                "resources/css/app.css",
+                "resources/js/app.js",       // পাবলিক
+                "resources/js/admin.js",     // অ্যাডমিন
+                "resources/js/echo.js",      // শুধু চ্যাট পেজে
+            ],
             refresh: true,
         }),
         tailwindcss(),
     ],
-    server: {
-        host: "0.0.0.0",
-        port: 5173,
-        hmr: {
-            // আপনার টানেল হোস্ট দিন
-            host: "totthobox.com",
-            protocol: "wss",
-        },
+    build: {
+        cssCodeSplit: true,
+        cssMinify: true,
+        sourcemap: false,
     },
 });

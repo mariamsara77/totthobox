@@ -14,7 +14,7 @@
     @if ($paginator->hasPages())
         <nav role="navigation" aria-label="Pagination Navigation" class="flex items-center lg:justify-between justify-end">
 
-            <div class="hidden lg:flex sm:flex-1 sm:items-center sm:justify-between">
+            <div class="hidden lg:flex sm:flex-1 items-center justify-between">
                 <div>
                     <p class="text-sm text-gray-700 dark:text-gray-300">
                         Showing

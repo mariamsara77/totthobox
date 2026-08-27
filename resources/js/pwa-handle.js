@@ -1,102 +1,118 @@
-const PWA_CORE = {
+const PWA = {
     deferredPrompt: null,
-    dismissKey: 'pwa_interaction_status',
+    dismissKey: 'pwa_dismiss_until',
+    installedKey: 'pwa_installed',
 
     init() {
-        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-        if (isStandalone) {
-            localStorage.removeItem(this.dismissKey);
+        if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+            localStorage.setItem(this.installedKey, 'true');
             return;
         }
 
-        // ইভেন্ট লিসেনারটি একদম শুরুতে রাখুন
         window.addEventListener('beforeinstallprompt', (e) => {
-            console.log('PWA: beforeinstallprompt event fired');
             e.preventDefault();
             this.deferredPrompt = e;
-
-            if (!this.isDismissed()) {
-                this.triggerUI();
-            }
+            this.maybeShow();
         });
 
         window.addEventListener('appinstalled', () => {
-            this.hideUI();
-            localStorage.setItem('pwa_is_installed', 'true');
+            localStorage.setItem(this.installedKey, 'true');
+            this.hide();
             this.deferredPrompt = null;
         });
 
-        // Event Delegation ব্যবহার করা ভালো যাতে এলিমেন্ট পরে লোড হলেও কাজ করে
+        this.isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
         document.addEventListener('click', (e) => {
-            if (e.target.id === 'btn-pwa-install' || e.target.closest('#btn-pwa-install')) {
-                this.handleInstall();
-            }
-            if (e.target.id === 'btn-pwa-close' || e.target.closest('#btn-pwa-close')) {
-                this.dismiss();
-            }
+            if (e.target.closest('#pwa-install-btn')) this.install();
+            if (e.target.closest('#pwa-close-btn')) this.dismiss();
         });
+
+        // Soft engagement triggers
+        setTimeout(() => this.maybeShow(), 4500);
+
+        let scrolled = false;
+        window.addEventListener('scroll', () => {
+            if (!scrolled && window.scrollY > 200) {
+                scrolled = true;
+                this.maybeShow();
+            }
+        }, { passive: true });
     },
 
-    triggerUI() {
-       const bar = document.getElementById('pwa-smart-bar');
-    if (!bar) {
-        // যদি লাইভওয়্যার নেভিগেশনের কারণে এলিমেন্ট না পায়, তবে একটু পর আবার ট্রাই করবে
-        console.warn('PWA: Smart bar element not found in DOM.');
-        return; 
-    }
+    maybeShow() {
+        if (this.isDismissed() || localStorage.getItem(this.installedKey)) return;
 
-        setTimeout(() => {
-            bar.classList.remove('hidden');
-            setTimeout(() => {
-                bar.classList.replace('opacity-0', 'opacity-100');
-                bar.classList.replace('translate-y-10', 'translate-y-0');
-                bar.classList.replace('pointer-events-none', 'pointer-events-auto');
-            }, 100);
-        }, 2000);
-    },
-
-    async handleInstall() {
-        if (!this.deferredPrompt) {
-            // যদি প্রম্পট না থাকে তবে ইউজারকে একটি মেসেজ দিন বা কনসোলে চেক করুন
-            console.log('PWA: Prompt not ready. Try interacting with the page first.');
+        if (this.isIOS) {
+            this.showIOS();
             return;
         }
 
-        const promptEvent = this.deferredPrompt;
-        promptEvent.prompt(); // প্রম্পট দেখানো
+        if (this.deferredPrompt) {
+            this.showAndroid();
+        }
+    },
 
-        const { outcome } = await promptEvent.userChoice;
-        console.log(`PWA: User response to the install prompt: ${outcome}`);
+    showAndroid() {
+        const bar = document.getElementById('pwa-bar');
+        if (!bar || !bar.classList.contains('hidden')) return;
+
+        bar.classList.remove('hidden');
+        // Force reflow
+        bar.offsetHeight;
+        bar.classList.remove('translate-y-full');
+    },
+
+    showIOS() {
+        const bar = document.getElementById('pwa-bar-ios');
+        if (!bar || !bar.classList.contains('hidden')) return;
+
+        bar.classList.remove('hidden');
+        requestAnimationFrame(() => {
+            bar.classList.remove('opacity-0', 'translate-y-8', 'pointer-events-none');
+            bar.classList.add('opacity-100', 'translate-y-0', 'pointer-events-auto');
+        });
+    },
+
+    async install() {
+        if (!this.deferredPrompt) return;
+
+        this.deferredPrompt.prompt();
+        const { outcome } = await this.deferredPrompt.userChoice;
 
         if (outcome === 'accepted') {
-            this.hideUI();
+            this.hide();
         }
-
-        // প্রম্পট একবার ব্যবহারের পর নাল করে দিতে হয়
         this.deferredPrompt = null;
     },
 
-    hideUI() {
-        const bar = document.getElementById('pwa-smart-bar');
-        if (bar) {
-            bar.classList.replace('opacity-100', 'opacity-0');
-            bar.classList.replace('translate-y-0', 'translate-y-10');
-            bar.classList.replace('pointer-events-auto', 'pointer-events-none');
-            setTimeout(() => bar.classList.add('hidden'), 500);
+    hide() {
+        // Android
+        const android = document.getElementById('pwa-bar');
+        if (android && !android.classList.contains('hidden')) {
+            android.classList.add('translate-y-full');
+            setTimeout(() => android.classList.add('hidden'), 300);
+        }
+
+        // iOS
+        const ios = document.getElementById('pwa-bar-ios');
+        if (ios && !ios.classList.contains('hidden')) {
+            ios.classList.remove('opacity-100', 'translate-y-0', 'pointer-events-auto');
+            ios.classList.add('opacity-0', 'translate-y-8', 'pointer-events-none');
+            setTimeout(() => ios.classList.add('hidden'), 300);
         }
     },
 
     dismiss() {
-        this.hideUI();
-        const expiry = new Date().getTime() + (24 * 60 * 60 * 1000);
-        localStorage.setItem(this.dismissKey, expiry.toString());
+        this.hide();
+        // 7 days
+        localStorage.setItem(this.dismissKey, Date.now() + 7 * 24 * 60 * 60 * 1000);
     },
 
     isDismissed() {
-        const status = localStorage.getItem(this.dismissKey);
-        if (!status) return false;
-        return new Date().getTime() < parseInt(status);
+        const until = localStorage.getItem(this.dismissKey);
+        return until && Date.now() < parseInt(until);
     }
 };
 
-PWA_CORE.init();
+document.addEventListener('DOMContentLoaded', () => PWA.init());

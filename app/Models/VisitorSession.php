@@ -38,7 +38,10 @@ class VisitorSession extends Model
     protected static function boot()
     {
         parent::boot();
-        static::creating(fn ($model) => $model->id = $model->id ?: (string) Str::uuid());
+
+        static::creating(function ($model) {
+            $model->id = $model->id ?: (string) Str::uuid();
+        });
     }
 
     public function visitor(): BelongsTo

@@ -5,109 +5,194 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Visitor;
 use App\Services\VisitorTrackingService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 class TrackingController extends Controller
 {
-    protected $trackingService;
-
-    public function __construct(VisitorTrackingService $trackingService)
-    {
-        $this->trackingService = $trackingService;
-    }
+    public function __construct(
+        protected VisitorTrackingService $trackingService
+    ) {}
 
     /**
-     * PWA স্ট্যাটাস সিঙ্ক করার জন্য (JS থেকে কল হবে)
+     * Sync PWA install status from the frontend.
      */
-// VisitorController.php
-    public function syncPwaStatus(Request $request)
+    public function syncPwaStatus(Request $request): JsonResponse
     {
-        // ১. ভ্যালিডেশন (নিশ্চিত হওয়া যে ডাটা ঠিক আছে)
-        $validated = $request->validate([
-            'is_pwa' => 'required|boolean'
+        $request->validate([
+            'is_pwa' => 'required|boolean',
         ]);
 
         try {
-            // ২. আপনার সার্ভিস কল করা
             $this->trackingService->forceSyncPwaStatus($request);
-
-            // ৩. সেশনে সেভ করে রাখা যাতে ব্লেড ফাইলে চেক করা সহজ হয়
-            session(['is_pwa' => $request->is_pwa]);
 
             return response()->json([
                 'status' => 'success',
-                'is_pwa' => $request->is_pwa // ডাইনামিক স্ট্যাটাস পাঠানো
+                'is_pwa' => $request->boolean('is_pwa'),
             ]);
-
-        } catch (\Exception $e) {
-            Log::error("PWA Sync Error: " . $e->getMessage());
+        } catch (\Throwable $e) {
+            Log::error('PWA Sync Error', ['message' => $e->getMessage()]);
 
             return response()->json([
                 'status' => 'error',
-                'message' => 'Failed to sync status'
-            ], 500); // সার্ভার এরর বুঝাতে ৫০০ দেওয়া ভালো
+                'message' => 'Failed to sync status',
+            ], 500);
         }
     }
+
     /**
-     * বাটন ক্লিক, ফরম সাবমিট বা সিস্টেম ইনফো ট্র্যাক করার জন্য
+     * Track client-side events (page view, click, hardware, custom).
      */
-    public function trackEvent(Request $request)
+    public function trackEvent(Request $request): JsonResponse
     {
         try {
-            // ১. ভিজিটর আইডেন্টিফাই (মিডলওয়্যার থেকে অথবা নতুন তৈরি)
+            /** @var Visitor|null $visitor */
             $visitor = $request->attributes->get('current_visitor')
                 ?? $this->trackingService->getOrCreateVisitor($request);
 
-            if (!$visitor) {
+            if (! $visitor) {
                 return response()->json(['status' => 'ignored'], 200);
             }
 
-            // ২. ডেটা রিসিভ
             $category = $request->input('category', 'interaction');
-            $action = $request->input('action', 'click');
-            $payload = $request->input('payload', []);
-            $label = $payload['label'] ?? null;
+            $action   = $request->input('action', 'click');
+            $payload  = $request->input('payload', []);
+            $label    = $payload['label'] ?? $request->input('label');
 
-            // ৩. সিস্টেম ইনফো আপডেট (Timezone, Screen Resolution ইত্যাদি)
+            // System event → device specs আপডেট
             if ($category === 'system') {
-                $this->updateVisitorSpecs($visitor, $payload);
+                $this->updateVisitorSpecs($request, $visitor, $payload);
             }
 
-            // ৪. ইভেন্ট সেভ করা (Service এর মাধ্যমে)
+            // Page View → পুরো Visitor + Session + PageView পাইপলাইন
+            if ($category === 'page' && $action === 'view') {
+                $this->handlePageView($request, $visitor, $payload);
+            }
+
+            // সব ইভেন্ট সেভ
             $this->trackingService->trackEvent($visitor, $category, $action, $label, $payload);
 
-            return response()->json(['status' => 'success'], 200);
+            return response()->json(['status' => 'success']);
+        } catch (\Throwable $e) {
+            Log::error('Tracking Controller Error', [
+                'message' => $e->getMessage(),
+                'file'    => $e->getFile(),
+                'line'    => $e->getLine(),
+            ]);
 
-        } catch (\Exception $e) {
-            Log::error("Tracking Controller Error: " . $e->getMessage());
+            // সবসময় 200 দাও যাতে ক্লায়েন্ট রিট্রাই না করে
             return response()->json(['status' => 'error'], 200);
         }
     }
 
-    protected function updateVisitorSpecs($visitor, $data)
+    /* -----------------------------------------------------------------
+     |  PRIVATE HELPERS
+     | ----------------------------------------------------------------- */
+
+    /**
+     * Frontend Page View হ্যান্ডেল করে (Middleware-এর সমতুল্য)
+     */
+    private function handlePageView(Request $request, Visitor $visitor, array $payload): void
     {
-        $updateData = [];
+        $url  = $payload['url'] ?? $request->fullUrl();
+        $path = $payload['path'] ?? (parse_url($url, PHP_URL_PATH) ?: '/');
+
+        $data = [
+            'ip'           => $request->ip(),
+            'user_agent'   => (string) $request->userAgent(),
+            'url'          => $url,
+            'route_name'   => $this->guessRouteName($path, $payload['route_name'] ?? null),
+            'referer'      => $payload['referrer'] ?? $request->headers->get('referer'),
+            'user_id'      => Auth::id(),
+            'is_pwa'       => $this->trackingService->resolveIsPwa($request) || !empty($payload['is_pwa']),
+            'utm_source'   => $payload['utm_source'] ?? $request->query('utm_source'),
+            'utm_medium'   => $payload['utm_medium'] ?? $request->query('utm_medium'),
+            'utm_campaign' => $payload['utm_campaign'] ?? $request->query('utm_campaign'),
+            'load_time_ms' => $payload['load_time_ms'] ?? 0,
+            'page_title'   => $payload['title'] ?? null,
+            'timestamp'    => now()->toISOString(),
+        ];
+
+        // সরাসরি প্রসেস (ফাস্ট). চাইলে Job ব্যবহার করতে পারো।
+        $this->trackingService->processTrackingPayload($data);
+
+        // Queue ব্যবহার করতে চাইলে উপরের লাইন কমেন্ট করে এটা চালাও:
+        // \App\Jobs\TrackVisitorJob::dispatch($data)->onQueue('tracking');
+    }
+
+    /**
+     * Path থেকে route_name বানায়
+     */
+    private function guessRouteName(?string $path, ?string $frontendName = null): ?string
+    {
+        if ($frontendName) {
+            return $frontendName;
+        }
+
+        if (!$path || $path === '/') {
+            return 'home';
+        }
+
+        // তোমার সাইট অনুযায়ী ম্যাপিং বাড়াও
+        $map = [
+            '/products'   => 'products.index',
+            '/cart'       => 'cart',
+            '/checkout'   => 'checkout',
+            '/account'    => 'account',
+            '/blog'       => 'blog.index',
+            '/contact'    => 'contact',
+            '/about'      => 'about',
+        ];
+
+        if (isset($map[$path])) {
+            return $map[$path];
+        }
+
+        // Wildcard স্টাইল
+        if (str_starts_with($path, '/products/')) {
+            return 'products.show';
+        }
+        if (str_starts_with($path, '/blog/')) {
+            return 'blog.show';
+        }
+
+        return str_replace('/', '.', trim($path, '/')) ?: 'home';
+    }
+
+    /**
+     * System event থেকে device/timezone আপডেট
+     */
+    private function updateVisitorSpecs(Request $request, Visitor $visitor, array $data): void
+    {
+        $update = [];
 
         if (!empty($data['timezone'])) {
-            $updateData['timezone'] = $data['timezone'];
+            $update['timezone'] = $data['timezone'];
         }
 
         if (!empty($data['screen_res'])) {
-            // রেজোলিউশনকে মডেলের সাথে অ্যাপেন্ড করা
-            $res = $data['screen_res'];
-            if (!str_contains($visitor->device_model ?? '', $res)) {
-                $updateData['device_model'] = trim(($visitor->device_model ?? '') . ' | ' . $res, ' | ');
+            $res     = $data['screen_res'];
+            $current = $visitor->device_model ?? '';
+
+            if (!str_contains($current, $res)) {
+                $update['device_model'] = trim($current . ' | ' . $res, ' | ');
             }
         }
 
-        if (!empty($updateData)) {
-            $updateData['last_seen_at'] = now();
-            $visitor->update($updateData);
-
-            // ক্যাশ আপডেট করা যাতে রিপোর্টে সাথে সাথে দেখা যায়
-            $cacheKey = "v_active_" . hash('sha256', request()->ip() . request()->userAgent());
-            \Illuminate\Support\Facades\Cache::put($cacheKey, $visitor->fresh(), 300);
+        if (empty($update)) {
+            return;
         }
+
+        $update['last_seen_at'] = now();
+        $visitor->update($update);
+
+        $hash = $this->trackingService->makeHash(
+            $request->ip(),
+            (string) $request->userAgent()
+        );
+
+        $this->trackingService->bustVisitorCache($hash);
     }
 }

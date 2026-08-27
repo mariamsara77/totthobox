@@ -7,8 +7,9 @@ use Livewire\WithPagination;
 use Illuminate\Support\Str;
 use Livewire\Attributes\{Computed, Validate};
 use Illuminate\Support\Facades\Cache;
+use Livewire\Attributes\Layout;
 
-new class extends Component {
+new #[Layout('components.layouts.admin')] class extends Component {
     use WithFileUploads, WithPagination;
 
     public $ministerId;
@@ -70,8 +71,9 @@ new class extends Component {
     public function removeImage($index)
     {
         $image = $this->images[$index] ?? null;
-        if (!$image)
+        if (!$image) {
             return;
+        }
 
         if (is_array($image) && isset($image['is_existing'])) {
             $item = Minister::withTrashed()->find($this->ministerId);
@@ -100,11 +102,16 @@ new class extends Component {
         $this->to_date = $item->to_date?->format('Y-m-d');
         $this->is_current = (bool) $item->is_current;
 
-        $this->images = $item->getMedia('minister_images')->map(fn($m) => [
-            'id' => $m->id,
-            'url' => $m->getUrl('thumb'),
-            'is_existing' => true
-        ])->toArray();
+        $this->images = $item
+            ->getMedia('minister_images')
+            ->map(
+                fn($m) => [
+                    'id' => $m->id,
+                    'url' => $m->getUrl('thumb'),
+                    'is_existing' => true,
+                ],
+            )
+            ->toArray();
 
         $this->dispatch('modal-show', name: 'minister-form');
     }
@@ -113,30 +120,34 @@ new class extends Component {
     {
         $this->validate();
 
-        $item = Minister::updateOrCreate(['id' => $this->ministerId], [
-            'name' => $this->name,
-            'designation' => $this->designation,
-            'rank' => $this->rank,
-            'party' => $this->party,
-            'from_date' => $this->from_date,
-            'to_date' => $this->to_date,
-            'is_current' => $this->is_current,
-            'bio' => $this->bio,
-            'division_id' => $this->division_id,
-            'district_id' => $this->district_id,
-            'thana_id' => $this->thana_id,
-            'is_featured' => $this->is_featured,
-            'status' => $this->status,
-            'slug' => Str::slug($this->name) . '-' . Str::random(5), // Unique Slug
-            'meta_title' => $this->meta_title,
-            'meta_description' => $this->meta_description,
-            'meta_keywords' => $this->meta_keywords,
-            'user_id' => auth()->id(),
-        ]);
+        $item = Minister::updateOrCreate(
+            ['id' => $this->ministerId],
+            [
+                'name' => $this->name,
+                'designation' => $this->designation,
+                'rank' => $this->rank,
+                'party' => $this->party,
+                'from_date' => $this->from_date,
+                'to_date' => $this->to_date,
+                'is_current' => $this->is_current,
+                'bio' => $this->bio,
+                'division_id' => $this->division_id,
+                'district_id' => $this->district_id,
+                'thana_id' => $this->thana_id,
+                'is_featured' => $this->is_featured,
+                'status' => $this->status,
+                'slug' => Str::slug($this->name) . '-' . Str::random(5), // Unique Slug
+                'meta_title' => $this->meta_title,
+                'meta_description' => $this->meta_description,
+                'meta_keywords' => $this->meta_keywords,
+                'user_id' => auth()->id(),
+            ],
+        );
 
         foreach ($this->images as $image) {
             if ($image instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
-                $item->addMedia($image->getRealPath())
+                $item
+                    ->addMedia($image->getRealPath())
                     ->usingFileName(Str::random(10) . '.' . $image->getClientOriginalExtension())
                     ->toMediaCollection('minister_images');
             }
@@ -172,12 +183,13 @@ new class extends Component {
             <flux:heading size="xl">Minister Management</flux:heading>
             <flux:subheading>Create and manage government official profiles.</flux:subheading>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-4">
             <flux:radio.group wire:model.live="viewType" variant="segmented" size="sm">
                 <flux:radio value="active" label="Active" />
                 <flux:radio value="trashed" label="Trash" />
             </flux:radio.group>
-            <flux:button wire:click="showCreateForm" icon="plus" variant="primary" size="sm">Add Minister</flux:button>
+            <flux:button wire:click="showCreateForm" icon="plus" variant="primary" size="sm">Add Minister
+            </flux:button>
         </div>
     </div>
 
@@ -206,11 +218,12 @@ new class extends Component {
                             <div class="text-xs text-zinc-500">{{ $item->designation }}</div>
                         </flux:table.cell>
                         <flux:table.cell>
-                            <flux:badge size="sm" color="blue" inset="top bottom">{{ $item->party }}</flux:badge>
+                            <flux:badge size="sm" color="blue" inset="top bottom">{{ $item->party }}
+                            </flux:badge>
                         </flux:table.cell>
                         <flux:table.cell>{{ $item->rank }}</flux:table.cell>
                         <flux:table.cell align="end">
-                            @if($viewType === 'active')
+                            @if ($viewType === 'active')
                                 <flux:button variant="ghost" size="sm" icon="pencil-square"
                                     wire:click="showEditForm({{ $item->id }})" />
                                 <flux:button variant="ghost" size="sm" icon="trash" color="red"
@@ -238,7 +251,7 @@ new class extends Component {
     </div>
 
     {{-- Modal Form --}}
-    <flux:modal name="minister-form" class="md:w-[55rem] space-y-6">
+    <flux:modal name="minister-form" class="md:w-220 space-y-6">
         <form wire:submit="save" class="space-y-6">
             <flux:heading size="lg">{{ $ministerId ? 'Edit Profile' : 'Add Minister' }}</flux:heading>
 
@@ -257,15 +270,21 @@ new class extends Component {
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <flux:select wire:model.live="division_id" label="Division">
                     <option value="">Select Division</option>
-                    @foreach($divisions as $div) <option value="{{ $div->id }}">{{ $div->name }}</option> @endforeach
+                    @foreach ($divisions as $div)
+                        <option value="{{ $div->id }}">{{ $div->name }}</option>
+                    @endforeach
                 </flux:select>
                 <flux:select wire:model.live="district_id" label="District">
                     <option value="">Select District</option>
-                    @foreach($districts as $dis) <option value="{{ $dis->id }}">{{ $dis->name }}</option> @endforeach
+                    @foreach ($districts as $dis)
+                        <option value="{{ $dis->id }}">{{ $dis->name }}</option>
+                    @endforeach
                 </flux:select>
                 <flux:select wire:model="thana_id" label="Thana">
                     <option value="">Select Thana</option>
-                    @foreach($thanas as $tha) <option value="{{ $tha->id }}">{{ $tha->name }}</option> @endforeach
+                    @foreach ($thanas as $tha)
+                        <option value="{{ $tha->id }}">{{ $tha->name }}</option>
+                    @endforeach
                 </flux:select>
             </div>
 
@@ -284,9 +303,9 @@ new class extends Component {
                 <flux:label>Profile Images</flux:label>
                 <flux:file-upload wire:model.live="images" multiple />
 
-                @if(!empty($images))
+                @if (!empty($images))
                     <div class="grid grid-cols-5 gap-2 mt-2">
-                        @foreach($images as $index => $img)
+                        @foreach ($images as $index => $img)
                             <div class="relative group aspect-square border rounded overflow-hidden">
                                 <img src="{{ is_array($img) ? $img['url'] : $img->temporaryUrl() }}"
                                     class="object-cover w-full h-full">

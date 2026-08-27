@@ -2,15 +2,12 @@
 
 use Livewire\Volt\Component;
 
-new class extends Component
-{
-    // Public properties that will be bound to the HTML elements
+new class extends Component {
     public ?float $inputValue = null;
     public float $outputValue = 0.0;
     public string $inputUnit = 'meters_per_second';
     public string $outputUnit = 'kilometers_per_hour';
 
-    // A protected property for conversion rates, making it backend data
     protected array $velocityConversionRates = [
         'meters_per_second' => 1,
         'kilometers_per_hour' => 3.6,
@@ -19,53 +16,34 @@ new class extends Component
         'feet_per_second' => 3.28084,
     ];
 
-    /**
-     * This method runs when the component is first mounted.
-     */
-    public function mount()
+    public function mount(): void
     {
         $this->convertVelocity();
     }
 
-    /**
-     * This method is triggered whenever a bound property changes.
-     * @param string $property The name of the updated property.
-     */
-    public function updated($property)
+    public function updated($property): void
     {
-        // We only want to run the conversion if a relevant property changes
         if (in_array($property, ['inputValue', 'inputUnit', 'outputUnit'])) {
             $this->convertVelocity();
         }
     }
 
-    /**
-     * This method handles the conversion logic.
-     */
-    public function convertVelocity()
+    public function convertVelocity(): void
     {
-        // Ensure the input value is a number to prevent errors
-        $safeValue = is_numeric($this->inputValue) ? floatval($this->inputValue) : 0;
-
-        // Check for division by zero
+        $safeValue = is_numeric($this->inputValue) ? (float) $this->inputValue : 0;
         $inputRate = $this->velocityConversionRates[$this->inputUnit] ?? null;
-        if ($inputRate === null || $inputRate === 0) {
+
+        if (!$inputRate) {
             $this->outputValue = 0;
             return;
         }
 
-        // Convert to meters per second first
         $valueInMetersPerSecond = $safeValue / $inputRate;
-
-        // Convert to the output unit
         $outputRate = $this->velocityConversionRates[$this->outputUnit] ?? 0;
         $this->outputValue = round($valueInMetersPerSecond * $outputRate, 6);
     }
 
-    /**
-     * This method swaps the units and triggers a new conversion.
-     */
-    public function swapVelocityUnits()
+    public function swapVelocityUnits(): void
     {
         [$this->inputUnit, $this->outputUnit] = [$this->outputUnit, $this->inputUnit];
         $this->convertVelocity();
@@ -73,61 +51,75 @@ new class extends Component
 };
 ?>
 
+<section class="max-w-2xl mx-auto">
+    <x-seo title="অনলাইন গতিবেগ রূপান্তরকারী - m/s, km/h, mph, Knots কনভার্টার | Totthobox"
+        description="সহজেই মিটার/সেকেন্ড (m/s), কিলোমিটার/ঘণ্টা (km/h), মাইল/ঘণ্টা (mph), নট (kn) এবং ফুট/সেকেন্ড কনভার্ট করুন। Totthobox-এর নিখুঁত Velocity Converter।"
+        keywords="গতিবেগ রূপান্তরকারী, velocity converter, km/h to m/s, mph to km/h, m/s to km/h, knots converter, গতি পরিমাপ ক্যালকুলেটর, Totthobox" />
 
-<section class="flex items-center justify-center">
-    <div class="w-full max-w-xl rounded-2xl space-y-6">
-        <h2 class="text-3xl font-extrabold text-center">Velocity Converter</h2>
+    <div class="space-y-8">
+        <div class="text-center space-y-2">
+            <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight">
+                Velocity Converter
+            </h1>
+            <h2 class="text-lg text-zinc-600 dark:text-zinc-400">
+                গতিবেগ রূপান্তরকারী — m/s, km/h, mph, Knots
+            </h2>
+        </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
-            <div class="md:col-span-2">
-                <label for="velocityInputValue" class="sr-only">Enter value</label>
-                <flux:input id="velocityInputValue" type="number" wire:model.live.debounce.500ms="inputValue" placeholder="Enter value" />
+        <div class="space-y-6">
+            {{-- From --}}
+            <div class="w-full flex text-center">
+                <flux:input.group class="w-full flex justify-center">
+                    <flux:select id="velocityInputUnit" wire:model.live="inputUnit" label="যে ইউনিট থেকে (From)">
+                        <option value="meters_per_second">Meters / second (m/s)</option>
+                        <option value="kilometers_per_hour">Kilometers / hour (km/h)</option>
+                        <option value="miles_per_hour">Miles / hour (mph)</option>
+                        <option value="knots">Knots (kn)</option>
+                        <option value="feet_per_second">Feet / second (ft/s)</option>
+                    </flux:select>
+                    <flux:input id="velocityInputValue" type="number" wire:model.live.debounce.400ms="inputValue"
+                        placeholder="মান লিখুন" label="ইনপুট মান" />
+                </flux:input.group>
             </div>
 
-            <div class="flex justify-center md:col-span-1">
-                <flux:button wire:click="swapVelocityUnits" class="p-3 rounded-full">
-                    <span wire:loading.remove>
-                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7l4-4m0 0l4 4m-4-4v12m0 0l4 4m-4-4l-4 4" />
-                        </svg>
-                    </span>
-                    <span wire:loading>
-                        <svg class="animate-spin h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                    </span>
-                </flux:button>
+            {{-- Swap Button --}}
+            <div class="w-full flex justify-center">
+                <flux:button wire:click="swapVelocityUnits" icon="arrows-up-down" variant="subtle"
+                    tooltip="ইউনিট অদলবদল করুন" />
             </div>
 
-            <div class="md:col-span-2">
-                <label for="velocityOutputValue" class="sr-only">Converted value</label>
-                <flux:input id="velocityOutputValue" type="number" wire:model="outputValue" disabled placeholder="Converted value" />
+            {{-- To --}}
+            <div class="w-full flex justify-center">
+                <flux:input.group class="w-full flex justify-center">
+                    <flux:select id="velocityOutputUnit" wire:model.live="outputUnit" label="যে ইউনিটে রূপান্তর (To)">
+                        <option value="meters_per_second">Meters / second (m/s)</option>
+                        <option value="kilometers_per_hour">Kilometers / hour (km/h)</option>
+                        <option value="miles_per_hour">Miles / hour (mph)</option>
+                        <option value="knots">Knots (kn)</option>
+                        <option value="feet_per_second">Feet / second (ft/s)</option>
+                    </flux:select>
+                    <flux:input id="velocityOutputValue" type="number" wire:model="outputValue" disabled
+                        placeholder="ফলাফল" label="রূপান্তরিত মান" />
+                </flux:input.group>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-            <div>
-                <label for="velocityInputUnit" class="block text-sm font-medium mb-2">From Unit</label>
-                <flux:select id="velocityInputUnit" wire:model.live="inputUnit">
-                    <option value="meters_per_second">Meters/second ($m/s$)</option>
-                    <option value="kilometers_per_hour">Kilometers/hour ($km/h$)</option>
-                    <option value="miles_per_hour">Miles/hour ($mph$)</option>
-                    <option value="knots">Knots (kn)</option>
-                    <option value="feet_per_second">Feet/second ($ft/s$)</option>
-                </flux:select>
-            </div>
+        {{-- Extra Content for SEO & User Value --}}
+        <div class="mt-24 pt-12 border-t border-zinc-400/25 space-y-6 text-sm text-zinc-600 dark:text-zinc-400">
+            <h3 class="text-lg font-semibold text-zinc-800 dark:text-zinc-200">কীভাবে ব্যবহার করবেন?</h3>
+            <ul class="list-disc list-inside space-y-2">
+                <li>উপরের বক্সে যে ইউনিট থেকে কনভার্ট করতে চান সেটি সিলেক্ট করুন।</li>
+                <li>মান লিখুন — ফলাফল স্বয়ংক্রিয়ভাবে দেখাবে।</li>
+                <li>মাঝের বাটনে ক্লিক করে ইউনিট অদলবদল করতে পারবেন।</li>
+            </ul>
 
-            <div>
-                <label for="velocityOutputUnit" class="block text-sm font-medium mb-2">To Unit</label>
-                <flux:select id="velocityOutputUnit" wire:model.live="outputUnit">
-                    <option value="meters_per_second">Meters/second ($m/s$)</option>
-                    <option value="kilometers_per_hour">Kilometers/hour ($km/h$)</option>
-                    <option value="miles_per_hour">Miles/hour ($mph$)</option>
-                    <option value="knots">Knots (kn)</option>
-                    <option value="feet_per_second">Feet/second ($ft/s$)</option>
-                </flux:select>
-            </div>
+            <h3 class="text-lg font-semibold text-zinc-800 dark:text-zinc-200">গুরুত্বপূর্ণ কনভার্শন ফর্মুলা</h3>
+            <ul class="list-disc list-inside space-y-1">
+                <li>1 m/s = 3.6 km/h</li>
+                <li>1 km/h ≈ 0.621371 mph</li>
+                <li>1 knot ≈ 1.852 km/h</li>
+                <li>1 m/s ≈ 3.28084 ft/s</li>
+            </ul>
         </div>
     </div>
 </section>

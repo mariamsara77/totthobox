@@ -9,7 +9,7 @@
     $invalid ??= $name && $errors->has($name);
 
     $classes = Flux::classes()
-        ->add('w-full ps-3 pe-10 text-left transition-all duration-100 focus:outline-none')
+        ->add('w-full ps-3 pe-10 text-left transition-all duration-200 focus:')
         ->add(
             match ($size) {
                 'sm' => 'h-8 py-1 text-sm rounded-md',
@@ -21,7 +21,7 @@
         ->add(
             $invalid
                 ? 'border-red-500 ring-1 ring-red-500'
-                : 'border-zinc-300 dark:border-white/15 border-b-zinc-300/80 focus:ring-2 focus:ring-zinc-500/20 focus:border-zinc-500',
+                : '',
         );
 @endphp
 
@@ -64,7 +64,7 @@
 
     <template x-teleport="body">
         <div x-show="open" x-ref="optionsContainer" x-anchor.bottom-start.offset.4="$refs.input"
-            x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 translate-y-1"
+            x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-1"
             class="fixed z-[9999] max-h-64 overflow-auto rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-900 shadow-xl p-1"
             :style="{ minWidth: $refs.input.offsetWidth + 'px' }" style="display: none;">
 

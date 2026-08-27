@@ -2,15 +2,12 @@
 
 use Livewire\Volt\Component;
 
-new class extends Component
-{
-    // Public properties that will be bound to the HTML elements
+new class extends Component {
     public ?float $inputValue = null;
     public float $outputValue = 0.0;
     public string $inputUnit = 'square_meter';
     public string $outputUnit = 'square_foot';
 
-    // A protected property for conversion rates, making it backend data
     protected array $areaConversionRates = [
         'square_meter' => 1,
         'square_kilometer' => 0.000001,
@@ -24,44 +21,34 @@ new class extends Component
         'square_inch' => 1550,
     ];
 
-    // This method runs when the component is first mounted
-    public function mount()
+    public function mount(): void
     {
         $this->convertArea();
     }
 
-    // This method is triggered whenever a bound property changes
-    public function updated($property)
+    public function updated($property): void
     {
-        // We only want to run the conversion if a relevant property changes
         if (in_array($property, ['inputValue', 'inputUnit', 'outputUnit'])) {
             $this->convertArea();
         }
     }
 
-    // This method handles the conversion logic
-    public function convertArea()
+    public function convertArea(): void
     {
-        // Ensure the input value is a number to prevent errors
-        $safeValue = is_numeric($this->inputValue) ? floatval($this->inputValue) : 0;
-
-        // Check for division by zero
+        $safeValue = is_numeric($this->inputValue) ? (float) $this->inputValue : 0;
         $inputRate = $this->areaConversionRates[$this->inputUnit] ?? null;
-        if ($inputRate === null || $inputRate === 0) {
+
+        if (!$inputRate) {
             $this->outputValue = 0;
             return;
         }
 
-        // Convert to square meters first
         $valueInSquareMeters = $safeValue / $inputRate;
-
-        // Convert to the output unit
         $outputRate = $this->areaConversionRates[$this->outputUnit] ?? 0;
         $this->outputValue = round($valueInSquareMeters * $outputRate, 6);
     }
 
-    // This method swaps the units and triggers a new conversion
-    public function swapAreaUnits()
+    public function swapAreaUnits(): void
     {
         [$this->inputUnit, $this->outputUnit] = [$this->outputUnit, $this->inputUnit];
         $this->convertArea();
@@ -69,71 +56,81 @@ new class extends Component
 };
 ?>
 
+<section class="max-w-2xl mx-auto">
+    <x-seo title="অনলাইন ক্ষেত্রফল রূপান্তরকারী - বর্গমিটার, বর্গফুট, একর, হেক্টর কনভার্টার | Totthobox"
+        description="সহজেই বর্গমিটার, বর্গফুট, একর, হেক্টর, বর্গকিলোমিটার কনভার্ট করুন। জমি বা স্থানের নিখুঁত ক্ষেত্রফল পরিমাপের জন্য Totthobox Area Converter।"
+        keywords="ক্ষেত্রফল রূপান্তরকারী, area converter, square foot to square meter, একর থেকে বর্গফুট, hectare to acre, জমি মাপার ক্যালকুলেটর, Totthobox" />
 
-<section class="flex items-center justify-center">
-    <div class="w-full max-w-xl rounded-2xl space-y-6">
-        <h2 class="text-3xl font-extrabold text-center">Area Converter</h2>
+    <div class="space-y-8">
+        <div class="text-center space-y-2">
+            <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight">
+                Area Converter
+            </h1>
+            <h2 class="text-lg text-zinc-600 dark:text-zinc-400">
+                ক্ষেত্রফল রূপান্তরকারী — Square Meter, Square Foot, Acre, Hectare
+            </h2>
+        </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
-            <div class="md:col-span-2">
-                <label for="areaInputValue" class="sr-only">Enter value</label>
-                <flux:input id="areaInputValue" type="number" wire:model.live.debounce.500ms="inputValue" placeholder="Enter value" />
+        <div class="space-y-6 w-full">
+            <div class="w-full flex justify-center">
+                <flux:input.group class="w-full flex justify-center">
+                    <flux:select id="areaInputUnit" wire:model.live="inputUnit" label="যে ইউনিট থেকে (From)">
+                        <option value="square_meter">Square Meter (m²)</option>
+                        <option value="square_kilometer">Square Kilometer (km²)</option>
+                        <option value="square_centimeter">Square Centimeter (cm²)</option>
+                        <option value="square_millimeter">Square Millimeter (mm²)</option>
+                        <option value="square_mile">Square Mile (mi²)</option>
+                        <option value="acre">Acre (ac)</option>
+                        <option value="hectare">Hectare (ha)</option>
+                        <option value="square_yard">Square Yard (yd²)</option>
+                        <option value="square_foot">Square Foot (ft²)</option>
+                        <option value="square_inch">Square Inch (in²)</option>
+                    </flux:select>
+                    <flux:input id="areaInputValue" type="number" wire:model.live.debounce.400ms="inputValue"
+                        placeholder="মান লিখুন" label="ইনপুট মান" />
+                </flux:input.group>
             </div>
 
-            <div class="flex justify-center md:col-span-1">
-                <flux:button wire:click="swapAreaUnits" class="p-3 rounded-full">
-                    <span wire:loading.remove>
-                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7l4-4m0 0l4 4m-4-4v12m0 0l4 4m-4-4l-4 4" />
-                        </svg>
-                    </span>
-                    <span wire:loading>
-                        <svg class="animate-spin h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                    </span>
-                </flux:button>
+            <div class="w-full flex justify-center">
+                <flux:button wire:click="swapAreaUnits" icon="arrows-right-left" variant="subtle"
+                    tooltip="ইউনিট অদলবদল করুন" />
             </div>
 
-            <div class="md:col-span-2">
-                <label for="areaOutputValue" class="sr-only">Converted value</label>
-                <flux:input id="areaOutputValue" type="number" wire:model="outputValue" disabled placeholder="Converted value" />
+            <div class="w-full flex justify-center">
+                <flux:input.group class="w-full flex justify-center">
+                    <flux:select id="areaOutputUnit" wire:model.live="outputUnit" label="যে ইউনিটে রূপান্তর (To)">
+                        <option value="square_meter">Square Meter (m²)</option>
+                        <option value="square_kilometer">Square Kilometer (km²)</option>
+                        <option value="square_centimeter">Square Centimeter (cm²)</option>
+                        <option value="square_millimeter">Square Millimeter (mm²)</option>
+                        <option value="square_mile">Square Mile (mi²)</option>
+                        <option value="acre">Acre (ac)</option>
+                        <option value="hectare">Hectare (ha)</option>
+                        <option value="square_yard">Square Yard (yd²)</option>
+                        <option value="square_foot">Square Foot (ft²)</option>
+                        <option value="square_inch">Square Inch (in²)</option>
+                    </flux:select>
+                    <flux:input id="areaOutputValue" type="number" wire:model="outputValue" disabled
+                        placeholder="ফলাফল" label="রূপান্তরিত মান" />
+                </flux:input.group>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-            <div>
-                <label for="areaInputUnit" class="block text-sm font-medium mb-2">From Unit</label>
-                <flux:select id="areaInputUnit" wire:model.live="inputUnit">
-                    <option value="square_meter">Square Meter (sq m)</option>
-                    <option value="square_kilometer">Square Kilometer (sq km)</option>
-                    <option value="square_centimeter">Square Centimeter (sq cm)</option>
-                    <option value="square_millimeter">Square Millimeter (sq mm)</option>
-                    <option value="square_mile">Square Mile (sq mi)</option>
-                    <option value="acre">Acre (ac)</option>
-                    <option value="hectare">Hectare (ha)</option>
-                    <option value="square_yard">Square Yard (sq yd)</option>
-                    <option value="square_foot">Square Foot (sq ft)</option>
-                    <option value="square_inch">Square Inch (sq in)</option>
-                </flux:select>
-            </div>
+        <div class="mt-24 pt-12 border-t border-zinc-400/25 space-y-6 text-sm text-zinc-600 dark:text-zinc-400">
+            <h3 class="text-lg font-semibold text-zinc-800 dark:text-zinc-200">কীভাবে ব্যবহার করবেন?</h3>
+            <ul class="list-disc list-inside space-y-2">
+                <li>“From” থেকে ইউনিট সিলেক্ট করুন।</li>
+                <li>মান লিখুন — ফলাফল সাথে সাথে দেখাবে।</li>
+                <li>মাঝের বাটনে ক্লিক করে ইউনিট অদলবদল করতে পারবেন।</li>
+            </ul>
 
-            <div>
-                <label for="areaOutputUnit" class="block text-sm font-medium mb-2">To Unit</label>
-                <flux:select id="areaOutputUnit" wire:model.live="outputUnit">
-                    <option value="square_meter">Square Meter (sq m)</option>
-                    <option value="square_kilometer">Square Kilometer (sq km)</option>
-                    <option value="square_centimeter">Square Centimeter (sq cm)</option>
-                    <option value="square_millimeter">Square Millimeter (sq mm)</option>
-                    <option value="square_mile">Square Mile (sq mi)</option>
-                    <option value="acre">Acre (ac)</option>
-                    <option value="hectare">Hectare (ha)</option>
-                    <option value="square_yard">Square Yard (sq yd)</option>
-                    <option value="square_foot">Square Foot (sq ft)</option>
-                    <option value="square_inch">Square Inch (sq in)</option>
-                </flux:select>
-            </div>
+            <h3 class="text-lg font-semibold text-zinc-800 dark:text-zinc-200">গুরুত্বপূর্ণ কনভার্শন</h3>
+            <ul class="list-disc list-inside space-y-1">
+                <li>1 Square Meter = 10.7639 Square Foot</li>
+                <li>1 Acre ≈ 4046.86 Square Meter</li>
+                <li>1 Hectare = 2.47105 Acre</li>
+                <li>1 Square Kilometer = 100 Hectare</li>
+            </ul>
         </div>
     </div>
 </section>

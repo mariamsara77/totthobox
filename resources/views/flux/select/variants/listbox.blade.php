@@ -13,7 +13,7 @@ $id = 'flux-select-' . uniqid();
 
 $classes = Flux::classes()
     ->add(
-        'relative flex items-center justify-between w-full ps-3 pe-2 text-left cursor-default transition duration-75 focus:outline-none',
+        'relative flex items-center justify-between w-full ps-3 pe-2 text-left cursor-default transition duration-200 focus:',
     )
     ->add('bg-zinc-400/10')
     ->add('data-invalid:outline-2 data-invalid:outline-red-600')
@@ -24,12 +24,6 @@ $classes = Flux::classes()
             default => 'h-10 py-2 text-base sm:text-sm rounded-lg',
         },
     );
-// ->add('bg-white dark:bg-white/10 text-zinc-800 dark:text-zinc-200 shadow-sm ');
-// ->add(
-//     $invalid
-//         ? 'border border-red-500 ring-1 ring-red-500'
-//         : 'border border-zinc-300 dark:border-white/15 border-b-zinc-300/80 focus:ring-2 focus:ring-zinc-500/20 focus:border-zinc-500',
-// );
 @endphp
 
 <div x-data="{
@@ -64,7 +58,7 @@ $classes = Flux::classes()
         this.open = false;
         this.search = '';
     }
-}" @click.outside="open = false" @keydown.escape="open = false" class="relative min-w-[150px]">
+}" @click.outside="open = false" @keydown.escape="open = false" class="relative min-w-40">
 
     {{-- বাটন বা ট্রিগার --}}
     <button type="button" x-ref="trigger"
@@ -79,9 +73,9 @@ $classes = Flux::classes()
     {{-- ড্রপডাউন মেনু --}}
     <template x-teleport="body">
         <div x-show="open" x-ref="optionsContainer" x-anchor.bottom-start.offset.4="$refs.trigger"
-            x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 translate-y-1"
+            x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-1"
             x-transition:enter-end="opacity-100 translate-y-0"
-            class="fixed z-[9999]  overflow-y-auto rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-700 shadow-xl"
+            class="fixed z-9999 max-h-80 overflow-y-auto rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-700 shadow-xl"
            :style="{ width: buttonWidth + 'px' }">
             <div class="space-y-0.5 p-1.5">
                  @if ($searchable)           

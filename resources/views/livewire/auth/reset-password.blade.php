@@ -59,6 +59,8 @@ new #[Layout('components.layouts.auth')] class extends Component {
     }
 }; ?>
 
+<x-seo :title="'Reset Password'" :description="'Reset Password'" />
+
 <div class="flex flex-col gap-6">
     <x-auth-header :title="__('Reset password')" :description="__('Set a new password for your account')" />
 
@@ -70,9 +72,10 @@ new #[Layout('components.layouts.auth')] class extends Component {
         <flux:input wire:model="email" :label="__('Email Address')" type="email" required
             placeholder="email@example.com" />
 
-        <flux:input wire:model="password" :label="__('New Password')" type="password" required />
+        <flux:input wire:model="password" :label="__('New Password')" type="password" required viewable />
 
-        <flux:input wire:model="password_confirmation" :label="__('Confirm Password')" type="password" required />
+        <flux:input wire:model="password_confirmation" :label="__('Confirm Password')" type="password" required
+            viewable />
 
         <flux:button variant="primary" type="submit" class="w-full">
             {{ __('Reset Password') }}

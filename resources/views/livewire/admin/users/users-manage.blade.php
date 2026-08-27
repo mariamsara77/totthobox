@@ -7,11 +7,16 @@ use App\Models\{User, District, Division, Thana};
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Livewire\Attributes\Layout;
 
-new class extends Component {
+new #[Layout('components.layouts.admin')] class extends Component {
     use WithFileUploads, WithPagination;
 
-    public $userId, $name, $email, $phone, $status = 'active';
+    public $userId,
+        $name,
+        $email,
+        $phone,
+        $status = 'active';
     public $division_id, $district_id, $thana_id, $address;
     public $profession, $education, $bio, $note, $role;
     public $avatar;
@@ -21,8 +26,10 @@ new class extends Component {
     public $viewType = 'active';
     public $search = '';
 
-    public $roleFilter = '', $statusFilter = '';
-    public $sortField = 'created_at', $sortDirection = 'desc';
+    public $roleFilter = '',
+        $statusFilter = '';
+    public $sortField = 'created_at',
+        $sortDirection = 'desc';
 
     protected function rules()
     {
@@ -43,19 +50,23 @@ new class extends Component {
     {
         $query = $this->viewType === 'trashed' ? User::onlyTrashed() : User::query();
 
-        return $query->with(['roles', 'division', 'district'])
-            ->when($this->sortField === 'role', function ($q) {
-                $q->leftJoin('model_has_roles', function ($join) {
-                    $join->on('users.id', '=', 'model_has_roles.model_id')
-                        ->where('model_has_roles.model_type', '=', User::class);
-                })
-                    ->leftJoin('roles', 'model_has_roles.role_id', '=', 'roles.id')
-                    ->select('users.*')
-                    ->orderBy('roles.name', $this->sortDirection);
-            }, function ($q) {
-                // Normal sorting (name, email, etc.)
-                $q->orderBy($this->sortField, $this->sortDirection);
-            })
+        return $query
+            ->with(['roles', 'division', 'district'])
+            ->when(
+                $this->sortField === 'role',
+                function ($q) {
+                    $q->leftJoin('model_has_roles', function ($join) {
+                        $join->on('users.id', '=', 'model_has_roles.model_id')->where('model_has_roles.model_type', '=', User::class);
+                    })
+                        ->leftJoin('roles', 'model_has_roles.role_id', '=', 'roles.id')
+                        ->select('users.*')
+                        ->orderBy('roles.name', $this->sortDirection);
+                },
+                function ($q) {
+                    // Normal sorting (name, email, etc.)
+                    $q->orderBy($this->sortField, $this->sortDirection);
+                },
+            )
             ->when($this->search, fn($q) => $q->search($this->search))
             ->when($this->roleFilter, fn($q) => $q->role($this->roleFilter))
             ->when($this->statusFilter, fn($q) => $q->where('status', $this->statusFilter))
@@ -124,7 +135,8 @@ new class extends Component {
 
         // Spatie Media Library Integration
         if ($this->avatar) {
-            $user->addMedia($this->avatar->getRealPath())
+            $user
+                ->addMedia($this->avatar->getRealPath())
                 ->usingFileName($this->avatar->getClientOriginalName())
                 ->toMediaCollection('avatars');
         }
@@ -189,8 +201,7 @@ new class extends Component {
                 {{-- Avatar Upload Section --}}
                 <div class="flex items-center gap-6 p-4 rounded-lg">
                     <div class="relative inline-block">
-                        <div
-                            class="relative size-24 overflow-hidden rounded-full border border-zinc-200 dark:border-zinc-700">
+                        <div class="relative size-24 overflow-hidden rounded-full border border-zinc-400/25">
                             {{-- প্রোফাইল ইমেজ বা প্রিভিউ --}}
                             @if ($avatar)
                                 <img src="{{ $avatar->temporaryUrl() }}" class="object-cover size-full">
@@ -203,14 +214,14 @@ new class extends Component {
 
                             {{-- আপলোডিং ইন্ডিকেটর (সঠিকভাবে সেন্টার করা) --}}
                             <div wire:loading.flex wire:target="avatar"
-                                class="absolute inset-0 items-center justify-center bg-zinc-900/50 backdrop-blur-[1px] z-10">
+                                class="absolute inset-0 items-center justify-center bg-zinc-900/50 backdrop-blur z-10">
                                 <flux:icon.loading class="!text-white" />
                             </div>
                         </div>
 
                         {{-- আপলোড বাটন --}}
                         <label
-                            class="absolute bottom-0 right-0 bg-white dark:bg-zinc-800 p-1.5 shadow-md rounded-full cursor-pointer border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 transition-colors">
+                            class="absolute bottom-0 right-0 bg-white dark:bg-zinc-800 p-1.5 shadow-md rounded-full cursor-pointer border border-zinc-400/25 hover:bg-zinc-50 transition-colors">
                             <flux:icon name="camera" variant="mini" class="text-zinc-600 dark:text-zinc-300" />
                             <input type="file" wire:model="avatar" class="hidden" accept="image/*">
                         </label>
@@ -274,7 +285,7 @@ new class extends Component {
                     </div>
                 </div>
 
-                <div class="flex justify-end gap-3 pt-6 border-t">
+                <div class="flex justify-end gap-4 pt-6 border-t">
                     <flux:button wire:click="$set('showForm', false)" variant="ghost">Discard</flux:button>
                     <flux:button type="submit" variant="primary" icon="check">
                         {{ $formType === 'create' ? 'Create User' : 'Update User' }}
@@ -286,13 +297,14 @@ new class extends Component {
         {{-- List View --}}
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
             <div>
-                <flux:heading size="xl">Member Directory</flux:heading>
+                <flux:heading size="xl">All Users Management</flux:heading>
                 <flux:subheading>Total {{ $this->users->total() }} users found in the system.</flux:subheading>
             </div>
 
-            <div class="flex gap-2">
+            <div class="flex gap-4">
                 <flux:button.group>
-                    <flux:button wire:click="toggleView('active')" :variant="$viewType === 'active' ? 'primary' : 'filled'">
+                    <flux:button wire:click="toggleView('active')"
+                        :variant="$viewType === 'active' ? 'primary' : 'filled'">
                         Active</flux:button>
                     <flux:button wire:click="toggleView('trashed')"
                         :variant="$viewType === 'trashed' ? 'primary' : 'filled'" color="red">Trash</flux:button>
@@ -316,6 +328,7 @@ new class extends Component {
             <flux:table.columns>
                 <flux:table.column sortable wire:click="sortBy('name')">Member</flux:table.column>
                 <flux:table.column sortable wire:click="sortBy('role')">Role</flux:table.column>
+                <flux:table.column>All Status</flux:table.column>
                 <flux:table.column>Location</flux:table.column>
                 <flux:table.column>Profession</flux:table.column>
                 <flux:table.column sortable wire:click="sortBy('status')">Status</flux:table.column>
@@ -326,7 +339,7 @@ new class extends Component {
                 @forelse ($this->users as $user)
                     <flux:table.row :key="$user->id">
                         <flux:table.cell>
-                            <div class="flex items-center gap-3">
+                            <div class="flex items-center gap-4">
                                 <flux:avatar size="sm" src="{{ $user->getFirstMediaUrl('avatars', 'thumb') }}"
                                     name="{{ $user->name }}" color="auto" />
                                 <div>
@@ -354,7 +367,8 @@ new class extends Component {
                                         $badgeColor = $roleColors[strtolower($role->name)] ?? 'zinc';
                                     @endphp
 
-                                    <flux:badge :color="$badgeColor" size="sm" inset="top bottom" class="capitalize">
+                                    <flux:badge :color="$badgeColor" size="sm" inset="top bottom"
+                                        class="capitalize">
                                         {{ $role->name }}
                                     </flux:badge>
                                 @empty
@@ -365,10 +379,28 @@ new class extends Component {
                             </div>
                         </flux:table.cell>
                         <flux:table.cell>
+                            <div class="flex items-center gap-1">
+                                {{-- Google Login Status --}}
+                                @if ($user->google_id)
+                                    <flux:icon.google class="size-4 text-blue-500" title="Signed in via Google" />
+                                @endif
+
+                                {{-- Verification Status --}}
+                                @if ($user->hasVerifiedEmail())
+                                    <flux:icon.check-badge variant="solid" class="size-4 text-green-500"
+                                        title="Verified" />
+                                @else
+                                    <flux:icon.exclamation-triangle class="size-4 text-amber-500"
+                                        title="Not Verified" />
+                                @endif
+                            </div>
+                        </flux:table.cell>
+                        <flux:table.cell>
                             <div class="text-sm">{{ $user->district?->name ?? 'N/A' }}</div>
                             <div class="text-xs text-zinc-500">{{ $user->division?->name }}</div>
                         </flux:table.cell>
-                        <flux:table.cell class="italic text-zinc-600 dark:text-zinc-400">{{ $user->profession ?: '—' }}
+                        <flux:table.cell class="italic text-zinc-600 dark:text-zinc-400">
+                            {{ $user->profession ?: '—' }}
                         </flux:table.cell>
                         <flux:table.cell>
                             <flux:badge size="sm"
@@ -378,24 +410,26 @@ new class extends Component {
                             </flux:badge>
                         </flux:table.cell>
                         <flux:table.cell align="end">
-                              <flux:button href="{{ route('admin.users.activity', $user->slug) }}" variant="ghost" size="sm"
-                                    icon="pencil-square" />
+                            <flux:button href="{{ route('admin.users.activity', $user->slug) }}" variant="ghost"
+                                size="sm" icon="clock" />
                             @if ($viewType === 'active')
-                                <flux:button wire:click="showEditForm({{ $user->id }})" variant="ghost" size="sm"
-                                    icon="pencil-square" />
-                                <flux:button wire:confirm="Are you sure?" wire:click="deleteUser({{ $user->id }})" variant="ghost"
-                                    size="sm" icon="trash" color="red" />
+                                <flux:button wire:click="showEditForm({{ $user->id }})" variant="ghost"
+                                    size="sm" icon="pencil-square" />
+                                <flux:button wire:confirm="Are you sure?"
+                                    wire:click="deleteUser({{ $user->id }})" variant="ghost" size="sm"
+                                    icon="trash" color="red" />
                             @else
-                                <flux:button wire:click="restoreUser({{ $user->id }})" variant="ghost" size="sm" icon="arrow-path"
-                                    color="green" />
-                                <flux:button wire:click="forceDeleteUser({{ $user->id }})" variant="ghost" size="sm" icon="trash"
-                                    color="red" />
+                                <flux:button wire:click="restoreUser({{ $user->id }})" variant="ghost"
+                                    size="sm" icon="arrow-path" color="green" />
+                                <flux:button wire:click="forceDeleteUser({{ $user->id }})" variant="ghost"
+                                    size="sm" icon="trash" color="red" />
                             @endif
                         </flux:table.cell>
                     </flux:table.row>
                 @empty
                     <flux:table.row>
-                        <flux:table.cell colspan="5" class="text-center py-12">No members match your criteria.</flux:table.cell>
+                        <flux:table.cell colspan="5" class="text-center py-12">No members match your criteria.
+                        </flux:table.cell>
                     </flux:table.row>
                 @endforelse
             </flux:table.rows>

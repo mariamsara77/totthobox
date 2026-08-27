@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PageView extends Model
 {
-    public $timestamps = false; // যেহেতু শুধু created_at আছে
+    public $timestamps = false;
 
     protected $fillable = [
         'session_id',

@@ -1,38 +1,61 @@
-// ১. ফাংশনটি গ্লোবাল রাখুন যাতে যেকোনো জায়গা থেকে কল করা যায়
-window.syncPwaStatus = function() {
-    const isPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-    
-    fetch('/api/tracking/sync-pwa', {
-        method: 'POST',
-        headers: { 
+/**
+ * Ultra-Optimized PWA Status Tracker
+ */
+(() => {
+    let lastSyncedStatus = null;
+    let syncTimer = null;
+
+    const isPwaMode = () =>
+        window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+    window.syncPwaStatus = () => {
+        const isPWA = isPwaMode();
+        if (lastSyncedStatus === isPWA) return;
+        lastSyncedStatus = isPWA;
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        const headers = {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
             'X-App-Mode': isPWA ? 'standalone' : 'browser',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
-        },
-        body: JSON.stringify({ is_pwa: isPWA }) // পেলোড সহ পাঠানো নিরাপদ
-    })
-    .then(response => response.json())
-    .then(data => {
-        // লাইভওয়্যার কম্পোনেন্টকে জানানো যে স্ট্যাটাস আপডেট হয়েছে (ঐচ্ছিক)
-        if (window.Livewire) {
-            window.Livewire.dispatch('pwa-status-synced', { status: isPWA });
-        }
-    })
-    .catch(err => console.error('PWA Sync Error:', err));
-};
+        };
 
-// ২. পেজ ইনিশিয়াল লোড এবং লাইভওয়্যার নেভিগেশনের জন্য লিসেনার
-document.addEventListener('livewire:navigated', () => {
-    window.syncPwaStatus();
-});
+        if (csrfToken) headers['X-CSRF-TOKEN'] = csrfToken;
 
-// ৩. প্রথমবারের জন্য (যদি livewire:navigated দেরি করে)
-document.addEventListener('DOMContentLoaded', () => {
-    window.syncPwaStatus();
-});
+        fetch('/api/tracking/sync-pwa', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ is_pwa: isPWA }),
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success' && window.Livewire) {
+                    window.Livewire.dispatch('pwa-status-synced', { status: isPWA });
+                }
+            })
+            .catch(() => {
+                lastSyncedStatus = null; // Retry on failure
+            });
+    };
 
-// ৪. অ্যাপ মোড লাইভ চেঞ্জ হলে (Install/Uninstall/Switch)
-window.matchMedia('(display-mode: standalone)').addEventListener('change', (e) => {
-    window.syncPwaStatus();
-});
+    const debouncedSync = () => {
+        clearTimeout(syncTimer);
+        syncTimer = setTimeout(window.syncPwaStatus, 200);
+    };
+
+    // Initial page load
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', debouncedSync, { once: true });
+    } else {
+        debouncedSync();
+    }
+
+    // Livewire SPA navigation
+    document.addEventListener('livewire:navigated', debouncedSync);
+
+    // Display mode change listener
+    window.matchMedia('(display-mode: standalone)').addEventListener('change', () => {
+        lastSyncedStatus = null;
+        window.syncPwaStatus();
+    });
+})();

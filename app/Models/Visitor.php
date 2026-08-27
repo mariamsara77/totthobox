@@ -16,9 +16,20 @@ class Visitor extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'hash', 'ip_address', 'browser_family', 'os_family',
-        'device_type', 'device_model', 'country_code', 'city_name',
-        'timezone', 'is_pwa', 'app_version', 'is_bot', 'first_seen_at',
+        'user_id',
+        'hash',
+        'ip_address',
+        'browser_family',
+        'os_family',
+        'device_type',
+        'device_model',
+        'country_code',
+        'city_name',
+        'timezone',
+        'is_pwa',
+        'app_version',
+        'is_bot',
+        'first_seen_at',
         'last_seen_at',
     ];
 
@@ -31,10 +42,9 @@ class Visitor extends Model
 
     public function isOnline(): bool
     {
-        return $this->last_seen_at?->gt(now()->subMinutes(5));
+        return $this->last_seen_at?->gt(now()->subMinutes(5)) ?? false;
     }
 
-    // --- রিলেশনশিপস ---
     public function sessions(): HasMany
     {
         return $this->hasMany(VisitorSession::class)->latest('started_at');
@@ -50,9 +60,19 @@ class Visitor extends Model
         return $this->hasMany(PageView::class);
     }
 
-    public function events(): HasManyThrough
+    public function events(): HasMany
     {
-        return $this->hasManyThrough(VisitorEvent::class, VisitorSession::class, 'visitor_id', 'session_id');
+        return $this->hasMany(VisitorEvent::class);
+    }
+
+    public function eventsThroughSessions(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            VisitorEvent::class,
+            VisitorSession::class,
+            'visitor_id',
+            'session_id'
+        );
     }
 
     public function user(): BelongsTo
@@ -60,18 +80,16 @@ class Visitor extends Model
         return $this->belongsTo(User::class);
     }
 
-    // --- স্কোপস ---
-    public function scopeRealUsers(Builder $query)
+    public function scopeRealUsers(Builder $query): Builder
     {
-        $query->where('is_bot', false);
+        return $query->where('is_bot', false);
     }
 
-    public function scopeOnline(Builder $query)
+    public function scopeOnline(Builder $query): Builder
     {
-        $query->where('last_seen_at', '>=', now()->subMinutes(5));
+        return $query->where('last_seen_at', '>=', now()->subMinutes(5));
     }
 
-    // --- এক্সেসর ---
     protected function locationFriendly(): Attribute
     {
         return Attribute::make(
@@ -85,7 +103,7 @@ class Visitor extends Model
     {
         return Attribute::make(
             get: function () {
-                $browser = strtolower($this->browser_family);
+                $browser = strtolower($this->browser_family ?? '');
 
                 return match (true) {
                     str_contains($browser, 'chrome') => 'browser-chrome',

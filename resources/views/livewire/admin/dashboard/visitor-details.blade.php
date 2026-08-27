@@ -6,16 +6,17 @@ use App\Models\VisitorSession;
 use App\Models\PageView;
 use App\Models\VisitorEvent;
 use Livewire\WithPagination;
+use Livewire\Attributes\Layout;
 
-new class extends Component {
+new #[Layout('components.layouts.admin')] class extends Component {
     use WithPagination;
 
     public $visitorId;
     public $visitor;
-    public $activeTab = 'sessions';
+    public $tab = 'sessions';
     public $sessionDetails = null;
 
-    protected $queryString = ['activeTab'];
+    protected $queryString = ['tab'];
 
     public function mount($visitorId)
     {
@@ -50,7 +51,7 @@ new class extends Component {
     {
         // নতুন রিলেশন লোড করা হয়েছে
         $this->sessionDetails = VisitorSession::with(['pageViews', 'events'])->find($sessionId);
-        $this->activeTab = 'sessions';
+        $this->tab = 'sessions';
     }
 
     public function resetSessionDetails()
@@ -60,7 +61,7 @@ new class extends Component {
 
     public function changeTab($tab)
     {
-        $this->activeTab = $tab;
+        $this->tab = $tab;
         $this->resetPage(); // ট্যাব পরিবর্তনের সময় পেজিনেশন রিসেট হবে
         $this->sessionDetails = null;
     }
@@ -111,21 +112,24 @@ new class extends Component {
         </div>
     </flux:card>
 
-    <flux:tabs>
-        <flux:tab wire:click="changeTab('sessions')" :selected="$activeTab === 'sessions'" icon="clock">Sessions
-        </flux:tab>
-        <flux:tab wire:click="changeTab('pageviews')" :selected="$activeTab === 'pageviews'" icon="eye">Page Views
-        </flux:tab>
-        <flux:tab wire:click="changeTab('events')" :selected="$activeTab === 'events'" icon="bolt">Events</flux:tab>
-    </flux:tabs>
-
-    @if ($activeTab === 'sessions')
-        <div class="space-y-4">
-            @if ($sessionDetails)
+    <flux:tab.group>
+        <flux:tabs wire:model="tab">
+            <flux:tab name="sessions" icon="clock">Sessions
+            </flux:tab>
+            <flux:tab name="pageviews" icon="eye">Page Views
+            </flux:tab>
+            <flux:tab name="events" icon="bolt">Events</flux:tab>
+        </flux:tabs>
+        <flux:tab.panel name="sessions">
+            <div class="space-y-4">
+                @if ($sessionDetails)
                 <flux:card class="relative">
                     <div class="flex items-center justify-between mb-6">
-                        <flux:heading size="lg">Session Detail: {{ substr($sessionDetails->id, 0, 8) }}</flux:heading>
-                        <flux:button size="sm" variant="subtle" wire:click="resetSessionDetails">Back to List</flux:button>
+                        <flux:heading size="lg">Session Detail: {{ substr($sessionDetails->id, 0, 8) }}
+                        </flux:heading>
+                        <flux:button size="sm" variant="subtle" wire:click="resetSessionDetails">Back to
+                            List
+                        </flux:button>
                     </div>
 
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -151,17 +155,17 @@ new class extends Component {
                     <div class="space-y-2">
                         <flux:heading size="sm">Timeline</flux:heading>
                         @foreach ($sessionDetails->pageViews as $pv)
-                            <div
-                                class="flex items-center gap-3 p-2 text-sm border-l-2 border-fuchsia-500 bg-zinc-50 dark:bg-zinc-800/50">
-                                <span class="text-xs text-zinc-400">{{ $pv->created_at->format('H:i:s') }}</span>
-                                <span class="flex-1 truncate">{{ $pv->title }}</span>
-                                <span
-                                    class="text-xs bg-zinc-200 dark:bg-zinc-700 px-2 py-0.5 rounded">{{ $pv->load_time_ms }}ms</span>
-                            </div>
+                        <div
+                            class="flex items-center gap-4 p-2 text-sm border-l-2 border-fuchsia-500 bg-zinc-50 dark:bg-zinc-800/50">
+                            <span class="text-xs text-zinc-400">{{ $pv->created_at->format('H:i:s') }}</span>
+                            <span class="flex-1 truncate">{{ $pv->title }}</span>
+                            <span
+                                class="text-xs bg-zinc-200 dark:bg-zinc-700 px-2 py-0.5 rounded">{{ $pv->load_time_ms }}ms</span>
+                        </div>
                         @endforeach
                     </div>
                 </flux:card>
-            @else
+                @else
                 <flux:table>
                     <flux:table.columns>
                         <flux:table.column>Started</flux:table.column>
@@ -171,34 +175,37 @@ new class extends Component {
                     </flux:table.columns>
                     <flux:table.rows>
                         @foreach ($this->sessions as $session)
-                            <flux:table.row>
-                                <flux:table.cell>
-                                    <div class="text-sm">{{ $session->started_at->format('M j, H:i') }}</div>
-                                    <div class="text-xs text-zinc-400">{{ $session->started_at->diffForHumans() }}</div>
-                                </flux:table.cell>
-                                <flux:table.cell>
-                                    <flux:badge size="sm" variant="subtle">{{ $session->origin_type }}</flux:badge>
-                                    <span class="text-xs text-zinc-500 ml-1">{{ $session->origin_source }}</span>
-                                </flux:table.cell>
-                                <flux:table.cell>
-                                    <div class="text-xs">{{ $session->hits_count }} views • {{ $session->seconds_spent }}s spent
-                                    </div>
-                                </flux:table.cell>
-                                <flux:table.cell align="end">
-                                    <flux:button size="sm" variant="ghost" wire:click="loadSessionDetails('{{ $session->id }}')">
-                                        Details</flux:button>
-                                </flux:table.cell>
-                            </flux:table.row>
+                        <flux:table.row>
+                            <flux:table.cell>
+                                <div class="text-sm">{{ $session->started_at->format('M j, H:i') }}</div>
+                                <div class="text-xs text-zinc-400">
+                                    {{ $session->started_at->diffForHumans() }}
+                                </div>
+                            </flux:table.cell>
+                            <flux:table.cell>
+                                <flux:badge size="sm" variant="subtle">{{ $session->origin_type }}
+                                </flux:badge>
+                                <span class="text-xs text-zinc-500 ml-1">{{ $session->origin_source }}</span>
+                            </flux:table.cell>
+                            <flux:table.cell>
+                                <div class="text-xs">{{ $session->hits_count }} views •
+                                    {{ $session->seconds_spent }}s spent
+                                </div>
+                            </flux:table.cell>
+                            <flux:table.cell align="end">
+                                <flux:button size="sm" variant="ghost"
+                                    wire:click="loadSessionDetails('{{ $session->id }}')">
+                                    Details</flux:button>
+                            </flux:table.cell>
+                        </flux:table.row>
                         @endforeach
                     </flux:table.rows>
                 </flux:table>
                 {{ $this->sessions->links() }}
-            @endif
-        </div>
-    @endif
-
-    @if ($activeTab === 'pageviews')
-        <flux:card>
+                @endif
+            </div>
+        </flux:tab.panel>
+        <flux:tab.panel name="pageviews">
             <flux:table>
                 <flux:table.columns>
                     <flux:table.column>Time</flux:table.column>
@@ -208,30 +215,31 @@ new class extends Component {
                 </flux:table.columns>
                 <flux:table.rows>
                     @foreach ($this->pageViews as $pv)
-                        <flux:table.row>
-                            <flux:table.cell class="text-xs">{{ $pv->created_at->format('H:i:s') }}</flux:table.cell>
-                            <flux:table.cell>
-                                <div class="font-medium truncate max-w-xs">{{ $pv->title ?: 'No Title' }}</div>
-                                <div class="text-xs text-zinc-400 truncate max-w-xs">{{ $pv->url }}</div>
-                            </flux:table.cell>
-                            <flux:table.cell>
-                                <flux:badge size="sm" color="zinc">{{ $pv->route_name }}</flux:badge>
-                            </flux:table.cell>
-                            <flux:table.cell align="end">
-                                <span class="text-sm {{ $pv->load_time_ms > 1000 ? 'text-orange-500' : 'text-green-500' }}">
-                                    {{ $pv->load_time_ms }}ms
-                                </span>
-                            </flux:table.cell>
-                        </flux:table.row>
+                    <flux:table.row>
+                        <flux:table.cell class="text-xs">{{ $pv->created_at->format('H:i:s') }}
+                        </flux:table.cell>
+                        <flux:table.cell>
+                            <div class="font-medium truncate max-w-xs">{{ $pv->title ?: 'No Title' }}
+                            </div>
+                            <div class="text-xs text-zinc-400 truncate max-w-xs">{{ $pv->url }}
+                            </div>
+                        </flux:table.cell>
+                        <flux:table.cell>
+                            <flux:badge size="sm" color="zinc">{{ $pv->route_name }}
+                            </flux:badge>
+                        </flux:table.cell>
+                        <flux:table.cell align="end">
+                            <span class="text-sm {{ $pv->load_time_ms > 1000 ? 'text-orange-500' : 'text-green-500' }}">
+                                {{ $pv->load_time_ms }}ms
+                            </span>
+                        </flux:table.cell>
+                    </flux:table.row>
                     @endforeach
                 </flux:table.rows>
             </flux:table>
             <div class="mt-4">{{ $this->pageViews->links() }}</div>
-        </flux:card>
-    @endif
-
-    @if ($activeTab === 'events')
-        <flux:card>
+        </flux:tab.panel>
+        <flux:tab.panel name="events">
             <flux:table>
                 <flux:table.columns>
                     <flux:table.column>Time</flux:table.column>
@@ -241,24 +249,28 @@ new class extends Component {
                 </flux:table.columns>
                 <flux:table.rows>
                     @foreach ($this->events as $event)
-                        <flux:table.row>
-                            <flux:table.cell class="text-xs">{{ $event->created_at->format('H:i:s') }}</flux:table.cell>
-                            <flux:table.cell>
-                                <flux:badge size="sm" variant="subtle">{{ $event->event_category }}</flux:badge>
-                            </flux:table.cell>
-                            <flux:table.cell class="font-medium">{{ $event->event_action }}</flux:table.cell>
-                            <flux:table.cell>
-                                <div class="text-xs">{{ $event->event_label }}</div>
-                                @if($event->payload)
-                                    <pre
-                                        class="text-[10px] bg-zinc-100 dark:bg-zinc-800 p-1 mt-1 rounded">{{ json_encode($event->payload) }}</pre>
-                                @endif
-                            </flux:table.cell>
-                        </flux:table.row>
+                    <flux:table.row>
+                        <flux:table.cell class="text-xs">{{ $event->created_at->format('H:i:s') }}
+                        </flux:table.cell>
+                        <flux:table.cell>
+                            <flux:badge size="sm" variant="subtle">
+                                {{ $event->event_category }}
+                            </flux:badge>
+                        </flux:table.cell>
+                        <flux:table.cell class="font-medium">{{ $event->event_action }}
+                        </flux:table.cell>
+                        <flux:table.cell>
+                            <div class="text-xs">{{ $event->event_label }}</div>
+                            @if ($event->payload)
+                            <pre
+                                class="text-xs bg-zinc-100 dark:bg-zinc-800 p-1 mt-1 rounded">{{ json_encode($event->payload) }}</pre>
+                            @endif
+                        </flux:table.cell>
+                    </flux:table.row>
                     @endforeach
                 </flux:table.rows>
             </flux:table>
             <div class="mt-4">{{ $this->events->links() }}</div>
-        </flux:card>
-    @endif
+        </flux:tab.panel>
+    </flux:tab.group>
 </div>

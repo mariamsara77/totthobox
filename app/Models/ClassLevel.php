@@ -3,10 +3,9 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 
 class ClassLevel extends BaseModel
 {
@@ -18,25 +17,12 @@ class ClassLevel extends BaseModel
         'order',
         'is_active',
         'status',
-        'meta_title',
-        'meta_description',
-        'meta_keywords',
-        'user_id',
-        'created_by',
-        'updated_by',
-        'deleted_by',
-        'published_at',
-        'published_by',
-        'view_count',
         'is_featured',
-        'ip_address',
-        'user_agent',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'is_featured' => 'boolean',
-        'published_at' => 'datetime',
     ];
 
     // Auto-generate slug on create
@@ -46,38 +32,12 @@ class ClassLevel extends BaseModel
 
         static::creating(function ($classLevel) {
             if (empty($classLevel->slug)) {
-                $classLevel->slug = Str::slug($classLevel->name) . '-' . Str::random(5);
+                $classLevel->slug = Str::slug($classLevel->name).'-'.Str::random(5);
             }
         });
 
-        static::saved(fn() => Cache::forget('active_class_levels'));
-        static::deleted(fn() => Cache::forget('active_class_levels'));
-    }
-
-    // Relationships
-    public function user()
-    {
-        return $this->belongsTo(User::class);
-    }
-
-    public function creator()
-    {
-        return $this->belongsTo(User::class, 'created_by');
-    }
-
-    public function updater()
-    {
-        return $this->belongsTo(User::class, 'updated_by');
-    }
-
-    public function deleter()
-    {
-        return $this->belongsTo(User::class, 'deleted_by');
-    }
-
-    public function publisher()
-    {
-        return $this->belongsTo(User::class, 'published_by');
+        static::saved(fn () => Cache::forget('active_class_levels'));
+        static::deleted(fn () => Cache::forget('active_class_levels'));
     }
 
     public function subjects()

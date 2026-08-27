@@ -2,62 +2,43 @@
 
 namespace App\Models;
 
+use App\Traits\AutoCacheable;
+use App\Traits\HasReactions;
+use Carbon\Carbon;
+use CyrildeWit\EloquentViewable\Contracts\Viewable;
+use CyrildeWit\EloquentViewable\InteractsWithViews;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Carbon\Carbon;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use Spatie\ResponseCache\Facades\ResponseCache;
 
-
-class BasicIslam extends Model
+class BasicIslam extends Model implements HasMedia, Viewable
 {
-    use HasFactory, SoftDeletes;
+    use AutoCacheable, HasFactory, HasReactions, InteractsWithMedia, InteractsWithViews, LogsActivity, SoftDeletes;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
     protected $fillable = [
         'title',
         'description',
-        'image',
         'type',
-        'tags',
         'slug',
-        'user_id',
-        'meta_title',
-        'meta_description',
-        'meta_keywords',
-        'created_by',
-        'updated_by',
-        'deleted_by',
-        'published_by',
-        'published_at',
-        'view_count',
+        'status',
         'is_featured',
-        'ip_address',
-        'user_agent',
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
-    protected $casts = [
-        'date' => 'date',
-        'published_at' => 'datetime',
-        'tags' => 'array',
-        'meta_keywords' => 'array',
-        'is_featured' => 'boolean',
-        'is_active' => 'boolean',
-        'view_count' => 'integer',
-    ];
+   protected $casts = [
+    'date' => 'date',
+    'tags' => 'array',
+    'is_featured' => 'boolean',
+    'status' => 'boolean', // is_active এর জায়গায় status
+];
 
-    /**
-     * Holiday types
-     */
+
+
     public const TYPES = [
         'national' => 'National',
         'religious' => 'Religious',
@@ -65,81 +46,66 @@ class BasicIslam extends Model
         'observance' => 'Observance',
         'seasonal' => 'Seasonal',
     ];
-    public function user(): BelongsTo
+
+    protected static function booted(): void
     {
-        return $this->belongsTo(User::class);
+        $clearCache = function () {
+            if (class_exists(ResponseCache::class)) {
+                ResponseCache::clear();
+            }
+            cache()->forget('basic_islams_list');
+        };
+
+        static::created($clearCache);
+        static::updated($clearCache);
+        static::deleted($clearCache);
+        static::restored($clearCache);
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()->logFillable()->logOnlyDirty();
+    }
+
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('images');
+    }
+
+    public function registerMediaConversions(?Media $media = null): void
+    {
+        $this->addMediaConversion('thumb')
+            ->width(100)
+            ->height(100)
+            ->sharpen(10)
+            ->format('webp')
+            ->nonQueued();
     }
 
     /**
-     * Get the user who created the holiday.
+     * Scope a query to only include active items.
      */
-    public function creator(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'created_by');
-    }
+  public function scopeFeatured($query)
+{
+    return $query->where('is_featured', true)
+        ->where('status', true); // is_active এর জায়গায় status
+}
 
-    /**
-     * Get the user who last updated the holiday.
-     */
-    public function editor(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'updated_by');
-    }
+public function scopeActive($query)
+{
+    return $query->where('status', true); // is_active এর জায়গায় status
+}
 
-    /**
-     * Get the user who published the holiday.
-     */
-    public function publisher(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'published_by');
-    }
-
-    /**
-     * Scope a query to only include published holidays.
-     */
-    public function scopePublished($query)
-    {
-        return $query->whereNotNull('published_at')
-            ->where('published_at', '<=', Carbon::now())
-            ->where('is_active', true);
-    }
-
-    /**
-     * Scope a query to only include featured holidays.
-     */
-    public function scopeFeatured($query)
-    {
-        return $query->where('is_featured', true)
-            ->where('is_active', true);
-    }
-
-    /**
-     * Scope a query to only include active holidays.
-     */
-    public function scopeActive($query)
-    {
-        return $query->where('is_active', true);
-    }
-
-    /**
-     * Scope a query to only include holidays of a specific type.
-     */
     public function scopeOfType($query, $type)
     {
         return $query->where('type', $type);
     }
 
-    /**
-     * Scope a query to only include holidays in a date range.
-     */
     public function scopeBetweenDates($query, $startDate, $endDate)
     {
         return $query->whereBetween('date', [$startDate, $endDate]);
     }
 
-    /**
-     * Scope a query to only include upcoming holidays.
-     */
     public function scopeUpcoming($query, $days = 30)
     {
         return $query->where('date', '>=', Carbon::today())
@@ -147,34 +113,26 @@ class BasicIslam extends Model
             ->orderBy('date');
     }
 
-    /**
-     * Check if the holiday is published.
-     */
     public function isPublished(): bool
     {
         return $this->published_at && $this->published_at <= Carbon::now();
     }
 
     /**
-     * Increment the view count.
+     * Increment the view count quietly without firing model events/clearing cache.
      */
     public function incrementViews(): void
     {
-        $this->view_count++;
-        $this->save();
+        $this->timestamps = false;
+        $this->increment('view_count');
+        $this->timestamps = true;
     }
 
-    /**
-     * Get the holiday type as a readable string.
-     */
     public function getTypeNameAttribute(): string
     {
         return self::TYPES[$this->type] ?? ucfirst($this->type);
     }
 
-    /**
-     * Get the route key for the model.
-     */
     public function getRouteKeyName(): string
     {
         return 'slug';

@@ -4,8 +4,9 @@ use Livewire\Volt\Component;
 use App\Models\User;
 use Spatie\Activitylog\Models\Activity; // এই লাইনটি মিসিং ছিল
 use Livewire\WithPagination;
+use Livewire\Attributes\Layout;
 
-new class extends Component {
+new #[Layout('components.layouts.admin')] class extends Component {
     use WithPagination;
 
     public $user;
@@ -19,10 +20,7 @@ new class extends Component {
     {
         return [
             // সরাসরি Activity মডেল ব্যবহার করে কোয়েরি করছি
-            'activities' => Activity::where('causer_id', $this->user->id)
-                ->where('causer_type', User::class)
-                ->latest()
-                ->paginate(10),
+            'activities' => Activity::where('causer_id', $this->user->id)->where('causer_type', User::class)->latest()->paginate(10),
         ];
     }
 
@@ -54,30 +52,31 @@ new class extends Component {
 
         <flux:table.rows>
             @forelse($activities as $activity)
-            @php($config = $this->getActivityConfig($activity->description))
-            <flux:table.row>
-                <flux:table.cell>
-                    <div class="flex items-center gap-3">
-                        <flux:icon :name="$config['icon']" variant="outline" class="size-5 {{ $config['color'] }}" />
-                        <span class="font-medium text-sm">{{ ucfirst($activity->description) }}</span>
-                    </div>
-                </flux:table.cell>
-                <flux:table.cell>
-                    <div class="flex flex-col">
-                        <span class="text-sm font-semibold">{{ class_basename($activity->subject_type) }}</span>
-                        <span class="text-xs text-zinc-500">ID: {{ $activity->subject_id }}</span>
-                    </div>
-                </flux:table.cell>
-                <flux:table.cell>
-                    <span class="text-xs text-zinc-400 font-mono">{{ $activity->created_at->diffForHumans() }}</span>
-                </flux:table.cell>
-            </flux:table.row>
+                @php($config = $this->getActivityConfig($activity->description))
+                <flux:table.row>
+                    <flux:table.cell>
+                        <div class="flex items-center gap-4">
+                            <flux:icon :name="$config['icon']" variant="outline" class="size-5 {{ $config['color'] }}" />
+                            <span class="font-medium text-sm">{{ ucfirst($activity->description) }}</span>
+                        </div>
+                    </flux:table.cell>
+                    <flux:table.cell>
+                        <div class="flex flex-col">
+                            <span class="text-sm font-semibold">{{ class_basename($activity->subject_type) }}</span>
+                            <span class="text-xs text-zinc-500">ID: {{ $activity->subject_id }}</span>
+                        </div>
+                    </flux:table.cell>
+                    <flux:table.cell>
+                        <span
+                            class="text-xs text-zinc-400 font-mono">{{ $activity->created_at->diffForHumans() }}</span>
+                    </flux:table.cell>
+                </flux:table.row>
             @empty
-            <flux:table.row>
-                <flux:table.cell colspan="3" class="text-center py-8 text-zinc-500">
-                    No recent activity found.
-                </flux:table.cell>
-            </flux:table.row>
+                <flux:table.row>
+                    <flux:table.cell colspan="3" class="text-center py-8 text-zinc-500">
+                        No recent activity found.
+                    </flux:table.cell>
+                </flux:table.row>
             @endforelse
         </flux:table.rows>
     </flux:table>

@@ -31,44 +31,6 @@ class FoodDescribe extends BaseModel
     ];
 
     /**
-     * Auto-generate slug from English name (or Bangla if English missing).
-     */
-    protected static function booted()
-    {
-        static::creating(function ($food) {
-            if (empty($food->slug)) {
-                $base = $food->english_name ?: $food->bangla_name;
-                $food->slug = Str::slug($base);
-            }
-        });
-    }
-
-    public function user()
-    {
-        return $this->belongsTo(User::class, 'user_id');
-    }
-
-    public function creator()
-    {
-        return $this->belongsTo(User::class, 'created_by');
-    }
-
-    public function updater()
-    {
-        return $this->belongsTo(User::class, 'updated_by');
-    }
-
-    public function deleter()
-    {
-        return $this->belongsTo(User::class, 'deleted_by');
-    }
-
-    public function publisher()
-    {
-        return $this->belongsTo(User::class, 'published_by');
-    }
-
-    /**
      * Scope for filtering by category
      */
     public function scopeCategory($query, $category)

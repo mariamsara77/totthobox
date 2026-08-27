@@ -21,8 +21,4 @@ class Thana extends BaseModel
     {
         return $this->belongsTo(District::class);
     }
-    public function user()
-    {
-        return $this->belongsTo(User::class);
-    }
 }

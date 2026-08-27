@@ -1,0 +1,9 @@
+[90m= [39m[34;4mApp\Models\ChatSession[39;24m {#9573
+    [34mid[39m: [35m16[39m,
+    [34muser_id[39m: [35m1[39m,
+    [34muuid[39m: [32m"[39m[32m655777b0-46f1-46ab-ae07-6d86f8857eb2[39m[32m"[39m,
+    [34mtitle[39m: [32m"[39m[32mbabu tumi kemon acho tumi ki bolte paro kivabe ama...[39m[32m"[39m,
+    [34mdeleted_at[39m: [36mnull[39m,
+    [34mcreated_at[39m: [32m"[39m[32m2026-05-16 03:14:46[39m[32m"[39m,
+    [34mupdated_at[39m: [32m"[39m[32m2026-05-16 03:14:46[39m[32m"[39m,
+  }

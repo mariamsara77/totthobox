@@ -2,130 +2,124 @@
 
 namespace App\Models;
 
+use App\Traits\AutoCacheable;
+use App\Traits\HasReactions;
+use CyrildeWit\EloquentViewable\Contracts\Viewable;
+use CyrildeWit\EloquentViewable\InteractsWithViews;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str;
-use Spatie\Image\Enums\Fit;
+use Laravel\Scout\Searchable;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
-class TourismBd extends BaseModel implements HasMedia
+class TourismBd extends Model implements HasMedia, Viewable
 {
-    use InteractsWithMedia, SoftDeletes;
+    use AutoCacheable;
+    use HasFactory;
+    use HasReactions;
+    use InteractsWithMedia;
+    use InteractsWithViews;
+    use LogsActivity;
+    use Searchable;
+    use SoftDeletes;
 
     protected $fillable = [
-        'title', 'tourism_type', 'description', 'image', 'map', 'division_id', 'district_id', 'thana_id',
-        'slug', 'user_id', 'status', 'meta_title', 'meta_description', 'meta_keywords',
-        'created_by', 'updated_by', 'deleted_by', 'published_at', 'published_by',
-        'view_count', 'is_featured', 'ip_address', 'user_agent',
+        'id', 'title', 'tourism_type', 'description', 'image', 'map',
+        'division_id', 'district_id', 'thana_id', 'slug', 'status', 'is_featured',
     ];
 
     protected $casts = [
-        'published_at' => 'datetime',
         'is_featured' => 'boolean',
         'status' => 'integer',
-        'view_count' => 'integer',
     ];
 
-    protected static function boot()
+    protected static function booted(): void
     {
-        parent::boot();
-
-        // ১. ডাটা তৈরির সময় অটো-সেটআপ
-        static::creating(function ($model) {
-            if (Auth::check()) {
-                $model->created_by = Auth::id();
-                $model->user_id = Auth::id();
-            }
-
-            if (empty($model->slug)) {
-                $model->slug = Str::slug($model->title);
-            }
-
-            // রিকোয়েস্ট থেকে IP এবং User Agent নেওয়া
-            $model->ip_address = request()->ip();
-            $model->user_agent = request()->userAgent();
+        static::saved(function () {
+            cache()->flush();
         });
 
-        // ২. ডাটা আপডেট করার সময় অটো-সেটআপ
-        static::updating(function ($model) {
-            if (Auth::check()) {
-                $model->updated_by = Auth::id();
-            }
-
-            // Slug যেন সারাজীবনেও পরিবর্তন না হয়
-            if ($model->isDirty('slug')) {
-                $model->slug = $model->getOriginal('slug');
-            }
-        });
-
-        // ৩. সফট ডিলিট করার সময় কে ডিলিট করলো তা ট্র্যাক করা
-        static::deleting(function ($model) {
-            // যদি এটি ফোর্স ডিলিট না হয়, তবে কে ডিলিট করলো তা সেভ করো
-            if (Auth::check() && ! $model->isForceDeleting()) {
-                $model->deleted_by = Auth::id();
-                $model->save();
-            }
+        static::deleted(function () {
+            cache()->flush();
         });
     }
 
-    // --- Media Library Settings ---
+    /* -----------------------------------------------------------------
+      |  Activity Log
+      | -----------------------------------------------------------------
+      */
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logFillable()
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
+    }
+
+    /* -----------------------------------------------------------------
+     |  Media Library
+     | -----------------------------------------------------------------
+     */
+
     public function registerMediaCollections(): void
     {
-        $this->addMediaCollection('images');
+        $this->addMediaCollection('images')
+            ->singleFile(); // optional: only one image if you want
     }
 
     public function registerMediaConversions(?Media $media = null): void
     {
         $this->addMediaConversion('thumb')
-            ->fit(Fit::Crop, 300, 300)
+            ->width(100)
+            ->height(100)
             ->sharpen(10)
+            ->format('webp')
             ->nonQueued();
     }
 
-    // --- Relationships (পরিপূর্ণ রিলেশনস) ---
+    /* -----------------------------------------------------------------
+     |  Relationships
+     | -----------------------------------------------------------------
+     */
 
-    public function division()
+    public function division(): BelongsTo
     {
         return $this->belongsTo(Division::class);
     }
 
-    public function district()
+    public function district(): BelongsTo
     {
         return $this->belongsTo(District::class);
     }
 
-    public function thana()
+    public function thana(): BelongsTo
     {
         return $this->belongsTo(Thana::class);
     }
 
-    // মেইন ইউজার (মালিক)
-    public function user()
+    public function searchableAs(): string
     {
-        return $this->belongsTo(User::class);
+        return 'intro_bds';
     }
 
-    // অডিট রিলেশনস
-    public function creator()
+    public function toSearchableArray(): array
     {
-        return $this->belongsTo(User::class, 'created_by')->withDefault(['name' => 'Unknown']);
-    }
+        $phoneticTitle = $this->convertToEnglishPhonetic($this->title);
 
-    public function editor()
-    {
-        return $this->belongsTo(User::class, 'updated_by');
-    }
-
-    public function deleter()
-    {
-        return $this->belongsTo(User::class, 'deleted_by');
-    }
-
-    public function publisher()
-    {
-        return $this->belongsTo(User::class, 'published_by');
+        return [
+            'id' => (int) $this->id,
+            'title' => $this->title,
+            'phonetic_title' => $phoneticTitle,
+            'slug' => $this->slug,
+            'url' => $this->url,
+            'status' => $this->status,
+            'is_featured' => $this->is_featured,
+        ];
     }
 }

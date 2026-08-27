@@ -92,8 +92,8 @@ new class extends Component {
             </flux:button>
         @else
             <div
-                class="flex flex-col items-center justify-center gap-2 text-green-600 font-medium animate-in fade-in zoom-in duration-300">
-                <div class="p-2 bg-green-100 dark:bg-green-900/30 rounded-full mb-1">
+                class="flex flex-col items-center justify-center gap-2 text-green-600 font-medium animate-in fade-in zoom-in duration-200">
+                <div class="p-2 bg-green-100 dark:bg-green-900/30 rounded-full mb-2">
                     <flux:icon.check-circle variant="solid" class="w-6 h-6" />
                 </div>
                 অনুরোধ পাঠানো হয়েছে

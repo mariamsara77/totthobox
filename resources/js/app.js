@@ -1,58 +1,41 @@
-import './tracking' ;
-import './echo'; 
+// শুধু পাবলিক সাইটের জন্য দরকারি জিনিস
+import './tracking';
 import './share';
-import './pwa-handle';
 import './pwa-tracking';
-import './sw-register';
-import './quil-editor';
-// অফলাইন হ্যান্ডলার থেকে ইমপোর্ট
-import { trackActivity, syncDataWithServer } from './offline-handler';
+import './pwa-handle';
 
-// --- ১. ক্লিক ট্র্যাকার ---
-document.addEventListener('click', async (event) => {
-    const el = event.target.closest('[data-track]'); 
-    if (!el) return;
+// পেজ পুরোপুরি লোড হওয়ার পর ব্যাকগ্রাউন্ডে PWA রেজিস্টার হবে
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+            .catch(err => console.error('SW registration failed', err));
+    }, { once: true });
+}
 
-    trackActivity(
-        'interaction', 
-        el.getAttribute('data-track') || el.id || 'unnamed_btn', 
-        el.innerText.trim() || el.value
-    );
+// লাইভওয়্যার নেভিগেশন এবং প্রথম লোডে PWA স্ট্যাটাস সিঙ্ক ফাংশন কল
+const handleSync = () => {
+    if (typeof window.syncPwaStatus === 'function') {
+        window.syncPwaStatus();
+    }
+};
+
+document.addEventListener('livewire:navigated', handleSync);
+handleSync();
+
+// Theme-color আপডেট (ডার্ক/লাইট) - পারফরম্যান্স অপ্টিমাইজড মিউটেশন অবজারভার
+const observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+        if (mutation.attributeName === 'class') {
+            const isDark = document.documentElement.classList.contains('dark');
+            const meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) {
+                meta.setAttribute('content', isDark ? '#262626' : '#ffffff');
+            }
+        }
+    }
 });
 
-// --- ২. ইনপুট ট্র্যাকার (Draft Save) ---
-document.addEventListener('input', async (event) => {
-    const { name, id, value } = event.target;
-    if (!name && !id) return;
-
-    trackActivity(
-        'input_draft', 
-        name || id, 
-        value, 
-        'live_draft' // একই ID ব্যবহার করলে ডাটাবেজ বড় হবে না
-    );
+observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['class']
 });
-
-// --- ৩. অটো সিঙ্ক ইভেন্টস (Livewire Navigation) ---
-document.addEventListener('livewire:navigated', () => {
-    syncDataWithServer();
-});
-
-// প্রাথমিক লোডে একবার সিঙ্ক করার চেষ্টা
-syncDataWithServer();
-
-
-
-
-
-
-
-const observer = new MutationObserver(() => {
-        const isDark = document.documentElement.classList.contains('dark');
-        const color = isDark ? '#262626' : '#ffffff';
-        
-        // এটি সরাসরি মেটা ট্যাগ আপডেট করবে কোনো ফ্লিকার ছাড়া
-        document.querySelector('meta[name="theme-color"]').setAttribute('content', color);
-    });
-
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });

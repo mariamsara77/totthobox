@@ -3,8 +3,9 @@
 use Livewire\Volt\Component;
 use Spatie\Permission\Models\Permission;
 use Illuminate\Validation\Rule;
+use Livewire\Attributes\Layout;
 
-new class extends Component {
+new #[Layout('components.layouts.admin')] class extends Component {
     public $name;
     public $permissionId;
     public $search = '';
@@ -48,7 +49,19 @@ new class extends Component {
 
         $permissionName = strtolower($this->name);
 
-        Permission::updateOrCreate(['id' => $this->permissionId], ['name' => $permissionName, 'guard_name' => 'web']);
+        if ($this->permissionId) {
+            // যদি permissionId থাকে, তবে সেটি খুঁজে আপডেট করো
+            Permission::findOrFail($this->permissionId)->update([
+                'name' => $permissionName,
+                'guard_name' => 'web',
+            ]);
+        } else {
+            // নাহলে নতুন তৈরি করো
+            Permission::create([
+                'name' => $permissionName,
+                'guard_name' => 'web',
+            ]);
+        }
 
         $this->showModal = false;
         $this->resetForm();
@@ -63,7 +76,7 @@ new class extends Component {
 }; ?>
 
 <div class="space-y-6">
-    <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <header class="flex justify-between items-start items-center gap-4">
         <flux:heading size="xl" level="1">
             Permissions Matrix
             <flux:subheading italic>Define specific atomic actions for the system access control.</flux:subheading>
@@ -81,7 +94,7 @@ new class extends Component {
             <flux:input wire:model.live.debounce.300ms="search" placeholder="Filter permissions..."
                 icon="magnifying-glass" variant="filled" />
         </div>
-        <flux:badge color="zinc" variant="outline" class="self-start uppercase tracking-widest text-[10px]">
+        <flux:badge color="zinc" variant="outline" class="uppercase  text-xs">
             Total Actions: {{ count($permissions) }}
         </flux:badge>
     </div>
@@ -98,7 +111,7 @@ new class extends Component {
             @forelse ($permissions as $permission)
                 <flux:table.row :key="$permission->id">
                     <flux:table.cell>
-                        <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-4">
                             <flux:icon name="key" variant="micro" class="text-zinc-400" />
                             <span class="font-mono text-sm font-medium text-blue-600 dark:text-blue-400">
                                 {{ $permission->name }}
@@ -123,8 +136,8 @@ new class extends Component {
                 </flux:table.row>
             @empty
                 <flux:table.row>
-                    <flux:table.cell colspan="3" class="py-16 text-center">
-                        <div class="flex flex-col items-center gap-2">
+                    <flux:table.cell colspan="3" class="py-12 text-center">
+                        <div class="flex flex-col items-center gap-4">
                             <flux:icon name="shield-exclamation" class="h-8 w-8 text-zinc-300" />
                             <span class="text-zinc-500">No security keys found in the registry.</span>
                         </div>
@@ -146,7 +159,7 @@ new class extends Component {
             <flux:input label="Identifier Name" wire:model="name" placeholder="e.g. manage-settings" icon="tag"
                 autofocus />
 
-            <div class="flex gap-3 justify-end pt-2">
+            <div class="flex gap-4 justify-end pt-2">
                 <flux:modal.close>
                     <flux:button variant="ghost">Cancel</flux:button>
                 </flux:modal.close>

@@ -7,8 +7,9 @@ use Livewire\WithPagination;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Livewire\Attributes\{Computed, Validate};
+use Livewire\Attributes\Layout;
 
-new class extends Component {
+new #[Layout('components.layouts.admin')] class extends Component {
     use WithFileUploads, WithPagination;
 
     public $suraId;
@@ -29,9 +30,9 @@ new class extends Component {
     public $revelation_place = '';
 
     #[Validate('nullable|integer')]
-    public $total_ayat;
+    public $total_ayat; // 20MB Max
 
-    #[Validate('nullable|file|mimes:mp3,wav|max:20480')] // 20MB Max
+    #[Validate('nullable|file|mimes:mp3,wav|max:20480')]
     public $audio;
 
     public $existingAudio;
@@ -149,12 +150,13 @@ new class extends Component {
             <flux:subheading>Manage all 114 Suras of the Holy Quran.</flux:subheading>
         </div>
 
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-4">
             <flux:radio.group wire:model.live="viewType" variant="segmented" size="sm">
                 <flux:radio value="active" label="Active" />
                 <flux:radio value="trashed" label="Trashed" />
             </flux:radio.group>
-            <flux:button wire:click="showCreateForm" icon="plus" variant="primary" size="sm">Add Sura</flux:button>
+            <flux:button wire:click="showCreateForm" icon="plus" variant="primary" size="sm">Add Sura
+            </flux:button>
         </div>
     </div>
 
@@ -204,16 +206,17 @@ new class extends Component {
 
                     <flux:table.cell align="end">
                         <div class="flex justify-end gap-1">
-                            @if($viewType === 'active')
+                            @if ($viewType === 'active')
                                 <flux:button variant="ghost" size="sm" icon="pencil-square"
                                     wire:click="showEditForm({{ $sura->id }})" />
-                                <flux:button variant="ghost" size="sm" icon="trash" color="red" wire:confirm="আর ইউ সিওর?"
-                                    wire:click="delete({{ $sura->id }})" />
+                                <flux:button variant="ghost" size="sm" icon="trash" color="red"
+                                    wire:confirm="আর ইউ সিওর?" wire:click="delete({{ $sura->id }})" />
                             @else
                                 <flux:button variant="ghost" size="sm" icon="arrow-path" color="green"
                                     wire:click="restore({{ $sura->id }})" />
                                 <flux:button variant="ghost" size="sm" icon="x-mark" color="red"
-                                    wire:confirm="স্থায়ীভাবে ডিলিট করতে চান?" wire:click="forceDelete({{ $sura->id }})" />
+                                    wire:confirm="স্থায়ীভাবে ডিলিট করতে চান?"
+                                    wire:click="forceDelete({{ $sura->id }})" />
                             @endif
                         </div>
                     </flux:table.cell>
@@ -252,7 +255,7 @@ new class extends Component {
 
                 @if ($existingAudio && !$audio)
                     <div class="p-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg">
-                        <p class="text-[10px] uppercase tracking-wider font-bold text-zinc-400 mb-2">Current Audio Preview
+                        <p class="text-xs uppercase tracking-wider font-bold text-zinc-400 mb-2">Current Audio Preview
                         </p>
                         <audio controls class="h-8 w-full scale-95">
                             <source src="{{ Storage::url($existingAudio) }}" type="audio/mpeg">
@@ -263,7 +266,7 @@ new class extends Component {
 
             <flux:checkbox wire:model="is_active" label="এই সূরাটি অ্যাপে লাইভ থাকবে (Active Status)" />
 
-            <div class="flex justify-end gap-3 pt-6 border-t border-zinc-100 dark:border-zinc-800">
+            <div class="flex justify-end gap-4 pt-6 border-t border-zinc-400/25">
                 <flux:modal.close>
                     <flux:button variant="ghost">বাতিল</flux:button>
                 </flux:modal.close>

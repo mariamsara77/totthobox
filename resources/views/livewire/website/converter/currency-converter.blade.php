@@ -193,21 +193,23 @@ new class extends Component {
                 return $response->successful() ? $response->json()['rates'][$this->to_currency] : null;
             });
 
-            if (!$rate)
-                throw new \Exception("Rate not found");
+            if (!$rate) {
+                throw new \Exception('Rate not found');
+            }
 
             $this->exchange_rate = $rate;
             $this->converted_amount = round((float) $this->amount * $rate, 2);
         } catch (\Exception $e) {
-            $this->errorMessage = "নেটওয়ার্ক সমস্যা, আবার চেষ্টা করুন।";
+            $this->errorMessage = 'নেটওয়ার্ক সমস্যা, আবার চেষ্টা করুন।';
             $this->exchange_rate = 0;
         }
     }
 
     public function updated($field)
     {
-        if ($field === 'amount')
+        if ($field === 'amount') {
             $this->convertCurrency();
+        }
     }
 
     public function selectFromCurrency($code)
@@ -252,15 +254,24 @@ new class extends Component {
     protected function getFilteredList($query)
     {
         $data = $this->getCurrencyData();
-        if (empty($query))
+        if (empty($query)) {
             return $data;
+        }
         return array_filter($data, fn($c, $k) => stripos($c['label'], $query) !== false || stripos($k, $query) !== false, ARRAY_FILTER_USE_BOTH);
     }
 };
 ?>
 
-<div x-data="{ close() { $wire.set('fromDropdownOpen', false); $wire.set('toDropdownOpen', false); } }"
-    x-on:keydown.escape="close()">
+<div x-data="{
+    close() {
+        $wire.set('fromDropdownOpen', false);
+        $wire.set('toDropdownOpen', false);
+    }
+}" x-on:keydown.escape="close()">
+
+    <x-seo title="লাইভ কারেন্সি কনভার্টার - টাকার সর্বশেষ রেট জানুন | Totthobox"
+        description="ডলার, ইউরো, রিয়ালসহ বিশ্বের যেকোনো দেশের মুদ্রাকে বাংলাদেশি টাকায় কনভার্ট করুন। Totthobox-এ পান রিয়েল-টাইম এক্সচেঞ্জ রেট এবং নির্ভুল হিসাব।"
+        keywords="কারেন্সি কনভার্টার, ডলার রেট বাংলাদেশ, টাকার রেট আজ, মুদ্রা রূপান্তর, currency converter bangla, USD to BDT live, exchange rate Totthobox" />
 
     <header class="text-center mb-8">
         <h2 class="text-3xl font-extrabold text-gray-900 dark:text-white leading-tight">কারেন্সি কনভার্টার</h2>
@@ -277,22 +288,24 @@ new class extends Component {
             <div class="relative w-full">
                 <flux:button class="w-full" wire:click="$set('fromDropdownOpen', true)">
                     <img src="https://flagcdn.com/w40/{{ strtolower(substr($from_currency, 0, 2)) }}.png"
-                        class="w-5 h-5 mr-2 inline shadow-sm !m-0">
+                        class="w-5 h-5 mr-2 inline shadow-sm m-0!" alt="{{ $fromLabel }}" />
                     {{ $from_currency }} - {{ $fromLabel }}
                 </flux:button>
 
-                @if($fromDropdownOpen)
-                    <div class="absolute z-50 mt-2 w-full bg-white dark:bg-zinc-700 shadow-2xl rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden"
+                @if ($fromDropdownOpen)
+                    <div class="absolute z-50 mt-2 w-full bg-white dark:bg-zinc-700 shadow-2xl rounded-xl border border-zinc-400/25 overflow-hidden"
                         @click.away="$wire.set('fromDropdownOpen', false)">
                         <div class="p-2 border-b border-zinc-100 dark:border-zinc-700">
-                            <flux:input type="text" wire:model.live.debounce.200ms="fromSearch" placeholder="সার্চ..." />
+                            <flux:input type="text" wire:model.live.debounce.200ms="fromSearch"
+                                placeholder="সার্চ..." />
                         </div>
                         <ul class="max-h-60 overflow-y-auto custom-scrollbar">
-                            @foreach($filteredFrom as $code => $currency)
+                            @foreach ($filteredFrom as $code => $currency)
                                 <flux:navlist.item wire:click="selectFromCurrency('{{ $code }}')">
                                     <div class="flex gap-2 justify-start items-center">
                                         <img src="https://flagcdn.com/w20/{{ strtolower(substr($code, 0, 2)) }}.png"
-                                            class="mr-3 rounded-xs">
+                                            class="mr-3 rounded-xs" alt="{{ $currency['label'] }}" />
+
                                         <strong>{{ $code }}</strong> <span class="ml-2 text-zinc-500">-
                                             {{ $currency['label'] }}</span>
                                     </div>
@@ -303,7 +316,8 @@ new class extends Component {
                 @endif
             </div>
 
-            <flux:input id="amount" kbd="{{ $fromSymbol }}" type="number" wire:model.live.debounce.500ms="amount" />
+            <flux:input id="amount" kbd="{{ $fromSymbol }}" type="number"
+                wire:model.live.debounce.500ms="amount" />
         </flux:input.group>
 
 
@@ -318,24 +332,26 @@ new class extends Component {
             <div class="relative w-full">
                 <flux:button class="w-full" wire:click="$set('toDropdownOpen', true)">
                     <img src="https://flagcdn.com/w40/{{ strtolower(substr($to_currency, 0, 2)) }}.png"
-                        class="w-5 h-5 mr-2 inline shadow-sm">
+                        class="w-5 h-5 mr-2 inline shadow-sm" alt="{{ $toLabel }}" />
                     {{ $to_currency }} - {{ $toLabel }}
                 </flux:button>
 
-                @if($toDropdownOpen)
+                @if ($toDropdownOpen)
                     <div class="absolute z-50 mt-2 w-full bg-white dark:bg-zinc-700 shadow-2xl rounded-xl overflow-hidden"
                         @click.away="$wire.set('toDropdownOpen', false)">
                         <div class="p-2 border-b border-zinc-100 dark:border-zinc-700">
-                            <flux:input type="text" wire:model.live.debounce.200ms="toSearch" placeholder="সার্চ..." />
+                            <flux:input type="text" wire:model.live.debounce.200ms="toSearch"
+                                placeholder="সার্চ..." />
                         </div>
 
                         <div class="max-h-60 overflow-y-auto">
-                            @foreach($filteredTo as $code => $currency)
+                            @foreach ($filteredTo as $code => $currency)
                                 <flux:navlist.item wire:click="selectToCurrency('{{ $code }}')">
 
                                     <div class="flex gap-2 justify-start items-center">
                                         <img src="https://flagcdn.com/w20/{{ strtolower(substr($code, 0, 2)) }}.png"
-                                            class="mr-3 rounded-xs">
+                                            class="mr-3 rounded-xs" alt="{{ $currency['label'] }}" />
+
                                         <strong>{{ $code }}</strong> <span class="ml-2 text-zinc-500">-
                                             {{ $currency['label'] }}</span>
                                     </div>
@@ -347,13 +363,14 @@ new class extends Component {
                     </div>
                 @endif
             </div>
-            <flux:input id="converted_amount" kbd="{{ $toSymbol }}" type="number" :value="$converted_amount" readonly />
+            <flux:input id="converted_amount" kbd="{{ $toSymbol }}" type="number" :value="$converted_amount"
+                readonly />
         </flux:input.group>
 
         <div
-            class="mt-8 p-8 border border-zinc-200 dark:border-zinc-800 rounded-3xl bg-zinc-50 dark:bg-zinc-900/50 text-center shadow-inner">
-            <p class="text-zinc-500 text-sm mb-1 uppercase tracking-wider font-semibold">কনভার্টেড অ্যামাউন্ট</p>
-            <div class="flex justify-center items-baseline gap-2">
+            class="mt-8 p-8 border border-zinc-200 dark:border-zinc-800 rounded-3xl bg-zinc-400/10 text-center shadow-inner">
+            <p class="text-zinc-500 text-sm mb-2 uppercase tracking-wider font-semibold">কনভার্টেড অ্যামাউন্ট</p>
+            <div class="flex justify-center items-baseline gap-4">
                 <span
                     class="text-5xl font-black text-zinc-900 dark:text-white tracking-tighter">{{ number_format($converted_amount, 2) }}</span>
                 <span class="text-xl font-bold text-zinc-400 uppercase">{{ $to_currency }}</span>
@@ -364,4 +381,60 @@ new class extends Component {
             </p>
         </div>
     </div>
+
+
+    {{-- ==================== LARGE GAP ==================== --}}
+    <div class="h-24 sm:h-32"></div>
+
+    {{-- ==================== BANGLA INSTRUCTIONS ==================== --}}
+    <div class="max-w-2xl mx-auto">
+        <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 sm:p-8">
+            <h2 class="text-xl font-bold text-zinc-900 dark:text-white mb-5 flex items-center gap-4">
+                <flux:icon name="information-circle" class="size-6 text-blue-500" />
+                কীভাবে ব্যবহার করবেন?
+            </h2>
+
+            <div class="space-y-4 text-zinc-600 dark:text-zinc-300 leading-relaxed">
+                <div class="flex gap-4">
+                    <span
+                        class="flex-shrink-0 w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-sm font-bold">১</span>
+                    <p><strong>উপরের বক্স</strong> থেকে যে মুদ্রা থেকে কনভার্ট করতে চান সেটি নির্বাচন করুন (ডিফল্ট:
+                        USD)।</p>
+                </div>
+
+                <div class="flex gap-4">
+                    <span
+                        class="flex-shrink-0 w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-sm font-bold">২</span>
+                    <p>টাকার পরিমাণ লিখুন। আপনি লিখার সাথে সাথেই ফলাফল আপডেট হবে।</p>
+                </div>
+
+                <div class="flex gap-4">
+                    <span
+                        class="flex-shrink-0 w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-sm font-bold">৩</span>
+                    <p><strong>নিচের বক্স</strong> থেকে যে মুদ্রায় কনভার্ট করতে চান সেটি নির্বাচন করুন (ডিফল্ট: BDT)।
+                    </p>
+                </div>
+
+                <div class="flex gap-4">
+                    <span
+                        class="flex-shrink-0 w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-sm font-bold">৪</span>
+                    <p>মাঝের <strong>↑↓</strong> বাটনে ক্লিক করে দুই মুদ্রা সহজেই অদল-বদল করতে পারবেন।</p>
+                </div>
+
+                <div class="flex gap-4">
+                    <span
+                        class="flex-shrink-0 w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-sm font-bold">৫</span>
+                    <p>নিচে বড় করে কনভার্টেড অ্যামাউন্ট ও বর্তমান এক্সচেঞ্জ রেট দেখতে পাবেন।</p>
+                </div>
+            </div>
+
+            <div class="mt-6 pt-5 border-t border-zinc-400/25">
+                <p class="text-sm text-zinc-500 dark:text-zinc-400">
+                    <strong class="text-zinc-700 dark:text-zinc-300">নোট:</strong>
+                    রেট প্রতি ১ ঘণ্টায় আপডেট হয়। সকল তথ্য নির্ভরযোগ্য API থেকে সংগ্রহ করা হয়। কোনো ফি নেই।
+                </p>
+            </div>
+        </div>
+    </div>
+
 </div>

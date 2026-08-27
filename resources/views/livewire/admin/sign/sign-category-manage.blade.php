@@ -8,34 +8,25 @@ use App\Models\SignCategory;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\ImageManager;
 
-new class extends Component {
+new #[Layout('components.layouts.admin')] class extends Component {
     use WithPagination, WithFileUploads;
 
     // Properties
     public $categoryId;
     public $name;
-    public $title;
-    public $short_title;
-    public $short_description;
-    public $long_description;
     public $description;
-    public $image;
     public $slug;
     public $icon;
-    public $status = 1; // Default to active
+    public $status = 1;
     public $is_featured = false;
-    public $meta_title;
-    public $meta_description;
-    public $meta_keywords;
+
+    public $sortField = 'name';
+    public $sortDirection = 'asc';
 
     public $search = '';
     public $perPage = 10;
-    public $sortField = 'name';
-    public $sortDirection = 'asc';
     public $showTrashed = false;
     public $activeTab = 'index';
-    public $imagePreview;
-    public $currentImage;
 
     // Validation rules
     protected function rules()
@@ -43,18 +34,9 @@ new class extends Component {
         return [
             'name' => 'required|string|max:255',
             'icon' => 'required|string|max:255|lowercase',
-            'title' => 'nullable|string|max:255',
-            'short_title' => 'nullable|string|max:255',
-            'short_description' => 'nullable|string',
-            'long_description' => 'nullable|string',
             'description' => 'nullable|string',
-            'image' => 'nullable|image|max:2048',
-            'slug' => 'nullable|string|max:255|unique:sign_categories,slug,' . $this->categoryId,
             'status' => 'required|boolean',
             'is_featured' => 'boolean',
-            'meta_title' => 'nullable|string|max:255',
-            'meta_description' => 'nullable|string',
-            'meta_keywords' => 'nullable|string|max:255',
         ];
     }
 
@@ -68,7 +50,7 @@ new class extends Component {
     // Reset form fields
     public function resetFields()
     {
-        $this->reset(['categoryId', 'name', 'icon', 'title', 'short_title', 'short_description', 'long_description', 'description', 'image', 'slug', 'status', 'is_featured', 'meta_title', 'meta_description', 'meta_keywords', 'imagePreview', 'currentImage']);
+        $this->reset(['categoryId', 'name', 'icon', 'description', 'slug', 'status', 'is_featured']);
         $this->resetErrorBag();
     }
 
@@ -80,18 +62,10 @@ new class extends Component {
         $this->categoryId = $cat->id;
         $this->name = $cat->name;
         $this->icon = $cat->icon;
-        $this->title = $cat->title;
-        $this->short_title = $cat->short_title;
-        $this->short_description = $cat->short_description;
-        $this->long_description = $cat->long_description;
         $this->description = $cat->description;
         $this->slug = $cat->slug;
         $this->status = $cat->status;
         $this->is_featured = $cat->is_featured;
-        $this->meta_title = $cat->meta_title;
-        $this->meta_description = $cat->meta_description;
-        $this->meta_keywords = $cat->meta_keywords;
-        $this->currentImage = $cat->image;
 
         $this->activeTab = 'edit';
     }
@@ -104,40 +78,11 @@ new class extends Component {
         $data = [
             'name' => $this->name,
             'icon' => $this->icon,
-            'title' => $this->title,
-            'short_title' => $this->short_title,
-            'short_description' => $this->short_description,
-            'long_description' => $this->long_description,
             'description' => $this->description,
-            'slug' => $this->slug ?: Str::slug($this->name),
+            'slug' => $this->slug,
             'status' => $this->status,
             'is_featured' => $this->is_featured,
-            'meta_title' => $this->meta_title,
-            'meta_description' => $this->meta_description,
-            'meta_keywords' => $this->meta_keywords,
-            'created_by' => auth()->id(),
-            'updated_by' => auth()->id(),
         ];
-
-        // Handle image upload
-        if ($this->image) {
-            if ($this->currentImage) {
-                Storage::disk('public')->delete('sign_categories/' . basename($this->currentImage));
-            }
-
-            $baseName = Str::slug($this->name);
-            $imageName = $baseName . '-' . time() . '.webp';
-            $savePath = storage_path('app/public/sign_categories/' . $imageName);
-
-            // Intervention with GD
-            $manager = new ImageManager(\Intervention\Image\Drivers\Gd\Driver::class);
-            $manager
-                ->read($this->image->getRealPath())
-                ->toWebp(80)
-                ->save($savePath);
-
-            $data['image'] = 'sign_categories/' . $imageName;
-        }
 
         if ($this->categoryId) {
             // Update existing category
@@ -174,30 +119,8 @@ new class extends Component {
     public function forceDeleteCategory($id)
     {
         $cat = SignCategory::withTrashed()->findOrFail($id);
-        if ($cat->image) {
-            Storage::disk('public')->delete($cat->image);
-        }
         $cat->forceDelete();
         session()->flash('success', 'Category permanently deleted.');
-    }
-
-    // Remove image
-    public function removeImage()
-    {
-        if ($this->categoryId && $this->currentImage) {
-            Storage::disk('public')->delete($this->currentImage);
-            SignCategory::find($this->categoryId)->update(['image' => null]);
-            $this->currentImage = null;
-        }
-        $this->image = null;
-        $this->imagePreview = null;
-    }
-
-    // Updated image preview
-    public function updatedImage()
-    {
-        $this->validate(['image' => 'nullable|image|max:2048']);
-        $this->imagePreview = $this->image->temporaryUrl();
     }
 
     // Sort function
@@ -254,12 +177,6 @@ new class extends Component {
                         <flux:input type="text" wire:model="icon" label="Icon" />
                     </div>
                     <div class="lg:col-span-1">
-                        <flux:input type="text" wire:model="title" label="Title" />
-                    </div>
-                    <div class="lg:col-span-1">
-                        <flux:input type="text" wire:model="short_title" label="Short Title" />
-                    </div>
-                    <div class="lg:col-span-1">
                         <flux:input type="text" wire:model="slug" label="Slug" />
                     </div>
                     <div class="lg:col-span-1">
@@ -270,49 +187,6 @@ new class extends Component {
                     </div>
                     <div class="flex items-center mt-6 lg:col-span-1">
                         <flux:checkbox wire:model="is_featured" label="Featured" />
-                    </div>
-
-                    <div class="md:col-span-2 lg:col-span-3">
-                        <flux:textarea wire:model="short_description" label="Short Description" rows="3" />
-                    </div>
-
-                    <div class="md:col-span-2 lg:col-span-3">
-                        <flux:textarea wire:model="description" label="Description" rows="5" />
-                    </div>
-
-                    <div class="md:col-span-2 lg:col-span-3">
-                        <flux:textarea wire:model="long_description" label="Long Description" rows="5" />
-                    </div>
-
-                    <div class="md:col-span-2 lg:col-span-3">
-                        <flux:input type="file" wire:model="image" accept="image/*" label="Image" />
-                        @error('image')
-                            <span class="text-red-500 text-xs">{{ $message }}</span>
-                        @enderror
-                        <div class="mt-2">
-                            @if ($imagePreview)
-                                <img src="{{ $imagePreview }}" alt="Image Preview" class="h-20 w-auto rounded">
-                            @elseif ($currentImage)
-                                <img src="{{ asset('storage/' . $currentImage) }}" alt="Current Image"
-                                    class="h-20 w-auto rounded">
-                                <button type="button" wire:click="removeImage"
-                                    class="mt-2 text-red-600 text-sm hover:text-red-800">
-                                    Remove Image
-                                </button>
-                            @endif
-                        </div>
-                    </div>
-
-                    <div class="md:col-span-2 lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div class="md:col-span-1">
-                            <flux:input type="text" wire:model="meta_title" label="Meta Title" />
-                        </div>
-                        <div class="md:col-span-1">
-                            <flux:input type="text" wire:model="meta_keywords" label="Meta Keywords" />
-                        </div>
-                        <div class="md:col-span-1">
-                            <flux:textarea wire:model="meta_description" label="Meta Description" rows="3" />
-                        </div>
                     </div>
 
                     <div class="md:col-span-2 lg:col-span-3 flex justify-end space-x-3 mt-4">
@@ -326,7 +200,7 @@ new class extends Component {
                 </form>
             </div>
         @else
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
+            <div class="flex justify-between items-start items-center space-y-4 sm:space-y-0">
                 <h2 class="text-2xl font-bold">Sign Category Management</h2>
 
                 <div class="flex space-x-2">
@@ -334,11 +208,11 @@ new class extends Component {
                         Create New
                     </flux:button>
                     <flux:button wire:click="$set('showTrashed', false)" size="sm"
-                        variant="{{ !$showTrashed ? 'primary' : 'outline' }}">
+                        variant="{{ !$showTrashed ? 'primary' : 'filled' }}">
                         Active
                     </flux:button>
                     <flux:button wire:click="$set('showTrashed', true)" size="sm"
-                        variant="{{ $showTrashed ? 'primary' : 'outline' }}">
+                        variant="{{ $showTrashed ? 'primary' : 'filled' }}">
                         Trashed
                     </flux:button>
                 </div>
@@ -395,18 +269,7 @@ new class extends Component {
                         @forelse ($this->categories as $cat)
                             <tr class="hover:bg-zinc-400/10">
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="flex items-center">
-                                        @if ($cat->image)
-                                            <img src="{{ asset('storage/' . $cat->image) }}"
-                                                alt="{{ $cat->name }}" class="h-10 w-10 rounded-full mr-3">
-                                        @else
-                                            <div
-                                                class="h-10 w-10 rounded-full bg-gray-500 flex items-center justify-center mr-3">
-                                                <span class=" text-sm">{{ substr($cat->name, 0, 1) }}</span>
-                                            </div>
-                                        @endif
-                                        <div class="text-sm font-medium">{{ $cat->name }}</div>
-                                    </div>
+                                    {{ $cat->name }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm ">
                                     {{ $cat->slug }}

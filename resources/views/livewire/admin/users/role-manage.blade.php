@@ -4,8 +4,9 @@ use Livewire\Volt\Component;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
 use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\Layout;
 
-new class extends Component {
+new #[Layout('components.layouts.admin')] class extends Component {
     // Form properties
     public $roleId;
     public $name;
@@ -80,7 +81,7 @@ new class extends Component {
 }; ?>
 
 <div class="space-y-6">
-    <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <header class="flex justify-between items-start items-center gap-4">
         <flux:heading size="xl" level="1">
             Role Management
             <flux:subheading>Manage administrative roles and their specific access permissions.</flux:subheading>
@@ -97,7 +98,7 @@ new class extends Component {
         <div class="w-full md:w-80">
             <flux:input wire:model.live.debounce.300ms="search" placeholder="Search roles..." icon="magnifying-glass" />
         </div>
-        <flux:badge color="zinc" variant="outline" class="self-start uppercase tracking-widest text-[10px]">
+        <flux:badge color="zinc" variant="outline" class="uppercase text-xs">
             Total Roles: {{ count($roles) }}
         </flux:badge>
     </div>
@@ -114,7 +115,7 @@ new class extends Component {
             @forelse ($roles as $role)
                 <flux:table.row :key="$role->id">
                     <flux:table.cell>
-                        <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-4">
                             <flux:icon name="shield-check" class="text-zinc-400" variant="micro" />
                             <span class="font-semibold text-zinc-800 dark:text-zinc-100">{{ $role->name }}</span>
                         </div>
@@ -123,13 +124,12 @@ new class extends Component {
                     <flux:table.cell>
                         <div class="flex flex-wrap gap-1">
                             @foreach ($role->permissions->take(5) as $permission)
-                                <flux:badge size="sm" variant="subtle" class="text-[10px] uppercase">
+                                <flux:badge size="sm" variant="subtle" class="text-xs uppercase">
                                     {{ $permission->name }}
                                 </flux:badge>
                             @endforeach
                             @if ($role->permissions->count() > 5)
-                                <span
-                                    class="text-xs text-zinc-500 self-center pl-1">+{{ $role->permissions->count() - 5 }}
+                                <span class="text-xs text-zinc-500 self-center pl-1">+{{ $role->permissions->count() - 5 }}
                                     more</span>
                             @endif
                         </div>
@@ -137,8 +137,8 @@ new class extends Component {
 
                     <flux:table.cell align="end">
                         <div class="flex justify-end gap-1">
-                            <flux:button wire:click="edit({{ $role->id }})" variant="ghost" size="sm"
-                                icon="pencil-square" inset="top" />
+                            <flux:button wire:click="edit({{ $role->id }})" variant="ghost" size="sm" icon="pencil-square"
+                                inset="top" />
                             <flux:button wire:click="delete({{ $role->id }})"
                                 wire:confirm="Are you sure you want to delete this role?" variant="ghost" size="sm"
                                 icon="trash" class="text-red-500 hover:text-red-600" inset="top" />
@@ -167,12 +167,10 @@ new class extends Component {
             <div class="space-y-3">
                 <flux:label>Permissions Matrix</flux:label>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[350px] overflow-y-auto p-1 custom-scrollbar">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto p-1 custom-scrollbar">
                     @foreach ($allPermissions as $group => $perms)
-                        <div
-                            class="p-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/50">
-                            <div
-                                class="flex items-center gap-2 mb-3 border-b border-zinc-200 dark:border-zinc-700 pb-2">
+                        <div class="p-3 rounded-lg border border-zinc-400/25 bg-zinc-50/50 dark:bg-zinc-800/50">
+                            <div class="flex items-center gap-2 mb-3 border-b border-zinc-400/25 pb-2">
                                 <flux:icon name="folder" variant="micro" class="text-zinc-400" />
                                 <span
                                     class="text-[11px] font-bold uppercase tracking-wider text-zinc-500">{{ $group }}</span>
@@ -191,7 +189,7 @@ new class extends Component {
                 <flux:error name="selectedPermissions" />
             </div>
 
-            <div class="flex gap-3 justify-end">
+            <div class="flex gap-4 justify-end">
                 <flux:modal.close>
                     <flux:button variant="ghost">Cancel</flux:button>
                 </flux:modal.close>

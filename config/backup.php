@@ -47,6 +47,7 @@ return [
             'compression_level' => 9,
             'filename_prefix' => 'totthobox-backup-',
             'disks' => [
+                'local',
                 'google',
             ],
             'continue_on_failure' => true,
@@ -90,7 +91,7 @@ return [
     'monitor_backups' => [
         [
             'name' => 'Totthobox',
-            'disks' => ['google'],
+            'disks' => ['local'],
             'health_checks' => [
                 \Spatie\Backup\Tasks\Monitor\HealthChecks\MaximumAgeInDays::class => 1,
                 \Spatie\Backup\Tasks\Monitor\HealthChecks\MaximumStorageInMegabytes::class => 2000,

@@ -17,7 +17,7 @@ return [
     |
     */
 
-    'domain' => env('PULSE_DOMAIN'),
+    'domain' => env('PULSE_DOMAIN', false),
 
     /*
     |--------------------------------------------------------------------------
@@ -82,17 +82,11 @@ return [
 
     'ingest' => [
         'driver' => env('PULSE_INGEST_DRIVER', 'storage'),
-
         'buffer' => env('PULSE_INGEST_BUFFER', 5_000),
 
         'trim' => [
-            'lottery' => [1, 1_000],
-            'keep' => env('PULSE_INGEST_KEEP', '7 days'),
-        ],
-
-        'redis' => [
-            'connection' => env('PULSE_REDIS_CONNECTION'),
-            'chunk' => 1000,
+            'lottery' => [1, 100], // ১০০০ এর জায়গায় ১০০ দিন
+            'keep' => env('PULSE_INGEST_KEEP', '24 hours'),
         ],
     ],
 

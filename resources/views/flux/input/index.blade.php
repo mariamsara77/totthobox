@@ -113,7 +113,7 @@
         })
         ->add(match ($variant) { // Border...
             'outline' => 'shadow-xs border-zinc-200 border-b-zinc-300/80 disabled:border-b-zinc-200 dark:border-white/10 dark:disabled:border-white/5',
-            'filled'  => 'border-0',
+            'filled'  => '',
         })
         ->add(match ($variant) { // Invalid...
             'outline' => 'data-invalid:shadow-none data-invalid:border-red-500 dark:data-invalid:border-red-500 disabled:data-invalid:border-red-500 dark:disabled:data-invalid:border-red-500',
@@ -207,11 +207,11 @@
         <?php endif; ?>
 
         <?php if ($attributes->has('placeholder')): ?>
-            <div class="block self-center text-start flex-1 font-medium text-zinc-400 dark:text-white/40">
+            <div class="block self-center  flex-1 font-medium text-zinc-400 dark:text-white/40">
                 {{ $attributes->get('placeholder') }}
             </div>
         <?php else: ?>
-            <div class="text-start self-center flex-1 font-medium text-zinc-800 dark:text-white">
+            <div class=" self-center flex-1 font-medium text-zinc-800 dark:text-white">
                 {{ $slot }}
             </div>
         <?php endif; ?>

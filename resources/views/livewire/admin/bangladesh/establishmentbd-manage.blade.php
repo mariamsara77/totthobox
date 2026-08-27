@@ -9,8 +9,10 @@ use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 use Illuminate\Support\Str;
 use Livewire\Attributes\{Computed, Validate, On};
+use Intervention\Image\Laravel\Facades\Image;
+use Livewire\Attributes\Layout;
 
-new class extends Component {
+new #[Layout('components.layouts.admin')] class extends Component {
     use WithFileUploads, WithPagination;
 
     // Properties
@@ -21,6 +23,9 @@ new class extends Component {
     // Form Fields
     #[Validate('required|min:3|max:255')]
     public $title = '';
+
+    #[Validate('required|min:3|max:255')]
+    public $slug = '';
 
     #[Validate('required|min:10')]
     public $description = '';
@@ -44,7 +49,8 @@ new class extends Component {
     public $images = [];
 
     // Dependable Data
-    public $districts = [], $thanas = [];
+    public $districts = [],
+        $thanas = [];
 
     /**
      * Lifecycle & Logic Methods
@@ -56,6 +62,13 @@ new class extends Component {
     public function updatedViewType()
     {
         $this->resetPage();
+    }
+
+    public function updatedTitle($value)
+    {
+        if (!$this->establishmentBdId) {
+            $this->slug = Str::slug($value);
+        }
     }
 
     public function updatedDivisionId($value)
@@ -86,7 +99,7 @@ new class extends Component {
     public function with(): array
     {
         return [
-            'divisions' => Division::all()
+            'divisions' => Division::all(),
         ];
     }
 
@@ -96,7 +109,7 @@ new class extends Component {
     public function showCreateForm()
     {
         $this->resetValidation();
-        $this->reset(['establishmentBdId', 'title', 'description', 'division_id', 'district_id', 'thana_id', 'status', 'is_featured', 'images', 'districts', 'thanas']);
+        $this->reset(['establishmentBdId', 'title', 'slug', 'description', 'division_id', 'district_id', 'thana_id', 'status', 'is_featured', 'images', 'districts', 'thanas']);
         $this->dispatch('modal-show', name: 'establishment-form');
     }
 
@@ -107,6 +120,7 @@ new class extends Component {
 
         $this->establishmentBdId = $item->id;
         $this->title = $item->title;
+        $this->slug = $item->slug;
         $this->description = $item->description;
         $this->division_id = $item->division_id;
         $this->district_id = $item->district_id;
@@ -119,11 +133,16 @@ new class extends Component {
         $this->thanas = Thana::where('district_id', $this->district_id)->get();
 
         // Map Spatie Media
-        $this->images = $item->getMedia('establishment_images')->map(fn($m) => [
-            'id' => $m->id,
-            'url' => $m->getUrl('thumb') ?? $m->getUrl(),
-            'is_existing' => true
-        ])->toArray();
+        $this->images = $item
+            ->getMedia('establishment_images')
+            ->map(
+                fn($m) => [
+                    'id' => $m->id,
+                    'url' => $m->getUrl('thumb') ?? $m->getUrl(),
+                    'is_existing' => true,
+                ],
+            )
+            ->toArray();
 
         $this->dispatch('modal-show', name: 'establishment-form');
     }
@@ -132,8 +151,9 @@ new class extends Component {
     {
         $file = $this->{$propertyName}[$index] ?? null;
 
-        if (!$file)
+        if (!$file) {
             return;
+        }
 
         if (is_array($file) && isset($file['is_existing'])) {
             $item = EstablishmentBd::withTrashed()->findOrFail($this->establishmentBdId);
@@ -146,26 +166,42 @@ new class extends Component {
 
     public function save()
     {
-        $this->validate();
+        $uniqueRule = $this->establishmentBdId ? 'unique:establishment_bds,slug,' . $this->establishmentBdId : 'unique:establishment_bds,slug';
 
-        $item = EstablishmentBd::updateOrCreate(['id' => $this->establishmentBdId], [
-            'title' => $this->title,
-            'description' => $this->description,
-            'division_id' => $this->division_id,
-            'district_id' => $this->district_id,
-            'thana_id' => $this->thana_id,
-            'status' => $this->status,
-            'is_featured' => $this->is_featured,
-            'user_id' => auth()->id(),
-            'slug' => Str::slug($this->title),
-        ]);
+        $this->validate(['slug' => "required|min:3|max:255|{$uniqueRule}"]);
 
-        // Process Spatie Media
+        $item = EstablishmentBd::updateOrCreate(
+            ['id' => $this->establishmentBdId],
+            [
+                'title' => $this->title,
+                'description' => $this->description,
+                'division_id' => $this->division_id,
+                'district_id' => $this->district_id,
+                'thana_id' => $this->thana_id,
+                'status' => $this->status,
+                'is_featured' => $this->is_featured,
+                'user_id' => auth()->id(),
+                'slug' => $this->slug,
+            ],
+        );
+
+        // Upload & process new images (strip metadata + convert to WebP)
         if (!empty($this->images)) {
-            foreach ($this->images as $image) {
-                if ($image instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
-                    $item->addMedia($image->getRealPath())
-                        ->usingFileName(Str::random(10) . '.' . $image->getClientOriginalExtension())
+            foreach ($this->images as $file) {
+                // শুধুমাত্র নতুন TemporaryUploadedFile প্রসেস করবে
+                if ($file instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
+                    $slug = Str::slug($item->title);
+                    $fileName = "{$slug}-totthobox-establishment-bd-" . Str::lower(Str::random(6)) . '.webp';
+
+                    // ১. মেটাডেটা রিমুভ করে WebP এ কনভার্ট
+                    $processedImage = Image::read($file->getRealPath());
+                    $processedImage->toWebp(85)->save($file->getRealPath());
+
+                    // ২. ক্লিন WebP ফাইল মিডিয়া কালেকশনে সেভ
+                    $item
+                        ->addMedia($file->getRealPath())
+                        ->usingFileName($fileName)
+                        ->usingName("{$item->title} - Totthobox Establishment BD")
                         ->toMediaCollection('establishment_images');
                 }
             }
@@ -199,17 +235,18 @@ new class extends Component {
 
 <div class="">
     {{-- Header --}}
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4" mb-6">
         <div>
             <flux:heading size="xl">Establishment BD</flux:heading>
             <flux:subheading>Manage establishments and locations across Bangladesh.</flux:subheading>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-4">
             <flux:radio.group wire:model.live="viewType" variant="segmented" size="sm">
                 <flux:radio value="active" label="Active" />
                 <flux:radio value="trashed" label="Trash" />
             </flux:radio.group>
-            <flux:button wire:click="showCreateForm" icon="plus" variant="primary" size="sm">Create New</flux:button>
+            <flux:button wire:click="showCreateForm" icon="plus" variant="primary" size="sm">Create New
+            </flux:button>
         </div>
     </div>
 
@@ -234,17 +271,18 @@ new class extends Component {
                     <flux:table.cell>
                         @php $mediaItems = $row->getMedia('establishment_images'); @endphp
                         <flux:avatar.group>
-                            @foreach($mediaItems->take(3) as $media)
+                            @foreach ($mediaItems->take(3) as $media)
                                 <flux:avatar src="{{ $media->getUrl() }}" />
                             @endforeach
-                            @if($mediaItems->count() > 3)
+                            @if ($mediaItems->count() > 3)
                                 <flux:avatar initials="+{{ $mediaItems->count() - 3 }}" />
                             @endif
                         </flux:avatar.group>
                     </flux:table.cell>
                     <flux:table.cell class="font-medium">{{ $row->title }}</flux:table.cell>
                     <flux:table.cell>
-                        <flux:badge size="sm" color="zinc" inset="top bottom">{{ $row->district?->name }}</flux:badge>
+                        <flux:badge size="sm" color="zinc" inset="top bottom">{{ $row->district?->name }}
+                        </flux:badge>
                     </flux:table.cell>
                     <flux:table.cell>
                         <flux:badge size="sm" :color="$row->status ? 'green' : 'red'" variant="subtle">
@@ -252,26 +290,27 @@ new class extends Component {
                         </flux:badge>
                     </flux:table.cell>
                     <flux:table.cell align="end">
-                        @if($viewType === 'active')
+                        @if ($viewType === 'active')
                             <flux:button variant="ghost" size="sm" icon="pencil-square"
                                 wire:click="showEditForm({{ $row->id }})" />
-                            <flux:button variant="ghost" size="sm" icon="trash" color="red" wire:confirm="Are you sure?"
-                                wire:click="delete({{ $row->id }})" />
+                            <flux:button variant="ghost" size="sm" icon="trash" color="red"
+                                wire:confirm="Are you sure?" wire:click="delete({{ $row->id }})" />
                         @else
                             @can('restore data')
                                 <flux:button variant="ghost" size="sm" icon="arrow-path" color="green"
                                     wire:click="restore({{ $row->id }})" />
                             @endcan
                             @can('permanent delete')
-                                <flux:button variant="ghost" size="sm" icon="x-mark" color="red" wire:confirm="Delete permanently?"
-                                    wire:click="forceDelete({{ $row->id }})" />
+                                <flux:button variant="ghost" size="sm" icon="x-mark" color="red"
+                                    wire:confirm="Delete permanently?" wire:click="forceDelete({{ $row->id }})" />
                             @endcan
                         @endif
                     </flux:table.cell>
                 </flux:table.row>
             @empty
                 <flux:table.row>
-                    <flux:table.cell colspan="5" class="text-center py-10 text-zinc-400">No records found.</flux:table.cell>
+                    <flux:table.cell colspan="5" class="text-center py-10 text-zinc-400">No records found.
+                    </flux:table.cell>
                 </flux:table.row>
             @endforelse
         </flux:table.rows>
@@ -287,19 +326,26 @@ new class extends Component {
             </div>
 
             <flux:input wire:model="title" label="Title" placeholder="Establishment name..." />
+            <flux:input wire:model="slug" label="Slug" placeholder="auto-generated" />
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <flux:select wire:model.live="division_id" label="Division">
                     <option value="">Select Division</option>
-                    @foreach($divisions as $div) <option value="{{ $div->id }}">{{ $div->name }}</option> @endforeach
+                    @foreach ($divisions as $div)
+                        <option value="{{ $div->id }}">{{ $div->name }}</option>
+                    @endforeach
                 </flux:select>
                 <flux:select wire:model.live="district_id" label="District">
                     <option value="">Select District</option>
-                    @foreach($districts as $dis) <option value="{{ $dis->id }}">{{ $dis->name }}</option> @endforeach
+                    @foreach ($districts as $dis)
+                        <option value="{{ $dis->id }}">{{ $dis->name }}</option>
+                    @endforeach
                 </flux:select>
                 <flux:select wire:model="thana_id" label="Thana">
                     <option value="">Select Thana</option>
-                    @foreach($thanas as $tha) <option value="{{ $tha->id }}">{{ $tha->name }}</option> @endforeach
+                    @foreach ($thanas as $tha)
+                        <option value="{{ $tha->id }}">{{ $tha->name }}</option>
+                    @endforeach
                 </flux:select>
             </div>
             <div wire:ignore>
@@ -321,7 +367,7 @@ new class extends Component {
                 <flux:file-upload wire:model.live="images" multiple />
             </div>
 
-            <div class="flex justify-end gap-3 pt-6 border-t border-zinc-100 dark:border-zinc-800">
+            <div class="flex justify-end gap-4" pt-6 border-t border-zinc-400/25">
                 <flux:modal.close>
                     <flux:button variant="ghost">Cancel</flux:button>
                 </flux:modal.close>

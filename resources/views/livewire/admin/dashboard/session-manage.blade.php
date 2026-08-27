@@ -11,8 +11,9 @@ use Jenssegers\Agent\Agent;
 use Illuminate\Support\Facades\Http;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
+use Livewire\Attributes\Layout;
 
-new class extends Component {
+new #[Layout('components.layouts.admin')] class extends Component {
     use WithPagination;
 
     public $search = '';
@@ -426,7 +427,7 @@ new class extends Component {
                 <flux:subheading>Monitor and manage all active user sessions</flux:subheading>
             </div>
 
-            <div class="flex flex-wrap items-center gap-2">
+            <div class="flex flex-wrap items-center gap-4">
                 <flux:button icon="arrow-path" wire:click="refreshData" variant="ghost">Refresh</flux:button>
                 <flux:button icon="document-arrow-down" wire:click="$set('showExportModal', true)" variant="ghost">
                     Export
@@ -496,7 +497,7 @@ new class extends Component {
                 <flux:input icon="magnifying-glass" wire:model.live.debounce.300ms="search"
                     placeholder="Search sessions..." />
             </div>
-            <div class="flex gap-2">
+            <div class="flex gap-4">
                 <flux:select wire:model.live="perPage" class="w-32">
                     <option value="10">10 / Page</option>
                     <option value="25">25 / Page</option>
@@ -506,7 +507,7 @@ new class extends Component {
             </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
             <flux:select wire:model.live="filterUser">
                 <option value="">All Users</option>
                 @foreach ($users as $user)
@@ -555,10 +556,10 @@ new class extends Component {
                     @endphp
                     <flux:table.row :class="$isCurrent ? 'bg-zinc-50 dark:bg-white/5' : ''">
                         <flux:table.cell>
-                            <div class="flex items-center gap-3">
+                            <div class="flex items-center gap-4">
                                 <flux:avatar size="sm" name="{{ $session->user?->name ?? 'Guest' }}" />
                                 <div>
-                                    <div class="font-medium flex items-center gap-2">
+                                    <div class="font-medium flex items-center gap-4">
                                         {{ $session->user?->name ?? 'Guest' }}
                                         @if ($isCurrent)
                                             <flux:badge size="sm" color="blue">You</flux:badge>
@@ -580,8 +581,8 @@ new class extends Component {
                         </flux:table.cell>
 
                         <flux:table.cell>
-                            <div class="flex items-center gap-3">
-                                @if(!$agentInfo['is_mobile'])
+                            <div class="flex items-center gap-4">
+                                @if (!$agentInfo['is_mobile'])
                                     <flux:icon.computer-desktop color="lime" variant="solid" />
                                 @else
                                     <flux:icon.device-phone-mobile color="orange" variant="solid" />
@@ -614,9 +615,10 @@ new class extends Component {
                                 <flux:dropdown>
                                     <flux:button variant="ghost" icon="ellipsis-horizontal" size="sm" />
                                     <flux:menu>
-                                        <flux:menu.item wire:click="deleteSession('{{ $session->id }}')" icon="trash"
-                                            variant="danger">Terminate</flux:menu.item>
-                                        <flux:menu.item onclick="navigator.clipboard.writeText('{{ $session->ip_address }}')"
+                                        <flux:menu.item wire:click="deleteSession('{{ $session->id }}')"
+                                            icon="trash" variant="danger">Terminate</flux:menu.item>
+                                        <flux:menu.item
+                                            onclick="navigator.clipboard.writeText('{{ $session->ip_address }}')"
                                             icon="clipboard">Copy IP</flux:menu.item>
                                     </flux:menu>
                                 </flux:dropdown>

@@ -20,8 +20,5 @@ class Division extends BaseModel
     {
         return $this->hasMany(District::class);
     }
-    public function user()
-    {
-        return $this->belongsTo(User::class);
-    }
+
 }

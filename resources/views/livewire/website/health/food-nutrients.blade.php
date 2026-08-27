@@ -75,7 +75,7 @@ new class extends Component {
                 <h3 class="font-bold text-lg mb-2 leading-tight">
                     {{ $nutrient->name_bn }}
                     @if ($nutrient->name_en)
-                        <span class="text-sm text-gray-400 font-normal block sm:inline">
+                        <span class="text-sm text-gray-400  block sm:inline">
                             ({{ $nutrient->name_en }})
                         </span>
                     @endif

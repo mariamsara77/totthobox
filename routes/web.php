@@ -1,127 +1,156 @@
 <?php
 
-use App\Http\Controllers\LanguageController;
 use App\Models\User;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 
-Route::get('lang/{locale}', [LanguageController::class, 'switch'])->name('lang.switch');
+/*
+|--------------------------------------------------------------------------
+| Public & Content Routes (Cached)
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['responsecache', 'can:view-dashboard'])->group(function () {
+    // Basic Routes
+    Route::view('/', 'welcome')->name('home');
+    Volt::route('/privacy-policy', 'global.privacy-policy')->name('privacy.policy');
+    Volt::route('/contact-us', 'global.contact')->name('contact.us');
+    Volt::route('/about-us', 'global.about')->name('about.us');
+    Route::view('/help', 'livewire.global.help')->name('help.us');
+    Volt::route('/status', 'global.status')->name('system.status');
+    Volt::route('/terms-of-service', 'global.terms-of-service')->name('terms.service');
+    Route::view('/offline', 'offline')->name('offline');
 
-// --- Public & Common Routes ---
+    // Bangladesh Section
+    Route::prefix('bangladesh')->name('bangladesh.')->group(function () {
+        Volt::route('introduction', 'website.bangladesh.introbd')->name('introduction');
+        Volt::route('introduction/{slug}', 'website.bangladesh.introbd-show')->name('introduction.show');
+        Volt::route('tourism', 'website.bangladesh.tourism')->name('tourism');
+        Volt::route('tourism/{slug}', 'website.bangladesh.tourism-show')->name('tourism.show');
+        Volt::route('history', 'website.bangladesh.historybd')->name('history');
+        Volt::route('history/{slug}', 'website.bangladesh.historybd-show')->name('history.show');
+        Volt::route('establishment', 'website.bangladesh.establishment')->name('establishment');
+        Volt::route('establishment/{slug}', 'website.bangladesh.establishment-show')->name('establishment.show');
+        Volt::route('public-figure', 'website.bangladesh.public-figure')->name('public-figure');
+        Volt::route('public-figure/{slug}', 'website.bangladesh.public-figure-show')->name('public-figure.show');
+    });
+
+    // Apps & International
+    Route::prefix('software')->name('software.')->group(function () {
+        Volt::route('all/{platform?}', 'website.apps.all-apps')->name('all');
+        Volt::route('{slug}', 'website.apps.app')->name('show');
+    });
+    Route::prefix('international')->name('international.')->group(function () {
+        Route::livewire('all-country', 'website.international.all-country')->name('all-country');
+        Route::livewire('country/{slug}', 'website.international.single-country')->name('country');
+    });
+
+    // Blogs/News & Islam
+    // Route::prefix('news')->name('news.')->group(function () {
+    //     Route::livewire('/headlines', 'website.news.news-headlines')->name('headlines');
+    //     Route::livewire('/source/{source_slug}', 'website.news.news-headlines')->name('source');
+    // });
+
+    Route::prefix('islam')->name('islam.')->group(function () {
+        Route::livewire('basic', 'website.islam.basic-islam')->name('basicislam');
+        Route::livewire('basic/{slug}', 'website.islam.basic-islam-show')->name('basicislam.show');
+        Volt::route('dowan', 'website.islam.dowan')->name('dowan');
+        Volt::route('dowan/{slug}', 'website.islam.dowan-show')->name('dowan.show');
+        // Volt::route('al-quran', 'website.islam.al-quran')->name('al-quran');
+    });
+
+    // Health, Education & others
+    Route::prefix('health')->name('health.')->group(function () {
+        Volt::route('calorie-chart', 'website.health.calorie-chart')->name('calorie-chart');
+        Volt::route('food-nutrients', 'website.health.food-nutrients')->name('food-nutrients');
+        Volt::route('basic-health', 'website.health.basic-health')->name('basic-health');
+    });
+    Volt::route('contact/{slug}', 'website.contacts.contact')->name('contact.number');
+
+    Route::prefix('education/child')->name('education.child.')->group(function () {
+        Volt::route('practice', 'website.education.child.practice')->name('practice');
+    });
+    Route::prefix('bangla')->name('calendar.')->group(function () {
+        Volt::route('calendar', 'website.calendar.calendar')->name('calendar');
+        Volt::route('holiday', 'website.calendar.holiday')->name('holiday');
+        Volt::route('holiday/{slug}', 'website.calendar.holiday-show')->name('holiday.show');
+    });
+
+    Route::prefix('converter')->name('converter.')->group(function () {
+        Volt::route('number-to-word', 'website.converter.number-converter')->name('number-to-word');
+        Volt::route('adarshalipi', 'website.converter.adosholipi-converter')->name('adarshalipi');
+        Volt::route('currency', 'website.converter.currency-converter')->name('currency');
+        Volt::route('length', 'website.converter.length-converter')->name('length');
+        Volt::route('weight', 'website.converter.weight-converter')->name('weight');
+        Volt::route('area', 'website.converter.area-converter')->name('area');
+        Volt::route('volume', 'website.converter.volume-converter')->name('volume');
+        Volt::route('temperature', 'website.converter.temperature-converter')->name('temperature');
+        Volt::route('speed', 'website.converter.speed-converter')->name('speed');
+        Volt::route('time', 'website.converter.time-converter')->name('time');
+        Volt::route('data', 'website.converter.data-converter')->name('unit-data');
+        Volt::route('energy', 'website.converter.energy-converter')->name('energy');
+        Volt::route('land', 'website.converter.land-converter')->name('land');
+        Route::livewire('image', 'website.converter.image')->name('image');
+        Route::livewire('document', 'website.converter.document')->name('document');
+        Route::livewire('media', 'website.converter.media')->name('media');
+        Route::livewire('file-data', 'website.converter.data')->name('file-data');
+    });
+
+    Route::prefix('tools')->name('tools.')->group(function () {
+        Route::livewire('image-resizer', 'website.tools.image-resize')->name('image-resizer');
+        Route::livewire('age-calculator', 'website.tools.age-calculator')->name('age-calculator');
+        Route::livewire('word-and-character-counter', 'website.tools.word-counter')->name('word-counter');
+        Route::livewire('zodiac-calculator', 'website.tools.zodiac-calculator')->name('zodiac-calculator');
+        Route::livewire('percentage-calculator', 'website.tools.percentage-calculator')->name('percentage-calculator');
+        Route::livewire('qrcode-generator', 'website.tools.qrcode-generator')->name('qrcode-generator');
+        Route::livewire('id-card-generator', 'website.tools.id-card-generator')->name('id-card-generator');
+        Route::livewire('id-card/{idCard}', 'website.tools.id-card-show')->name('id-card.show');
+    });
+
+    Route::prefix('signs')->name('signs.')->group(function () {
+        Route::livewire('/{category}/{sign}', 'website.signs.show')->name('show');
+        Route::livewire('all', 'website.signs.sign')->name('sign.all');
+        Route::livewire('{slug}', 'website.signs.sign')->name('sign');
+    });
+    Route::prefix('buysell')->name('buysell.')->group(function () {
+        Volt::route('category/all', 'website.buysell.buysell')->name('all');
+        Volt::route('prodict/{slug}', 'website.buysell.buysell-single')->name('buysell-single');
+        Volt::route('category/{categorySlug}', 'website.buysell.buysell-category')->name('category');
+    });
+    Route::livewire('/excel-expert/{slug?}', 'website.excel.excel')->name('excel.view');
+    Volt::route('/users/{slug}', 'website.users.show')->name('users.show');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Dynamic, Auth & Admin Routes (NO Caching)
+|--------------------------------------------------------------------------
+*/
+// Public utility/API routes
 Route::get('/quick-login/{id}', function ($id) {
-    if (! request()->hasValidSignature()) {
-        abort(403, 'Unauthorized or expired link.');
+    if (!request()->hasValidSignature()) {
+        abort(403);
     }
-    $user = User::findOrFail($id);
-    Auth::login($user);
+    Auth::login(User::findOrFail($id));
 
     return redirect()->route('home');
 })->name('quick.login');
+Route::get('/api/csrf-token', fn() => response()->json(['token' => csrf_token()]))->name('api.csrf-token');
+Route::get('/clean-project', fn() => Artisan::call('super:clean') ? 'Done' : Artisan::output());
 
-Route::view('/', 'welcome')->name('home');
-Route::view('/privacy-policy', 'partials.privacy-policy')->name('privacy.policy');
-Volt::route('/contact-us', 'global.contact')->name('contact.us');
-Route::view('/terms-of-service', 'partials.terms-of-service')->name('terms.service');
-Route::view('/offline', 'offline')->name('offline');
-Route::get('/api/csrf-token', function () {
-    return response()->json(['token' => csrf_token()]);
-})->name('api.csrf-token');
-
-Route::get('/clean-project', function () {
-    // Artisan::call ব্যবহার করে কমান্ড রান করা
-    Artisan::call('super:clean');
-
-    // কমান্ডের আউটপুট দেখতে চাইলে
-    return 'Project is cleaned successfully! <br><pre>'.Artisan::output().'</pre>';
+// AI Routes
+Route::prefix('ai')->name('ai.')->group(function () {
+    Volt::route('chat/{uuid?}', 'ai.tutor')->name('chat.show');
 });
 
-Volt::route('/users/{slug}', 'website.users.show')->name('users.show');
-
-// --- Front-end Content Routes (Public) ---
-Route::prefix('bangladesh/')->name('bangladesh.')->group(function () {
-    Volt::route('introduction', 'website.bangladesh.introbd')->name('introduction');
-    Volt::route('tourism', 'website.bangladesh.tourism')->name('tourism');
-    Volt::route('tourism/{slug}', 'website.bangladesh.tourism-show')->name('tourism.show');
-    Volt::route('history', 'website.bangladesh.historybd')->name('history');
-    Volt::route('history/{slug}', 'website.bangladesh.historybd-show')->name('history.show');
-    Volt::route('establishment', 'website.bangladesh.establishment')->name('establishment');
-    Volt::route('minister', 'website.bangladesh.minister')->name('minister');
-});
-
-Route::prefix('international/')->name('international.')->group(function () {
-    Volt::route('all-country', 'website.international.all-country')->name('all-country');
-});
-
-Route::prefix('islam/')->name('islam.')->group(function () {
-    Volt::route('basicislam', 'website.islam.basic-islam')->name('basicislam');
-    Volt::route('dowa', 'website.islam.dowa')->name('dowa');
-    Volt::route('al-quran', 'website.islam.al-quran')->name('al-quran');
-});
-
-Route::prefix('health/')->name('health.')->group(function () {
-    Volt::route('calorie-chart', 'website.health.calorie-chart')->name('calorie-chart');
-    Volt::route('food-nutrients', 'website.health.food-nutrients')->name('food-nutrients');
-    Volt::route('basic-health', 'website.health.basic-health')->name('basic-health');
-});
-
-Route::prefix('contact/')->name('contact.')->group(function () {
-    Volt::route('{slug}', 'website.contacts.contact')->name('number');
-});
-
-Route::prefix('mcq/')->name('mcq.')->group(function () {
-    Volt::route('', 'website.education.mcq-home')->name('home');
-    Volt::route('subject/{slug}', 'website.education.mcq-subject')->name('subject');
-    Volt::route('test/{slug}', 'website.education.mcq-take-test')->name('take-test');
-    Volt::route('test-result', 'website.education.test-attempts')->name('test-result');
-});
-
-Route::prefix('education/child/')->name('education.child.')->group(function () {
-    Volt::route('practice', 'website.education.child.practice')->name('practice');
-});
-Route::prefix('calendar/')->name('calendar.')->group(function () {
-    Volt::route('', 'website.calendar.calendar')->name('calendar');
-    Volt::route('holiday', 'website.calendar.holiday')->name('holiday');
-});
-
-Route::prefix('converter')->name('converter.')->group(function () {
-    Volt::route('currency', 'website.converter.currency-converter')->name('currency');
-    Volt::route('length', 'website.converter.length-converter')->name('length');
-    Volt::route('weight', 'website.converter.weight-converter')->name('weight');
-    Volt::route('area', 'website.converter.area-converter')->name('area');
-    Volt::route('volume', 'website.converter.volume-converter')->name('volume');
-    Volt::route('temperature', 'website.converter.temperature-converter')->name('temperature');
-    Volt::route('speed', 'website.converter.speed-converter')->name('speed');
-    Volt::route('time', 'website.converter.time-converter')->name('time');
-    Volt::route('data', 'website.converter.data-converter')->name('data');
-    Volt::route('energy', 'website.converter.energy-converter')->name('energy');
-    Volt::route('land', 'website.converter.land-converter')->name('land');
-});
-
-Route::prefix('signs/')->name('signs.')->group(function () {
-    Volt::route('{slug}', 'website.signs.sign')->name('sign');
-});
-Route::prefix('buysell/')->name('buysell.')->group(function () {
-    Volt::route('category/all', 'website.buysell.buysell')->name('all'); // Changed this line
-    Volt::route('prodict/{slug}', 'website.buysell.buysell-single')->name('buysell-single');
-    Volt::route('category/{categorySlug}', 'website.buysell.buysell-category')->name('category');
-});
-
-Volt::route('/excel-expert/{slug?}', 'website.excel.excel')->name('excel.view');
-
-// --- Auth Protected Routes ---
+// Authenticated User Routes
 Route::middleware(['auth', 'verified'])->group(function () {
     Volt::route('buysell/produc/create', 'website.buysell.buysell-postad')->name('buysell.post-ad');
     Volt::route('/messages/{slug}', 'chat.messaging')->name('messages');
     Volt::route('notifications', 'chat.notification-bell')->name('notifications');
-
     Route::prefix('profile')->name('profile.')->group(function () {
-
-        // '/' মানেই /profile। এটি সরাসরি ভিউ পেজ দেখাবে।
         Volt::route('/', 'settings.profile-view')->name('view');
-
-        // অন্যান্য সাব-রাউটগুলো
         Volt::route('/settings', 'settings.profile')->name('settings');
         Volt::route('/remove', 'settings.delete-user-form')->name('remove');
         Volt::route('/password', 'settings.password')->name('password');
@@ -130,91 +159,47 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 });
 
-// --- ADMIN SECTION (With Individual Permissions) ---
-Route::prefix('admin')->middleware(['auth', 'verified'])->name('admin.')->group(function () {
+Route::middleware(['auth'])->group(function () {
 
-    // ১. ড্যাশবোর্ড এক্সেস
-    Route::middleware(['can:view-dashboard'])->group(function () {
-        Volt::route('/dashboard', 'admin.dashboard.dashboard')->name('dashboard');
-        Volt::route('/dashboard/manage', 'admin.dashboard.session-manage')->name('dashboard.session');
-        Volt::route('/dashboard/visitor-dashboard', 'admin.dashboard.visitor-dashboard')->name('dashboard.visitor');
-        Volt::route('/dashboard/visitor-analytics/{visitorId}', 'admin.dashboard.visitor-details')->name('dashboard.visitor.details');
+    Route::post('/push-subscribe', function () {
+        $data = request()->validate([
+            'endpoint' => 'required|string',
+            'keys.p256dh' => 'required|string',
+            'keys.auth' => 'required|string',
+            'device_label' => 'nullable|string|max:255',
+        ]);
 
-        Volt::route('/dashboard/missing-data', 'admin.dashboard.missing-data-manager')->name('dashboard.missing-data');
+        $user = auth()->user();
+
+        $user->updatePushSubscription(
+            $data['endpoint'],
+            $data['keys']['p256dh'],
+            $data['keys']['auth'],
+        );
+
+        $user->pushSubscriptions()
+            ->where('endpoint', $data['endpoint'])
+            ->update([
+                'device_label' => $data['device_label'] ?? request()->userAgent(),
+                'last_active_at' => now(),
+            ]);
+
+        return response()->json(['success' => true]);
     });
 
-    // ২. ইউজার ও রোল ম্যানেজমেন্ট (সবচেয়ে সেনসিটিভ)
-    Route::prefix('users')->name('users.')->group(function () {
-        Route::middleware(['can:manage-users'])->group(function () {
-            Volt::route('/manage', 'admin.users.users-manage')->name('manage');
-            Volt::route('/activity/{slug}', 'admin.users.user-activity')->name('activity');
-            Volt::route('/activity', 'admin.users.all-activity')->name('activity.all');
-        });
+    Route::post('/push-unsubscribe', function () {
+        $data = request()->validate(['endpoint' => 'required|string']);
+        auth()->user()->deletePushSubscription($data['endpoint']);
 
-        Route::middleware(['can:manage-roles'])->group(function () {
-            Volt::route('/role-manage', 'admin.users.role-manage')->name('role.manage');
-            Volt::route('/permission-manage', 'admin.users.permission-manage')->name('permission.manage');
-        });
+        return response()->json(['success' => true]);
     });
 
-    // ৩. বাংলাদেশ কন্টেন্ট ম্যানেজমেন্ট
-    Route::prefix('bangladesh')->middleware(['can:manage-bangladesh'])->name('bangladesh.')->group(function () {
-        Volt::route('/introduction', 'admin.bangladesh.intro-manage')->name('introduction');
-        Volt::route('/tourism', 'admin.bangladesh.tourism-manage')->name('tourism');
-        Volt::route('/history', 'admin.bangladesh.historybd-manage')->name('history');
-        Volt::route('/establishment', 'admin.bangladesh.establishmentbd-manage')->name('establishment');
-        Volt::route('/holiday', 'admin.bangladesh.holiday-manage')->name('holiday');
-        Volt::route('/minister', 'admin.bangladesh.minister-manage')->name('minister');
-    });
-
-    // ৪. ইসলাম ম্যানেজমেন্ট
-    Route::prefix('islam')->middleware(['can:manage-islam'])->name('islam.')->group(function () {
-        Volt::route('basicislam', 'admin.islam.basicislam-manage')->name('basicislam');
-        Volt::route('dowa', 'admin.islam.dowa-manage')->name('dowa');
-        Volt::route('para', 'admin.islam.para-manage')->name('para');
-        Volt::route('surah', 'admin.islam.surah-manage')->name('surah');
-        Volt::route('quran', 'admin.islam.quran-manage')->name('quran');
-    });
-
-    // ৫. হেলথ ম্যানেজমেন্ট
-    Route::prefix('health')->middleware(['can:manage-health'])->name('health.')->group(function () {
-        Volt::route('/food/category', 'admin.health.food-category-manage')->name('food.category');
-        Volt::route('/food', 'admin.health.food-manage')->name('food');
-        Volt::route('/nutrient', 'admin.health.nutrient-manage')->name('nutrient');
-        Volt::route('/vitamins', 'admin.health.vitamins-manage')->name('vitamins');
-        Volt::route('/food/nutrient', 'admin.health.food-nutrient-manage')->name('food.nutrient');
-        Volt::route('/basic-health', 'admin.health.basic-health-manage')->name('basic-health');
-    });
-
-    // ৬. এডুকেশন বা MCQ ম্যানেজমেন্ট
-    Route::prefix('education')->middleware(['can:manage-education'])->name('education.')->group(function () {
-        Volt::route('class', 'admin.education.class-manage')->name('class');
-        Volt::route('subject', 'admin.education.subject-manage')->name('subject');
-        Volt::route('test', 'admin.education.test-manage')->name('test');
-        Volt::route('questions', 'admin.education.question-manage')->name('questions');
-        Volt::route('test-questions', 'admin.education.test-question-manage')->name('test-questions');
-    });
-
-    // ৭. কন্টাক্ট, সাইন এবং বাই-সেল
-    Route::prefix('contact')->middleware(['can:manage-contacts'])->name('contact.')->group(function () {
-        Volt::route('/contact-category', 'admin.contact.contact-category-manage')->name('contact-category');
-        Volt::route('/contact-number', 'admin.contact.contact-number-manage')->name('contact-number');
-    });
-
-    Route::prefix('sign')->middleware(['can:manage-signs'])->name('sign.')->group(function () {
-        Volt::route('category-manage', 'admin.sign.sign-category-manage')->name('category-manage');
-        Volt::route('manage', 'admin.sign.sign-manage')->name('manage');
-    });
-
-    Route::prefix('buysell')->middleware(['can:manage-buysell'])->name('buysell.')->group(function () {
-        Volt::route('category-manage', 'admin.buysell.buysell-category-manage')->name('category-manage');
-        Volt::route('item-manage', 'admin.buysell.buysell-item-manage')->name('item-manage');
-        Volt::route('manage', 'admin.buysell.buysell-manage')->name('manage');
-    });
-
-    Route::prefix('excel')->middleware(['can:manage-excel'])->name('excel.')->group(function () {
-        Volt::route('formula-manage', 'admin.excel.excel-manage')->name('formula-manage');
+    Route::get('/push-devices', function () {
+        return auth()->user()->pushSubscriptions()
+            ->latest('last_active_at')
+            ->get(['id', 'device_label', 'last_active_at', 'created_at']);
     });
 });
-
-require __DIR__.'/auth.php';
+// Admin Section
+require __DIR__ . '/admin.php'; // বা আপনার বর্তমান অ্যাডমিন রাউটগুলো নিচে এখানে বসান
+require __DIR__ . '/auth.php';

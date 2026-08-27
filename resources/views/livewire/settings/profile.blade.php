@@ -54,23 +54,27 @@ new class extends Component {
         $this->selected_role = $user->getRoleNames()->first() ?? 'user';
 
         // ডাইনামিক রোল ফিল্টারিং
-        $this->available_roles = Role::pluck('name')->filter(function ($roleName) use ($user) {
-            // ১. 'user' রোলটি ডিফল্ট হিসেবে সবসময় থাকবে
-            if (strtolower($roleName) === 'user')
-                return true;
+        $this->available_roles = Role::pluck('name')
+            ->filter(function ($roleName) use ($user) {
+                // ১. 'user' রোলটি ডিফল্ট হিসেবে সবসময় থাকবে
+                if (strtolower($roleName) === 'user') {
+                    return true;
+                }
 
-            // ২. বর্তমান ইউজার যদি অলরেডি এই রোলে থাকে, তবে সেটি দেখাবে
-            if ($this->selected_role === $roleName)
-                return true;
+                // ২. বর্তমান ইউজার যদি অলরেডি এই রোলে থাকে, তবে সেটি দেখাবে
+                if ($this->selected_role === $roleName) {
+                    return true;
+                }
 
-            // ৩. পারমিশন নাম তৈরি করা (যেমন: assign editor)
-            $permissionName = 'assign ' . strtolower($roleName);
+                // ৩. পারমিশন নাম তৈরি করা (যেমন: assign editor)
+                $permissionName = 'assign ' . strtolower($roleName);
 
-            // চেক করা হচ্ছে পারমিশনটি ডেটাবেসে আছে কি না এবং ইউজারের সেই পারমিশন আছে কি না
-            // Permission::whereName(...)->exists() ব্যবহার করলে এরর আসবে না
-            return Permission::where('name', $permissionName)->exists() && $user->hasPermissionTo($permissionName);
-
-        })->unique()->toArray();
+                // চেক করা হচ্ছে পারমিশনটি ডেটাবেসে আছে কি না এবং ইউজারের সেই পারমিশন আছে কি না
+                // Permission::whereName(...)->exists() ব্যবহার করলে এরর আসবে না
+                return Permission::where('name', $permissionName)->exists() && $user->hasPermissionTo($permissionName);
+            })
+            ->unique()
+            ->toArray();
 
         $this->currentAvatarUrl = $user->getFirstMediaUrl('avatars', 'thumb');
         $this->divisions = Division::select('id', 'name')->get();
@@ -121,7 +125,7 @@ new class extends Component {
             'division_id' => $this->division_id,
             'district_id' => $this->district_id,
             'thana_id' => $this->thana_id,
-            'class_level_id' => (strtolower($this->selected_role) === 'student') ? $this->class_level_id : null,
+            'class_level_id' => strtolower($this->selected_role) === 'student' ? $this->class_level_id : null,
         ]);
 
         if ($user->getRoleNames()->first() !== $this->selected_role) {
@@ -129,7 +133,8 @@ new class extends Component {
         }
 
         if ($this->avatar) {
-            $user->addMedia($this->avatar->getRealPath()) // সরাসরি path ব্যবহার করা ভালো
+            $user
+                ->addMedia($this->avatar->getRealPath()) // সরাসরি path ব্যবহার করা ভালো
                 ->usingFileName(Str::slug($this->name) . '-' . time() . '.' . $this->avatar->getClientOriginalExtension())
                 ->toMediaCollection('avatars');
 
@@ -182,18 +187,19 @@ new class extends Component {
                     @php
                         $previewUrl = null;
                         try {
-                            if ($avatar && method_exists($avatar, 'temporaryUrl'))
+                            if ($avatar && method_exists($avatar, 'temporaryUrl')) {
                                 $previewUrl = $avatar->temporaryUrl();
+                            }
                         } catch (\Exception $e) {
                         }
                     @endphp
-                    <flux:avatar :src="$previewUrl ?? ($currentAvatarUrl ?: null)" size="4xl" :name="$name"
-                        class="rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700" />
+                    <flux:avatar :src="$previewUrl ?? ($currentAvatarUrl ? : null)" size="4xl" :name="$name"
+                        class="rounded-xl shadow-sm border border-zinc-400/25" />
                 </div>
                 <div class="flex-1">
                     <flux:input type="file" wire:model="avatar" accept="image/*" variant="filled" size="xs" />
                     <flux:error name="avatar" />
-                    @if($avatar || $currentAvatarUrl)
+                    @if ($avatar || $currentAvatarUrl)
                         <button type="button" wire:click="removeAvatar"
                             class="mt-1 text-xs text-red-500 hover:text-red-600 transition">ছবিটি বাদ দিন</button>
                     @endif
@@ -212,8 +218,9 @@ new class extends Component {
                     <flux:label>
                         অ্যাকাউন্টের ধরন (Role)
                     </flux:label>
-                    @if($selected_role !== 'user')
-                        <flux:button variant="ghost" wire:click="removeCurrentRole" class="!text-red-500" size="xs">রোল
+                    @if ($selected_role !== 'user')
+                        <flux:button variant="ghost" wire:click="removeCurrentRole" class="!text-red-500"
+                            size="xs">রোল
                             রিমুভ করুন
                         </flux:button>
                     @else
@@ -222,7 +229,7 @@ new class extends Component {
 
                 </div>
                 <flux:select wire:model.live="selected_role" variant="listbox">
-                    @foreach($available_roles as $role)
+                    @foreach ($available_roles as $role)
                         <flux:select.option value="{{ $role }}">{{ ucfirst($role) }}</flux:select.option>
                     @endforeach
                 </flux:select>
@@ -232,7 +239,7 @@ new class extends Component {
         </div>
 
         <div x-show="$wire.selected_role.toLowerCase() === 'student'" x-collapse>
-            <div class="p-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-xl">
+            <div class="p-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-400/25 rounded-xl">
                 <flux:select wire:model="class_level_id" label="আপনার শ্রেণী" variant="listbox"
                     placeholder="নির্বাচন করুন">
                     @foreach ($classLevels as $level)
@@ -242,8 +249,8 @@ new class extends Component {
             </div>
         </div>
 
-        <div wire:ignore>
-            <flux:editor wire:model="bio" label="নিজের সম্পর্কে" />
+        <div>
+            <flux:textarea resize="none" wire:model="bio" label="নিজের সম্পর্কে" />
         </div>
 
         <flux:input wire:model="location" label="ঠিকানা" />
@@ -253,7 +260,8 @@ new class extends Component {
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <flux:select wire:model.live="division_id" label="বিভাগ" variant="listbox" placeholder="নির্বাচন করুন">
                 {{-- <flux:select.option value="" selected>নির্বাচন করুন</flux:select.option> --}}
-                @foreach($divisions as $division) <flux:select.option value="{{ $division->id }}">
+                @foreach ($divisions as $division)
+                    <flux:select.option value="{{ $division->id }}">
                         {{ $division->name }}
                     </flux:select.option>
                 @endforeach
@@ -262,7 +270,8 @@ new class extends Component {
             <flux:select wire:model.live="district_id" label="জেলা" :disabled="!$division_id" variant="listbox"
                 placeholder="নির্বাচন করুন">
                 <flux:select.option value="">নির্বাচন করুন</flux:select.option>
-                @foreach($districts as $district) <flux:select.option value="{{ $district->id }}">
+                @foreach ($districts as $district)
+                    <flux:select.option value="{{ $district->id }}">
                         {{ $district->name }}
                     </flux:select.option>
                 @endforeach
@@ -271,8 +280,10 @@ new class extends Component {
             <flux:select wire:model="thana_id" label="থানা" :disabled="!$district_id" variant="listbox"
                 placeholder="নির্বাচন করুন">
                 <flux:select.option value="">নির্বাচন করুন</flux:select.option>
-                @foreach($thanas as $thana) <flux:select.option value="{{ $thana->id }}">{{ $thana->name }}
-                </flux:select.option> @endforeach
+                @foreach ($thanas as $thana)
+                    <flux:select.option value="{{ $thana->id }}">{{ $thana->name }}
+                    </flux:select.option>
+                @endforeach
             </flux:select>
         </div>
 

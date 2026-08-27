@@ -1,65 +1,75 @@
 <?php
 use Livewire\Volt\Component;
-use Illuminate\Support\Facades\Session;
-use Illuminate\Support\Facades\Log;
 
 new class extends Component {
-    public $current;
-
-    public function mount()
+    public function with(): array
     {
-        // ব্রাউজার ডিটেকশন লজিক পুরোপুরি রিমুভ করা হয়েছে।
-        // সরাসরি সেশন চেক করবে, না থাকলে config এর ডিফল্ট (bn) নিবে।
-        $this->current = Session::get('app_locale', config('app.locale', 'bn'));
-
-        if (!Session::has('app_locale')) {
-            Session::put('app_locale', $this->current);
-            Session::save();
-        }
-    }
-
-    // Volt Component এর updatedCurrent ফাংশনটি এভাবে রিপ্লেস করুন
-    public function updatedCurrent($value)
-    {
-        if (array_key_exists($value, config('translator.supported', []))) {
-            // ১. সেশন আপডেট
-            Session::put('app_locale', $value);
-            Session::save(); // ফোর্স সেভ
-
-            // ২. কুকি সেট (ব্যাকআপ হিসেবে, যদি সেশন ফেইল করে)
-            cookie()->queue(cookie()->forever('app_locale', $value));
-
-            // ৩. জাভাস্ক্রিপ্ট দিয়ে হার্ড রিলোড এবং কুকি নিশ্চিত করা
-            // window.location.href ব্যবহার করলে ক্যাশ বাইপাস করার সম্ভাবনা বাড়ে
-            $this->js("
-            document.cookie = 'app_locale=$value; path=/; max-age=31536000';
-            document.body.style.opacity = '0.5';
-            setTimeout(() => {
-                window.location.href = window.location.href; 
-            }, 100);
-        ");
-        }
-    }
-
-    public function with()
-    {
-        return [
-            'locales' => config('translator.supported', [])
-        ];
+        return ['locales' => config('translator.supported', [])];
     }
 }; ?>
 
-<div class="notranslate" wire:ignore>
-    <div class="relative flex items-center gap-2">
-        <flux:select wire:model.live="current">
-
-            @forelse($locales as $code => $lang)
-                <flux:select.option value="{{ $code }}">
-                    {{ $lang['flag'] }} {{ $lang['name'] }}
-                </flux:select.option>
-            @empty
-                <flux:select.option value="bn">🇧🇩 বাংলা</flux:select.option>
-            @endforelse
-        </flux:select>
-    </div>
+<div x-data="{
+    current: 'bn',
+    init() {
+        // গুগল ট্রান্সলেটের কুকি ফরম্যাট রিড করা
+        const match = document.cookie.match(/googtrans=\/[^/]+\/(\w+)/);
+        this.current = match ? match[1] : 'bn';
+    },
+    setLang(lang) {
+        const host = window.location.hostname;
+        // রিমুভ করার জন্য সঠিক ব্যাকওয়ার্ড ডেট এক্সপায়ারি
+        const expireBase = 'path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;';
+        
+        if (lang === 'bn') {
+            document.cookie = `googtrans=; domain=.${host}; ${expireBase}`;
+            document.cookie = `googtrans=; ${expireBase}`;
+        } else {
+            // বেইজ ল্যাঙ্গুয়েজ 'bn' থেকে টার্গেটেড ল্যাঙ্গুয়েজে ট্রান্সলেশন সেট করা
+            const val = `/bn/${lang}`;
+            document.cookie = `googtrans=${val}; domain=.${host}; path=/; SameSite=Lax;`;
+            document.cookie = `googtrans=${val}; path=/; SameSite=Lax;`;
+        }
+        
+        // রিলোড দিয়ে ট্রান্সলেশন ক্যাশ এবং ডম রি-ইনিশিয়েট করা
+        window.location.reload();
+    }
+}" data-navigate-ignore wire:ignore class="notranslate">
+    {{-- Flux UI 2 Select Component --}}
+    <flux:select x-model="current" x-on:change="setLang($event.target.value)">
+        @foreach ($locales as $code => $lang)
+            <flux:select.option value="{{ $code }}">
+                {{ $lang['flag'] ?? '' }} {{ $lang['name'] }}
+            </flux:select.option>
+        @endforeach
+    </flux:select>
 </div>
+
+{{-- স্ক্রিপ্ট এবং হিডেন ট্রান্সলেট এলিমেন্ট --}}
+@push('scripts')
+    <div id="google_translate_element" style="display:none;" data-navigate-ignore></div>
+
+    <script data-navigate-ignore>
+        window.googleTranslateElementInit = function () {
+            // ১. সেফটি চেক: google.translate লোড হয়েছে কিনা নিশ্চিত করা
+            if (typeof google !== 'undefined' && google.translate && google.translate.TranslateElement) {
+                new google.translate.TranslateElement({
+                    pageLanguage: 'bn',
+                    includedLanguages: 'bn,en,ar,hi',
+                    // টেম্পোরারি ফিক্স: এরর এড়াতে InlineLayout অবজেক্ট অ্যাক্সেস সেফ রাখা
+                    layout: google.translate.TranslateElement.InlineLayout ? google.translate.TranslateElement.InlineLayout.SIMPLE : 0,
+                    autoDisplay: false
+                }, 'google_translate_element');
+            }
+        };
+
+        // লাইভওয়্যার SPA নেভিগেশনের পর সেফলি রান করা
+        document.addEventListener('livewire:navigated', () => {
+            if (typeof window.googleTranslateElementInit === 'function') {
+                setTimeout(window.googleTranslateElementInit, 100);
+            }
+        });
+    </script>
+    {{-- async এবং defer দুটোই ব্যবহার করে ব্রাউজারকে সেফলি ব্যাকগ্রাউন্ডে লোড করতে দেওয়া --}}
+    <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" async defer
+        data-navigate-ignore></script>
+@endpush

@@ -49,12 +49,12 @@ new class extends Component {
 
     @forelse($healths as $health)
         <div class="border border-zinc-400/25 rounded-xl p-4">
-            <h3 class="font-semibold text-lg mb-1">
+            <h3 class="font-semibold text-lg mb-2">
                 {{ $health->title }}
             </h3>
-            @if ($health->type)
-                <p class="text-sm mb-2 text-gray-500">{{ $health->type }}</p>
-            @endif
+            {{-- @if ($health->type)
+            <p class="text-sm mb-2 text-gray-500">{{ $health->type }}</p>
+            @endif --}}
             <p class="text-sm mb-2">
                 {{ Str::limit($health->summary ?? $health->description, 80) }}
             </p>
@@ -76,7 +76,7 @@ new class extends Component {
 
             </flux:button>
         </div>
-        <div wire:loading wire:target="showHealth" class="text-center py-16">
+        <div wire:loading wire:target="showHealth" class="text-center py-12">
             লোড হচ্ছে...
         </div>
 
@@ -118,7 +118,7 @@ new class extends Component {
                     </div>
                 </div>
             @else
-                <p class="text-center py-16">Loading...</p>
+                <p class="text-center py-12">Loading...</p>
             @endif
         </div>
 

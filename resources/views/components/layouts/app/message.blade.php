@@ -3,12 +3,29 @@
 
 <head>
     @include('partials.head')
+    @vite(['resources/js/echo.js'])
 </head>
 
-<body class="min-h-screen bg-white dark:bg-zinc-950 antialiased">
+<body class=" bg-white dark:bg-zinc-950 antialiased">
+
+    @if (!request()->is('admin*'))
+        <!-- Google tag (gtag.js) -->
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-HGE2T2J8ZT"></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+
+            function gtag() {
+                dataLayer.push(arguments);
+            }
+            gtag('js', new Date());
+
+            gtag('config', 'G-HGE2T2J8ZT');
+        </script>
+    @endif
+
     <flux:sidebar collapsible sticky
-        class="bg-zinc-50 dark:bg-zinc-900 border- border-zinc-200 dark:border-zinc-700 duration-300 overflow-hidden"
-        x-data x-init="let saved = localStorage.getItem('sidebar-scroll') || 0;
+        class="bg-zinc-50 dark:bg-zinc-900 border-r border-zinc-400/25 duration-200 overflow-hidden" x-data
+        x-init="let saved = localStorage.getItem('sidebar-scroll') || 0;
         $el.scrollTop = saved;
         window.addEventListener('livewire:navigated', () => {
             $nextTick(() => {
@@ -33,7 +50,7 @@
 
 
         @auth
-            <livewire:chat.notification-badge />
+            <livewire:chat.notification-badge variant="sidebar" />
 
             <flux:dropdown position="top" align="start" class="max-lg:hidden ">
                 <flux:sidebar.profile
@@ -66,6 +83,18 @@
     <flux:main class="!p-0">
         {{ $slot }}
     </flux:main>
+
+    @persist('toast')
+        <flux:toast.group>
+            <flux:toast />
+        </flux:toast.group>
+    @endpersist
+
+    {{-- Cookie Consent (সব পেজে কাজ করবে) --}}
+    @if (!request()->is('admin*'))
+        <livewire:layout.cookie-consent />
+    @endif
+
     @stack('scripts')
     @fluxScripts
 </body>

@@ -23,6 +23,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
         }
     }
 }; ?>
+<x-seo :title="'Forget your Password'" :description="'Forget your Password'" />
 
 <div class="flex flex-col gap-6">
     <x-auth-header :title="__('Forgot password')" :description="__('Enter your email to receive a password reset link')" />

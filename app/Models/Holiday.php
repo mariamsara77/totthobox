@@ -2,19 +2,32 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Traits\AutoCacheable;
+use App\Traits\HasReactions;
 use Carbon\Carbon;
+use CyrildeWit\EloquentViewable\Contracts\Viewable;
+use CyrildeWit\EloquentViewable\InteractsWithViews;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Laravel\Scout\Searchable;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
-use Spatie\Image\Enums\Fit;
 
-class Holiday extends BaseModel implements HasMedia
+class Holiday extends Model implements HasMedia, Viewable
 {
-    use SoftDeletes, HasFactory, InteractsWithMedia;
+    use AutoCacheable;
+    use HasFactory;
+    use HasReactions;
+    use InteractsWithMedia;
+    use InteractsWithViews;
+    use LogsActivity;
+    use Searchable;
+    use SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -55,6 +68,7 @@ class Holiday extends BaseModel implements HasMedia
      * @var array<string, string>
      */
     protected $casts = [
+        'is_annual' => 'boolean',
         'date' => 'date',
         'published_at' => 'datetime',
         'tags' => 'array',
@@ -64,37 +78,14 @@ class Holiday extends BaseModel implements HasMedia
         'view_count' => 'integer',
     ];
 
-    /**
-     * Holiday types
-     */
-    public const TYPES = [
-        'national' => 'National',
-        'religious' => 'Religious',
-        'international' => 'International',
-        'observance' => 'Observance',
-        'seasonal' => 'Seasonal',
-    ];
-
-
-    public function registerMediaCollections(): void
+    public function getActivitylogOptions(): LogOptions
     {
-        $this->addMediaCollection('images');
+        return LogOptions::defaults()
+            ->logFillable()
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
     }
 
-    /**
-     * Spatie Image v3 অনুযায়ী ফিক্সড থাম্বনেইল কনভার্সন
-     */
-    public function registerMediaConversions(?Media $media = null): void
-    {
-        $this->addMediaConversion('thumb')
-            ->fit(Fit::Crop, 300, 300) // ইমেজ ক্রপ করে সুন্দর থাম্বনেইল করবে
-            ->sharpen(10)
-            ->nonQueued();
-    }
-    
-    /**
-     * Get the division that owns the holiday.
-     */
     public function division(): BelongsTo
     {
         return $this->belongsTo(Division::class);
@@ -114,38 +105,6 @@ class Holiday extends BaseModel implements HasMedia
     public function thana(): BelongsTo
     {
         return $this->belongsTo(Thana::class);
-    }
-
-    /**
-     * Get the user that owns the holiday.
-     */
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class);
-    }
-
-    /**
-     * Get the user who created the holiday.
-     */
-    public function creator(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'created_by');
-    }
-
-    /**
-     * Get the user who last updated the holiday.
-     */
-    public function editor(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'updated_by');
-    }
-
-    /**
-     * Get the user who published the holiday.
-     */
-    public function publisher(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'published_by');
     }
 
     /**
@@ -216,6 +175,22 @@ class Holiday extends BaseModel implements HasMedia
     {
         $this->view_count++;
         $this->save();
+    }
+
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('images')
+            ->singleFile(); // optional: only one image if you want
+    }
+
+    public function registerMediaConversions(?Media $media = null): void
+    {
+        $this->addMediaConversion('thumb')
+            ->width(100)
+            ->height(100)
+            ->sharpen(10)
+            ->format('webp')
+            ->nonQueued();
     }
 
     /**

@@ -38,6 +38,9 @@
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta property="og:site_name" content="{{ $siteName }}">
+     <meta name="facebook-domain-verification" content="xyot0x4ew0x9tjrmkkaoiedsny4w2k" />
+
+     <meta name="p:domain_verify" content="53361ab1fa40a24d5fff409032286fa8"/>
 
     {{-- ৪. টুইটার --}}
     <meta name="twitter:card" content="summary_large_image">
