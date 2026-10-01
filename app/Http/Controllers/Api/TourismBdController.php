@@ -125,24 +125,24 @@ class TourismBdController extends Controller
 
     // GET /api/tourism-bd/{slug}
     public function show(string $slug)
-    {
-        $item = TourismBd::with(['division', 'district', 'thana', 'media'])
-            ->where(function ($q) use ($slug) {
-                $q->where('slug', $slug)->orWhere('id', $slug);
-            })
-            ->where('status', 1)
-            ->first();
+{
+    $item = TourismBd::with(['division', 'district', 'thana', 'media'])
+        ->where(function ($q) use ($slug) {
+            $q->where('slug', $slug)->orWhere('id', $slug);
+        })
+        ->where('status', 1)
+        ->first();
 
-        if (!$item) {
-            return response()->json(['message' => 'Not found'], 404);
-        }
-
-        views($item)->record();
-
-        return response()->json([
-            'data' => $this->transformShowItem($item),
-        ]);
+    if (!$item) {
+        return response()->json(['message' => 'Not found'], 404);
     }
+
+    views($item)->record();
+
+    return response()->json([
+        'data' => $this->transformShowItem($item),
+    ]);
+}
 
     // GET /api/tourism-bd/creators
     public function creators()
@@ -189,88 +189,127 @@ class TourismBdController extends Controller
 
     // POST /api/tourism-bd/{id}/react
     public function react(Request $request, int $id)
-    {
-        $request->validate(['type' => 'required|in:like,dislike']);
+{
+    $request->validate(['type' => 'required|in:like,dislike']);
 
-        $item = TourismBd::findOrFail($id);
-        $item->react($request->type);
-        $item->refresh();
-
-        Cache::forget("tourism_bd_show_{$item->slug}");
-        Cache::forget("tourism_bd_show_{$item->id}");
-
+    if (!auth()->check()) {
         return response()->json([
-            'like_count'    => $item->countReaction('like'),
-            'dislike_count' => $item->countReaction('dislike'),
-            'has_like'      => $item->hasReaction('like'),
-            'has_dislike'   => $item->hasReaction('dislike'),
-        ]);
+            'success' => false,
+            'message' => 'লগইন করা প্রয়োজন',
+        ], 401);
     }
 
-    // GET /api/tourism-bd/{id}/reaction-status
-    public function reactionStatus(int $id)
-    {
-        $item = TourismBd::findOrFail($id);
+    $item = TourismBd::findOrFail($id);
+    $item->react($request->type);
+    $item->refresh();
 
-        return response()->json([
-            'has_like'    => auth()->check() ? $item->hasReaction('like') : false,
-            'has_dislike' => auth()->check() ? $item->hasReaction('dislike') : false,
-        ]);
+    return response()->json([
+        'success'           => true,
+        'like_count'        => $item->countReaction('like'),
+        'dislike_count'     => $item->countReaction('dislike'),
+        'user_has_liked'    => $item->hasReaction('like'),
+        'user_has_disliked' => $item->hasReaction('dislike'),
+    ]);
+}
+
+public function reactionStatus(int $id)
+{
+    $item = TourismBd::findOrFail($id);
+
+    $userHasLiked    = false;
+    $userHasDisliked = false;
+
+    if (auth()->check()) {
+        $userHasLiked    = $item->hasReaction('like');
+        $userHasDisliked = $item->hasReaction('dislike');
     }
+
+    return response()->json([
+        'success'           => true,
+        'user_has_liked'    => $userHasLiked,
+        'user_has_disliked' => $userHasDisliked,
+        'like_count'        => $item->countReaction('like'),
+        'dislike_count'     => $item->countReaction('dislike'),
+    ]);
+}
 
     // ---------- Transformers ----------
 
     private function transformListItem(TourismBd $item): array
-    {
-        $type = $item->tourism_type;
+{
+    $type = $item->tourism_type;
 
+    $imageUrl = $item->getFirstMediaUrl('tourism_images', 'thumb')
+        ?: $item->getFirstMediaUrl('tourism_images')
+        ?: $item->getFirstMediaUrl('default', 'thumb')
+        ?: $item->getFirstMediaUrl('default');
+
+    return [
+        'id'           => $item->id,
+        'title'        => $item->title,
+        'slug'         => $item->slug,
+        'tourism_type' => $type,
+        'type_label'   => $this->typeLabels[$type] ?? null,
+        'description'  => $item->description,
+        'image_url'    => $imageUrl,
+        'thana'        => $item->thana?->name,
+        'district'     => $item->district?->name,
+        'division'     => $item->division?->name,
+    ];
+}
+
+   private function transformShowItem(TourismBd $item): array
+{
+    $type = $item->tourism_type;
+
+    // সব ছবি নিয়ে array বানাও
+    $images = $item->getMedia('tourism_images')->map(function ($media) {
         return [
-            'id'           => $item->id,
-            'title'        => $item->title,
-            'slug'         => $item->slug,
-            'tourism_type' => $type,
-            'type_label'   => $this->typeLabels[$type] ?? null,
-            'description'  => $item->description,
-            'image_url'    => $item->getFirstMediaUrl('tourism_images', 'thumb')
-                                ?: $item->getFirstMediaUrl('tourism_images')
-                                ?: $item->getFirstMediaUrl('default', 'preview')
-                                ?: $item->getFirstMediaUrl('default'),
-            'thana'        => $item->thana?->name,
-            'district'     => $item->district?->name,
-            'division'     => $item->division?->name,
+            'url'     => $media->getUrl(),
+            'caption' => $media->getCustomProperty('caption') ?? null,
+            'thumb'   => $media->getUrl('thumb'),
         ];
+    })->values()->toArray();
+
+    // যদি tourism_images-এ কিছু না থাকে, default collection চেক করো
+    if (empty($images)) {
+        $images = $item->getMedia('default')->map(function ($media) {
+            return [
+                'url'     => $media->getUrl(),
+                'caption' => $media->getCustomProperty('caption') ?? null,
+                'thumb'   => $media->getUrl('thumb'),
+            ];
+        })->values()->toArray();
     }
 
-    private function transformShowItem(TourismBd $item): array
-    {
-        $type = $item->tourism_type;
+    return [
+        'id'           => $item->id,
+        'title'        => $item->title,
+        'slug'         => $item->slug,
+        'tourism_type' => $type,
+        'type_label'   => $this->typeLabels[$type] ?? null,
+        'description'  => $item->description,
+        
+        // Single image (fallback / thumbnail এর জন্য)
+        'image_url'    => $images[0]['url'] ?? null,
+        
+        // ✅ Multiple images (MediaGallery এর জন্য)
+        'images'       => $images,
+        
+        'map'          => $item->map,
+        'thana'        => $item->thana?->name,
+        'district'     => $item->district?->name,
+        'division'     => $item->division?->name,
+        'views_count'  => views($item)->count(),
 
-        return [
-            'id'           => $item->id,
-            'title'        => $item->title,
-            'slug'         => $item->slug,
-            'tourism_type' => $type,
-            'type_label'   => $this->typeLabels[$type] ?? null,
-            'description'  => $item->description,
-            'image_url'    => $item->getFirstMediaUrl('tourism_images')
-                                ?: $item->getFirstMediaUrl('default'),
-            'map'          => $item->map,
-            'thana'        => $item->thana?->name,
-            'district'     => $item->district?->name,
-            'division'     => $item->division?->name,
-            'views_count'  => views($item)->count(),
-            'like_count'   => $item->countReaction('like'),
-            'dislike_count'=> $item->countReaction('dislike'),
-            'has_like'     => auth()->check() ? $item->hasReaction('like') : false,
-            'has_dislike'  => auth()->check() ? $item->hasReaction('dislike') : false,
-            'reactions'    => [
-                'like_count'        => $item->countReaction('like'),
-                'dislike_count'     => $item->countReaction('dislike'),
-                'user_has_liked'    => auth()->check() ? $item->hasReaction('like') : false,
-                'user_has_disliked' => auth()->check() ? $item->hasReaction('dislike') : false,
-            ],
-        ];
-    }
+        'reactions' => [
+            'like_count'        => $item->countReaction('like'),
+            'dislike_count'     => $item->countReaction('dislike'),
+            'user_has_liked'    => false,
+            'user_has_disliked' => false,
+        ],
+    ];
+}
 
     private function transformCreator(User $user): array
     {

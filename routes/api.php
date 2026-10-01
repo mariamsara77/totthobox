@@ -4,12 +4,8 @@ use App\Http\Controllers\Api\ActivitySyncController;
 use App\Http\Controllers\Api\TrackingController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AnalyticsController;
-use App\Http\Controllers\Api\Auth\LoginController;
-use App\Http\Controllers\Api\Auth\AuthController;
-use App\Http\Controllers\Api\Auth\RegisterController;
-use App\Http\Controllers\Api\Auth\ForgotPasswordController;
-use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\MessageController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\HolidayCalendarController;
 use App\Http\Controllers\Api\HolidayController;
 use App\Http\Controllers\Api\AppResourceController;
@@ -25,10 +21,57 @@ use App\Http\Controllers\Api\DowaController;
 use App\Http\Controllers\Api\SignController;
 use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\UserPublicProfileController;
-use App\Http\Controllers\Api\SocialAuthController;
-use App\Http\Controllers\Auth\GoogleLoginController;
+use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\GlobalSearchController;
+// All Auth API Controller
+use App\Http\Controllers\Api\Auth\AuthController;
+use App\Http\Controllers\Api\Auth\GoogleAuthController;
+use App\Http\Controllers\Api\Auth\RegisterController;
+use App\Http\Controllers\Api\Auth\ForgotPasswordController;
+use App\Http\Controllers\Api\Auth\NewPasswordController;
+use App\Http\Controllers\Api\Auth\SwitchProfileController;
+// Profile manage controllers
+use App\Http\Controllers\Api\Auth\ProfileController;
+use App\Http\Controllers\Api\Auth\PasswordController;
+use App\Http\Controllers\Api\Auth\AccountController;
+use App\Http\Controllers\Api\PublicProfileController;
+use Illuminate\Support\Facades\Broadcast;
+use App\Http\Controllers\Api\ContactUsController;
+
+
+
+
+Route::prefix('v1')->group(function () {
+
+    // Public
+    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/auth/google', [GoogleAuthController::class, 'login']);
+    
+    Route::prefix('auth')->group(function () {
+        Route::post('/register/send-otp', [RegisterController::class, 'sendOtp']);
+        Route::post('/register/verify', [RegisterController::class, 'verifyAndRegister']);
+        Route::post('/register/resend-otp', [RegisterController::class, 'resendOtp']);
+        Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLink']);
+        Route::post('/reset-password', [NewPasswordController::class, 'store']);
+        Route::post('/switch', [SwitchProfileController::class, 'switch']);
+        Route::post('/refresh', [AuthController::class, 'refresh']);
+    });
+
+    // Authenticated
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/user', [AuthController::class, 'me']);
+        Route::post('/logout', [AuthController::class, 'logout']);
+    });
+});
+
+Route::post('/broadcasting/auth', function (\Illuminate\Http\Request $request) {
+    return \Illuminate\Support\Facades\Broadcast::auth($request);
+})->middleware('auth:sanctum');
+
+Route::post('/contact', [ContactUsController::class, 'store']);
 
 Route::get('/analytics/user-count', [AnalyticsController::class, 'index']);
+
 Route::get('/holidays-calendar', [HolidayCalendarController::class, 'index']);
 
 Route::prefix('holidays')->group(function () {
@@ -154,14 +197,50 @@ Route::prefix('people')->group(function () {
 });
 
 Route::prefix('apps')->group(function () {
-    Route::get('/', [AppResourceController::class, 'index']);
-    Route::get('/creators', [AppResourceController::class, 'creators']);
-    Route::get('/{slug}', [AppResourceController::class, 'show']);
-    Route::get('/{id}/creators', [AppResourceController::class, 'appCreators']);
-    Route::post('/{id}/download', [AppResourceController::class, 'download']);
-    Route::post('/{id}/react', [AppResourceController::class, 'react'])->middleware('auth:sanctum');
-    Route::get('/{id}/reaction-status', [AppResourceController::class, 'reactionStatus'])
-    ->middleware('auth:sanctum');
+    // Software list
+    Route::get('/', [
+        AppResourceController::class,
+        'index',
+    ]);
+
+    // All software creators
+    Route::get('/creators', [
+        AppResourceController::class,
+        'creators',
+    ]);
+
+    // Single software
+    Route::get('/{slug}', [
+        AppResourceController::class,
+        'show',
+    ]);
+
+    // Creators of a specific software
+    Route::get('/{id}/creators', [
+        AppResourceController::class,
+        'appCreators',
+    ])->whereNumber('id');
+
+    // Official source only — never serves local files
+    Route::post('/{id}/download', [
+        AppResourceController::class,
+        'download',
+    ])->whereNumber('id');
+
+    // Reactions
+    Route::post('/{id}/react', [
+        AppResourceController::class,
+        'react',
+    ])
+        ->whereNumber('id')
+        ->middleware('auth:sanctum');
+
+    Route::get('/{id}/reaction-status', [
+        AppResourceController::class,
+        'reactionStatus',
+    ])
+        ->whereNumber('id')
+        ->middleware('auth:sanctum');
 });
 
 
@@ -241,6 +320,51 @@ Route::prefix('sidebar')->group(function () {
 
 Route::get('/users/{slug}/profile', [UserPublicProfileController::class, 'show']);
 
+
+
+
+Route::prefix('v1')->group(function () {
+
+    // Public profile
+    Route::get('/users/{slug}/profile', [PublicProfileController::class, 'show']);
+
+    // Authenticated profile / settings
+    Route::middleware('auth:sanctum')->prefix('profile')->group(function () {
+
+        // Current user profile (for settings form)
+        Route::get('/', [ProfileController::class, 'show']);
+
+        // Update profile information + avatar + role + location
+        Route::post('/', [ProfileController::class, 'update']);          // multipart for avatar
+        Route::put('/', [ProfileController::class, 'update']);           // JSON only (no avatar)
+
+        // Avatar only
+        Route::post('/avatar', [ProfileController::class, 'updateAvatar']);
+        Route::delete('/avatar', [ProfileController::class, 'removeAvatar']);
+
+        // Role helpers
+        Route::get('/available-roles', [ProfileController::class, 'availableRoles']);
+        Route::delete('/role', [ProfileController::class, 'removeRole']);
+
+        // Location cascade helpers (optional – you can also do them client-side)
+        Route::get('/divisions', [ProfileController::class, 'divisions']);
+        Route::get('/districts/{division}', [ProfileController::class, 'districts']);
+        Route::get('/thanas/{district}', [ProfileController::class, 'thanas']);
+        Route::get('/class-levels', [ProfileController::class, 'classLevels']);
+    });
+
+    // Password
+    Route::middleware('auth:sanctum')->prefix('password')->group(function () {
+        Route::put('/', [PasswordController::class, 'update']);
+    });
+
+    // Account deletion
+    Route::middleware('auth:sanctum')->prefix('account')->group(function () {
+        Route::delete('/', [AccountController::class, 'destroy']);
+    });
+});
+
+
 /*
 |--------------------------------------------------------------------------
 | Auth Routes
@@ -248,95 +372,13 @@ Route::get('/users/{slug}/profile', [UserPublicProfileController::class, 'show']
 */
 // routes/api.php
 
-Route::post('/login', [LoginController::class, 'login']);
-
 Route::prefix('auth')->group(function () {
     // Register OTP
     Route::post('/register/send-otp', [RegisterController::class, 'sendOtp']);
     Route::post('/register/verify', [RegisterController::class, 'verifyAndRegister']);
     Route::post('/register/resend-otp', [RegisterController::class, 'resendOtp']);
-
-    // Route::get(
-    //     '/google/redirect',
-    //     [GoogleLoginController::class, 'redirectToGoogle']
-    // );
-
-    // Route::get(
-    //     '/google/callback',
-    //     [GoogleLoginController::class, 'handleCallback']
-    // );
 });
 
-// ─────────────────────────────────────────────────────────────────────
-// Google Authentication
-// ─────────────────────────────────────────────────────────────────────
-
-Route::prefix('auth/google')->group(function () {
-
-    /*
-     * Next.js -> Laravel
-     *
-     * Returns the Google OAuth authorization URL.
-     */
-    Route::get(
-        '/redirect',
-        [GoogleLoginController::class, 'redirectToGoogle']
-    )->name('auth.google.redirect');
-
-    /*
-     * Google -> Laravel
-     *
-     * Validates Google OAuth state and redirects to Next.js with
-     * a short-lived one-time code.
-     */
-    Route::get(
-        '/callback',
-        [GoogleLoginController::class, 'handleCallback']
-    )->name('auth.google.callback');
-
-    /*
-     * Next.js server -> Laravel
-     *
-     * Exchanges the one-time code for a Sanctum access token.
-     */
-    Route::post(
-        '/exchange',
-        [GoogleLoginController::class, 'exchange']
-    )->name('auth.google.exchange');
-});
-
-
-
-Route::post('/auth/forgot-password', [ForgotPasswordController::class, 'sendResetLink']);
-
-// Route::middleware('auth:sanctum')->group(function () {
-    
-//      Route::get('/user', [UserController::class, 'getUser'])
-//         ->name('api.user');
-
-//     Route::get('/users/search', [UserController::class, 'search'])
-//          ->name('api.users.search');
-    
-//     Route::post('/logout', [LoginController::class, 'logout']);
-// });
-
-Route::middleware('auth:sanctum')->group(function () {
-
-    Route::get(
-        '/user',
-        [AuthController::class, 'me']
-    )->name('auth.me');
-
-    
-    Route::get('/users/search', [UserController::class, 'search'])
-         ->name('api.users.search');
-    
-
-    Route::post(
-        '/logout',
-        [AuthController::class, 'logout']
-    )->name('auth.logout');
-});
 
 Route::middleware('auth:sanctum')->group(function () {
     // Conversation users (sorted by last message)
@@ -363,4 +405,19 @@ Route::middleware('auth:sanctum')->group(function () {
     // Block / Unblock
     Route::post('/users/{user}/block', [UserController::class, 'toggleBlock']);
     Route::get('/users/{user}/block-status', [UserController::class, 'blockStatus']);
+
+     Route::get('/users/search', [UserController::class, 'search'])
+         ->name('api.users.search');
 });
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
+    Route::delete('/notifications', [NotificationController::class, 'clearAll']);
+});
+
+
+Route::get('/search', [GlobalSearchController::class, 'search']);
+Route::get('/search/meta', [GlobalSearchController::class, 'meta']);

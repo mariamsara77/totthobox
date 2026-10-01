@@ -113,26 +113,25 @@ class HistoryBdController extends Controller
     }
 
     // GET /api/history-bd/{slug}
-    public function show(string $slug)
-    {
-        $item = HistoryBd::with(['division', 'district', 'thana', 'media'])
-            ->where(function ($q) use ($slug) {
-                $q->where('slug', $slug)->orWhere('id', $slug);
-            })
-            ->active()
-            ->first();
+   public function show(string $slug)
+{
+    $item = HistoryBd::with(['division', 'district', 'thana', 'media'])
+        ->where(function ($q) use ($slug) {
+            $q->where('slug', $slug)->orWhere('id', $slug);
+        })
+        ->active()
+        ->first();
 
-        if (!$item) {
-            return response()->json(['message' => 'Not found'], 404);
-        }
-
-        views($item)->record();
-
-        return response()->json([
-            'data' => $this->transformShowItem($item),
-        ]);
+    if (!$item) {
+        return response()->json(['message' => 'Not found'], 404);
     }
 
+    views($item)->record();
+
+    return response()->json([
+        'data' => $this->transformShowItem($item),
+    ]);
+}
     public function creators()
     {
         $creators = Cache::remember('history_bd_contributors', now()->addHour(), function () {
@@ -174,34 +173,50 @@ class HistoryBdController extends Controller
         return response()->json(['data' => $creators]);
     }
 
-    public function react(Request $request, int $id)
-    {
-        $request->validate(['type' => 'required|in:like,dislike']);
+   public function react(Request $request, int $id)
+{
+    $request->validate(['type' => 'required|in:like,dislike']);
 
-        $item = HistoryBd::findOrFail($id);
-        $item->react($request->type);
-        $item->refresh();
-
-        Cache::forget("history_bd_show_{$item->slug}");
-        Cache::forget("history_bd_show_{$item->id}");
-
+    if (!auth()->check()) {
         return response()->json([
-            'like_count'    => $item->countReaction('like'),
-            'dislike_count' => $item->countReaction('dislike'),
-            'has_like'      => $item->hasReaction('like'),
-            'has_dislike'   => $item->hasReaction('dislike'),
-        ]);
+            'success' => false,
+            'message' => 'লগইন করা প্রয়োজন',
+        ], 401);
     }
 
-    public function reactionStatus(int $id)
-    {
-        $item = HistoryBd::findOrFail($id);
+    $item = HistoryBd::findOrFail($id);
+    $item->react($request->type);
+    $item->refresh();
 
-        return response()->json([
-            'has_like'    => auth()->check() ? $item->hasReaction('like') : false,
-            'has_dislike' => auth()->check() ? $item->hasReaction('dislike') : false,
-        ]);
+    return response()->json([
+        'success'           => true,
+        'like_count'        => $item->countReaction('like'),
+        'dislike_count'     => $item->countReaction('dislike'),
+        'user_has_liked'    => $item->hasReaction('like'),
+        'user_has_disliked' => $item->hasReaction('dislike'),
+    ]);
+}
+
+public function reactionStatus(int $id)
+{
+    $item = HistoryBd::findOrFail($id);
+
+    $userHasLiked    = false;
+    $userHasDisliked = false;
+
+    if (auth()->check()) {
+        $userHasLiked    = $item->hasReaction('like');
+        $userHasDisliked = $item->hasReaction('dislike');
     }
+
+    return response()->json([
+        'success'           => true,
+        'user_has_liked'    => $userHasLiked,
+        'user_has_disliked' => $userHasDisliked,
+        'like_count'        => $item->countReaction('like'),
+        'dislike_count'     => $item->countReaction('dislike'),
+    ]);
+}
 
     private function transformListItem(HistoryBd $item): array
     {
@@ -225,34 +240,32 @@ class HistoryBdController extends Controller
     }
 
     private function transformShowItem(HistoryBd $item): array
-    {
-        return [
-            'id'           => $item->id,
-            'title'        => $item->title,
-            'slug'         => $item->slug,
-            'era'          => $item->era,
-            'start_year'   => $item->start_year,
-            'end_year'     => $item->end_year,
-            'is_featured'  => (bool) $item->is_featured,
-            'description'  => $item->description,
-            'image_url'    => $item->getFirstMediaUrl('images')
-                                ?: $item->getFirstMediaUrl('default'),
-            'thana'        => $item->thana?->name,
-            'district'     => $item->district?->name,
-            'division'     => $item->division?->name,
-            'views_count'  => views($item)->count(),
-            'like_count'   => $item->countReaction('like'),
-            'dislike_count'=> $item->countReaction('dislike'),
-            'has_like'     => auth()->check() ? $item->hasReaction('like') : false,
-            'has_dislike'  => auth()->check() ? $item->hasReaction('dislike') : false,
-            'reactions'    => [
-                'like_count'        => $item->countReaction('like'),
-                'dislike_count'     => $item->countReaction('dislike'),
-                'user_has_liked'    => auth()->check() ? $item->hasReaction('like') : false,
-                'user_has_disliked' => auth()->check() ? $item->hasReaction('dislike') : false,
-            ],
-        ];
-    }
+{
+    return [
+        'id'           => $item->id,
+        'title'        => $item->title,
+        'slug'         => $item->slug,
+        'era'          => $item->era,
+        'start_year'   => $item->start_year,
+        'end_year'     => $item->end_year,
+        'is_featured'  => (bool) $item->is_featured,
+        'description'  => $item->description,
+        'image_url'    => $item->getFirstMediaUrl('images')
+                            ?: $item->getFirstMediaUrl('default'),
+        'thana'        => $item->thana?->name,
+        'district'     => $item->district?->name,
+        'division'     => $item->division?->name,
+        'views_count'  => views($item)->count(),
+
+        // Reactions — always false for user status (frontend fetches separately)
+        'reactions' => [
+            'like_count'        => $item->countReaction('like'),
+            'dislike_count'     => $item->countReaction('dislike'),
+            'user_has_liked'    => false,
+            'user_has_disliked' => false,
+        ],
+    ];
+}
 
     private function transformCreator(User $user): array
     {

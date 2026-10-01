@@ -68,20 +68,30 @@ class TourismBd extends Model implements HasMedia, Viewable
      */
 
     public function registerMediaCollections(): void
-    {
-        $this->addMediaCollection('images')
-            ->singleFile(); // optional: only one image if you want
-    }
+{
+    // Multiple image সাপোর্টের জন্য singleFile() সরিয়ে দাও
+    $this->addMediaCollection('tourism_images');
+    
+    // চাইলে fallback এর জন্য default ও রাখতে পারো
+    $this->addMediaCollection('default');
+}
 
-    public function registerMediaConversions(?Media $media = null): void
-    {
-        $this->addMediaConversion('thumb')
-            ->width(100)
-            ->height(100)
-            ->sharpen(10)
-            ->format('webp')
-            ->nonQueued();
-    }
+public function registerMediaConversions(?Media $media = null): void
+{
+    $this->addMediaConversion('thumb')
+        ->width(300)
+        ->height(200)
+        ->sharpen(10)
+        ->format('webp')
+        ->nonQueued();
+
+    $this->addMediaConversion('preview')
+        ->width(800)
+        ->height(500)
+        ->sharpen(10)
+        ->format('webp')
+        ->nonQueued();
+}
 
     /* -----------------------------------------------------------------
      |  Relationships

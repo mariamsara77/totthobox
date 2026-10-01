@@ -177,21 +177,30 @@ class Holiday extends Model implements HasMedia, Viewable
         $this->save();
     }
 
-    public function registerMediaCollections(): void
-    {
-        $this->addMediaCollection('images')
-            ->singleFile(); // optional: only one image if you want
-    }
+   public function registerMediaCollections(): void
+{
+    $this->addMediaCollection('holiday_images')
+        ->useDisk('public'); // বা আপনার disk
 
-    public function registerMediaConversions(?Media $media = null): void
-    {
-        $this->addMediaConversion('thumb')
-            ->width(100)
-            ->height(100)
-            ->sharpen(10)
-            ->format('webp')
-            ->nonQueued();
-    }
+    // fallback হিসেবে default ও রাখা হলো
+    $this->addMediaCollection('default');
+}
+
+public function registerMediaConversions(?Media $media = null): void
+{
+    $this->addMediaConversion('thumb')
+        ->width(100)
+        ->height(100)
+        ->sharpen(10)
+        ->format('webp')
+        ->nonQueued();
+
+    $this->addMediaConversion('preview')
+        ->width(800)
+        ->height(600)
+        ->format('webp')
+        ->nonQueued();
+}
 
     /**
      * Get the holiday type as a readable string.

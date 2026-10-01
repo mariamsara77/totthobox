@@ -53,6 +53,7 @@ return [
     */
 
     'url' => env('APP_URL', 'https://totthobox.com'),
+    'frontend_url' => env('FRONTEND_URL', 'https://totthobox.com'),
 
     /*
     |--------------------------------------------------------------------------

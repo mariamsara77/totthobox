@@ -29,12 +29,17 @@ Route::prefix('admin')->middleware(['auth', 'verified'])->name('admin.')->group(
             ->name('analytics.page-performance');
     });
 
-    // 2. User, Role & App Management
     Route::middleware(['can:manage-users'])->group(function () {
         Route::prefix('users')->name('users.')->group(function () {
             Volt::route('/manage', 'admin.users.users-manage')->name('manage');
-            Volt::route('/activity/{slug?}', 'admin.users.user-activity')->name('activity');
+
+            // Specific route first (no parameter)
             Volt::route('/activity', 'admin.users.all-activity')->name('activity.all');
+
+            // Parameterized route second
+            Volt::route('/activity/{user:slug}', 'admin.users.user-activity')->name('activity');
+            // or if you prefer plain string:
+            // Volt::route('/activity/{slug}', 'admin.users.user-activity')->name('activity');
         });
     });
 

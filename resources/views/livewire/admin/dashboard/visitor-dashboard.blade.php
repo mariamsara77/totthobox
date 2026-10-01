@@ -266,7 +266,7 @@ new class extends Component {
     // নতুন মেথডটি আপনার Visitor বা Analytics মডেলে এভাবে থাকবে
     protected function getPwaInstallsCount($query)
     {
-        return (clone $query)->where('is_pwa', true)->count();
+        return (clone $query)->where('has_installed_pwa', true)->count();
     }
 
     public function exportChartData()

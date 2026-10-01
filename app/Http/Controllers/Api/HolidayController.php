@@ -60,27 +60,37 @@ if ($request->filled('search')) {
 
     $perPage = $request->get('per_page', 15);
 
-    $holidays = $query->orderBy('date', 'asc')->paginate($perPage);
+    $holidays = $query->with(['media'])->orderBy('date', 'asc')->paginate($perPage);
 
     $formatted = $holidays->getCollection()->map(function ($holiday) {
-        $date = Carbon::parse($holiday->date);
+    $date = Carbon::parse($holiday->date);
 
-        return [
-            'id'            => $holiday->id,
-            'title'         => $holiday->title,
-            'slug'          => $holiday->slug ?? (string) $holiday->id,
-            'type'          => $holiday->type,
-            'date'          => $date->format('Y-m-d'),
-            'date_formatted'=> $date->format('d F, Y'),
-            'day_name_bn'   => bn_day($date->format('l')),
-            'month_short'   => $date->format('M'),
-            'day_numeric'   => $date->format('d'),
-            'details'       => $holiday->details ? strip_tags($holiday->details) : null,
-            'image_url'     => $holiday->getFirstMediaUrl('holiday_images')
-                                ?: $holiday->getFirstMediaUrl('default', 'preview')
-                                ?: null,
-        ];
-    });
+    // Multiple images
+    $mediaItems = $holiday->getMedia('holiday_images');
+    if ($mediaItems->isEmpty()) {
+        $mediaItems = $holiday->getMedia('default');
+    }
+
+    $images = $mediaItems->map(fn ($m) => [
+        'url' => $m->getUrl(),
+        'caption' => $m->name ?? null,
+    ])->values()->toArray();
+
+    return [
+        'id'             => $holiday->id,
+        'title'          => $holiday->title,
+        'slug'           => $holiday->slug ?? (string) $holiday->id,
+        'type'           => $holiday->type,
+        'date'           => $date->format('Y-m-d'),
+        'date_formatted' => $date->format('d F, Y'),
+        'day_name_bn'    => bn_day($date->format('l')),
+        'month_short'    => $date->format('M'),
+        'day_numeric'    => $date->format('d'),
+        'details'        => $holiday->details ? strip_tags($holiday->details) : null,
+        'image_url'      => $images[0]['url'] ?? null,
+        'images'         => $images,          // নতুন
+    ];
+});
 
     return response()->json([
         'success' => true,
@@ -112,62 +122,83 @@ if ($request->filled('search')) {
      * URL: GET /api/holidays/{slug_or_id}
      */
     public function show($slug)
-    {
-        // ক্যাশ থেকে ডাটা আনা (Slug বা ID দিয়ে)
-        $holiday = Cache::remember("holiday_show_{$slug}", 3600, function () use ($slug) {
-            return Holiday::with(['media'])->where(function ($q) use ($slug) {
+{
+    $holiday = Cache::remember("holiday_show_{$slug}", 3600, function () use ($slug) {
+        return Holiday::with(['media'])
+            ->where(function ($q) use ($slug) {
                 $q->where('slug', $slug)->orWhere('id', $slug);
-            })->first();
-        });
+            })
+            ->first();
+    });
 
-        if (!$holiday) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Holiday not found'
-            ], 404);
-        }
-
-        // ভিউ রেকর্ড করা
-        views($holiday)->record();
-
-        // কন্ট্রিবিউটর/ক্রিয়েটরদের লিস্ট আনা
-        $creators = $this->getCreators($holiday->id);
-
-        // SEO ডাটা জেনারেট করা
-        $seo = $this->generateSingleSeoData($holiday);
-
+    if (!$holiday) {
         return response()->json([
-            'success' => true,
-            'holiday' => [
-                'id' => $holiday->id,
-                'title' => $holiday->title,
-                'slug' => $holiday->slug ?? $holiday->id,
-                'type' => $holiday->type,
-                'date' => Carbon::parse($holiday->date)->format('Y-m-d'),
-                'date_formatted' => Carbon::parse($holiday->date)->format('d F, Y'),
-                'month_short' => Carbon::parse($holiday->date)->format('M'),
-                'day_numeric' => Carbon::parse($holiday->date)->format('d'),
-                'day_name_bn' => bn_day(Carbon::parse($holiday->date)->format('l')),
-                'details' => $holiday->details,
-                
-                'image_url' => $holiday->getFirstMediaUrl('holiday_images') ?: $holiday->getFirstMediaUrl('default', 'preview'),
-                
-                // স্ট্যাটিস্টিকস
-                'views_count' => views($holiday)->count(),
-                'views_count_bn' => bn_num(views($holiday)->count()),
-                
-                // রিঅ্যাকশন
-                'reactions' => [
-                    'like_count' => $holiday->countReaction('like'),
-                    'dislike_count' => $holiday->countReaction('dislike'),
-                    'user_has_liked' => auth('sanctum')->check() ? $holiday->hasReaction('like') : false,
-                    'user_has_disliked' => auth('sanctum')->check() ? $holiday->hasReaction('dislike') : false,
-                ]
-            ],
-            'creators' => $creators,
-            'seo' => $seo,
-        ]);
+            'success' => false,
+            'message' => 'Holiday not found'
+        ], 404);
     }
+
+    // ভিউ রেকর্ড
+    views($holiday)->record();
+
+    $creators = $this->getCreators($holiday->id);
+    $seo = $this->generateSingleSeoData($holiday);
+
+    // ===== Multiple Images Support =====
+    $mediaItems = $holiday->getMedia('holiday_images');
+
+    // যদি holiday_images না থাকে তাহলে default collection থেকে নেওয়া
+    if ($mediaItems->isEmpty()) {
+        $mediaItems = $holiday->getMedia('default');
+    }
+
+    $images = $mediaItems->map(function ($media) {
+        return [
+            'url'     => $media->getUrl(),
+            'caption' => $media->name ?? $media->file_name ?? null,
+            'thumb'   => $media->getUrl('thumb') ?: $media->getUrl(),
+        ];
+    })->values()->toArray();
+
+    // পুরনো কোডের সাথে compatibility রাখার জন্য প্রথম ছবি
+    $firstImageUrl = $images[0]['url'] ?? null;
+
+    return response()->json([
+        'success' => true,
+        'holiday' => [
+            'id'              => $holiday->id,
+            'title'           => $holiday->title,
+            'slug'            => $holiday->slug ?? $holiday->id,
+            'type'            => $holiday->type,
+            'date'            => Carbon::parse($holiday->date)->format('Y-m-d'),
+            'date_formatted'  => Carbon::parse($holiday->date)->format('d F, Y'),
+            'month_short'     => Carbon::parse($holiday->date)->format('M'),
+            'day_numeric'     => Carbon::parse($holiday->date)->format('d'),
+            'day_name_bn'     => bn_day(Carbon::parse($holiday->date)->format('l')),
+            'details'         => $holiday->details,
+
+            // Single image (backward compatible)
+            'image_url'       => $firstImageUrl,
+
+            // Multiple images (MediaGallery-এর জন্য)
+            'images'          => $images,
+
+            // Statistics
+            'views_count'     => views($holiday)->count(),
+            'views_count_bn'  => bn_num(views($holiday)->count()),
+
+            // Reactions
+            'reactions' => [
+    'like_count'        => $holiday->countReaction('like'),
+    'dislike_count'     => $holiday->countReaction('dislike'),
+    'user_has_liked'    => false, // সবসময় false — frontend আলাদা করে আনবে
+    'user_has_disliked' => false,
+],
+        ],
+        'creators' => $creators,
+        'seo'      => $seo,
+    ]);
+}
 
     /**
      * ৩. রিঅ্যাকশন (Like/Dislike) দেওয়ার জন্য
@@ -176,28 +207,29 @@ if ($request->filled('search')) {
 public function react(Request $request, int $id)
 {
     $request->validate([
-        'type' => 'required|in:like,dislike'
+        'type' => 'required|in:like,dislike',
     ]);
 
-    $holiday = Holiday::findOrFail($id);
+    if (!auth('sanctum')->check()) {
+        return response()->json([
+            'success' => false,
+            'message' => 'লগইন করা প্রয়োজন',
+        ], 401);
+    }
 
-    $holiday->react($request->type);
+    $holiday = Holiday::findOrFail($id);
+    $type = $request->type; // like বা dislike
+
+    // Trait-এর react() method ব্যবহার (toggle + mutual exclusive)
+    $holiday->react($type);
     $holiday->refresh();
 
     return response()->json([
-        'success'       => true,
-        'like_count'    => $holiday->countReaction('like'),
-        'dislike_count' => $holiday->countReaction('dislike'),
-        'has_like'      => $holiday->hasReaction('like'),
-        'has_dislike'   => $holiday->hasReaction('dislike'),
-
-        // Frontend-এর পুরনো কোড সাপোর্ট করার জন্য
-        'reactions' => [
-            'like_count'        => $holiday->countReaction('like'),
-            'dislike_count'     => $holiday->countReaction('dislike'),
-            'user_has_liked'    => $holiday->hasReaction('like'),
-            'user_has_disliked' => $holiday->hasReaction('dislike'),
-        ]
+        'success'        => true,
+        'like_count'     => $holiday->countReaction('like'),
+        'dislike_count'  => $holiday->countReaction('dislike'),
+        'user_has_liked' => $holiday->hasReaction('like'),
+        'user_has_disliked' => $holiday->hasReaction('dislike'),
     ]);
 }
 
@@ -264,14 +296,20 @@ public function reactionStatus(int $id)
 {
     $holiday = Holiday::findOrFail($id);
 
-    $hasLike    = auth('sanctum')->check() ? $holiday->hasReaction('like') : false;
-    $hasDislike = auth('sanctum')->check() ? $holiday->hasReaction('dislike') : false;
+    $userHasLiked    = false;
+    $userHasDisliked = false;
+
+    if (auth('sanctum')->check()) {
+        $userHasLiked    = $holiday->hasReaction('like');
+        $userHasDisliked = $holiday->hasReaction('dislike');
+    }
 
     return response()->json([
-        'has_like'          => $hasLike,
-        'has_dislike'       => $hasDislike,
-        'user_has_liked'    => $hasLike,
-        'user_has_disliked' => $hasDislike,
+        'success'           => true,
+        'user_has_liked'    => $userHasLiked,
+        'user_has_disliked' => $userHasDisliked,
+        'like_count'        => $holiday->countReaction('like'),
+        'dislike_count'     => $holiday->countReaction('dislike'),
     ]);
 }
 }

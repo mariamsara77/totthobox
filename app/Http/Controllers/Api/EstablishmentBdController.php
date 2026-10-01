@@ -25,7 +25,6 @@ class EstablishmentBdController extends Controller
         'ngo'         => 'এনজিও ও সামাজিক সংস্থা',
     ];
 
-    // GET /api/establishment-bd?search=&type=&division_id=&district_id=&thana_id=&page=
     public function index(Request $request)
     {
         $search     = trim((string) $request->get('search', ''));
@@ -35,7 +34,6 @@ class EstablishmentBdController extends Controller
         $thanaId    = $request->filled('thana_id') ? (int) $request->thana_id : null;
         $perPage    = min((int) $request->get('per_page', 10), 50);
 
-        // Livewire uses where('type', ...) — column name "type"
         $items = EstablishmentBd::query()
             ->with(['division:id,name', 'district:id,name', 'thana:id,name', 'media'])
             ->where('status', 1)
@@ -178,18 +176,23 @@ class EstablishmentBdController extends Controller
     {
         $request->validate(['type' => 'required|in:like,dislike']);
 
+        if (!auth()->check()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'লগইন করা প্রয়োজন',
+            ], 401);
+        }
+
         $item = EstablishmentBd::findOrFail($id);
         $item->react($request->type);
         $item->refresh();
 
-        Cache::forget("establishment_bd_show_{$item->slug}");
-        Cache::forget("establishment_bd_show_{$item->id}");
-
         return response()->json([
-            'like_count'    => $item->countReaction('like'),
-            'dislike_count' => $item->countReaction('dislike'),
-            'has_like'      => $item->hasReaction('like'),
-            'has_dislike'   => $item->hasReaction('dislike'),
+            'success'           => true,
+            'like_count'        => $item->countReaction('like'),
+            'dislike_count'     => $item->countReaction('dislike'),
+            'user_has_liked'    => $item->hasReaction('like'),
+            'user_has_disliked' => $item->hasReaction('dislike'),
         ]);
     }
 
@@ -197,15 +200,33 @@ class EstablishmentBdController extends Controller
     {
         $item = EstablishmentBd::findOrFail($id);
 
+        $userHasLiked = false;
+        $userHasDisliked = false;
+
+        if (auth()->check()) {
+            $userHasLiked = $item->hasReaction('like');
+            $userHasDisliked = $item->hasReaction('dislike');
+        }
+
         return response()->json([
-            'has_like'    => auth()->check() ? $item->hasReaction('like') : false,
-            'has_dislike' => auth()->check() ? $item->hasReaction('dislike') : false,
+            'success'           => true,
+            'user_has_liked'    => $userHasLiked,
+            'user_has_disliked' => $userHasDisliked,
+            'like_count'        => $item->countReaction('like'),
+            'dislike_count'     => $item->countReaction('dislike'),
         ]);
     }
+
+    // ---------- Transformers ----------
 
     private function transformListItem(EstablishmentBd $item): array
     {
         $type = $item->type ?? null;
+
+        $imageUrl = $item->getFirstMediaUrl('establishment_images', 'thumb')
+            ?: $item->getFirstMediaUrl('establishment_images')
+            ?: $item->getFirstMediaUrl('default', 'thumb')
+            ?: $item->getFirstMediaUrl('default');
 
         return [
             'id'          => $item->id,
@@ -214,12 +235,7 @@ class EstablishmentBdController extends Controller
             'type'        => $type,
             'type_label'  => $type ? ($this->typeLabels[$type] ?? null) : null,
             'description' => $item->description,
-            'image_url'   => $item->getFirstMediaUrl('establishment_images', 'thumb')
-                                ?: $item->getFirstMediaUrl('establishment_images')
-                                ?: $item->getFirstMediaUrl('images', 'thumb')
-                                ?: $item->getFirstMediaUrl('images')
-                                ?: $item->getFirstMediaUrl('default', 'preview')
-                                ?: $item->getFirstMediaUrl('default'),
+            'image_url'   => $imageUrl,
             'thana'       => $item->thana?->name,
             'district'    => $item->district?->name,
             'division'    => $item->division?->name,
@@ -230,6 +246,25 @@ class EstablishmentBdController extends Controller
     {
         $type = $item->type ?? null;
 
+        // Multiple images support (Tourism style)
+        $images = $item->getMedia('establishment_images')->map(function ($media) {
+            return [
+                'url'     => $media->getUrl(),
+                'caption' => $media->getCustomProperty('caption') ?? null,
+                'thumb'   => $media->getUrl('thumb'),
+            ];
+        })->values()->toArray();
+
+        if (empty($images)) {
+            $images = $item->getMedia('default')->map(function ($media) {
+                return [
+                    'url'     => $media->getUrl(),
+                    'caption' => $media->getCustomProperty('caption') ?? null,
+                    'thumb'   => $media->getUrl('thumb'),
+                ];
+            })->values()->toArray();
+        }
+
         return [
             'id'           => $item->id,
             'title'        => $item->title,
@@ -237,22 +272,17 @@ class EstablishmentBdController extends Controller
             'type'         => $type,
             'type_label'   => $type ? ($this->typeLabels[$type] ?? null) : null,
             'description'  => $item->description,
-            'image_url'    => $item->getFirstMediaUrl('establishment_images')
-                                ?: $item->getFirstMediaUrl('images')
-                                ?: $item->getFirstMediaUrl('default'),
+            'image_url'    => $images[0]['url'] ?? null,
+            'images'       => $images,
             'thana'        => $item->thana?->name,
             'district'     => $item->district?->name,
             'division'     => $item->division?->name,
             'views_count'  => views($item)->count(),
-            'like_count'   => $item->countReaction('like'),
-            'dislike_count'=> $item->countReaction('dislike'),
-            'has_like'     => auth()->check() ? $item->hasReaction('like') : false,
-            'has_dislike'  => auth()->check() ? $item->hasReaction('dislike') : false,
-            'reactions'    => [
+            'reactions' => [
                 'like_count'        => $item->countReaction('like'),
                 'dislike_count'     => $item->countReaction('dislike'),
-                'user_has_liked'    => auth()->check() ? $item->hasReaction('like') : false,
-                'user_has_disliked' => auth()->check() ? $item->hasReaction('dislike') : false,
+                'user_has_liked'    => false,
+                'user_has_disliked' => false,
             ],
         ];
     }
@@ -266,6 +296,7 @@ class EstablishmentBdController extends Controller
             'avatar_url'     => $user->avatar_url ?? null,
             'profession'     => $user->profession,
             'is_verified'    => (bool) $user->email_verified_at,
+            'is_online'      => method_exists($user, 'isOnline') ? $user->isOnline() : false,
             'last_active_at' => $user->last_active_at?->diffForHumans(),
         ];
     }

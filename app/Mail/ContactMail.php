@@ -16,7 +16,7 @@ class ContactMail extends Mailable
         public string $name,
         public string $email,
         public string $message,
-        public ?string $subject = null,
+        public ?string $mailSubject = null,   // ← নাম পরিবর্তন করা হয়েছে
         public ?string $phone = null,
         public ?string $priority = null,
         public ?string $category = null
@@ -25,7 +25,7 @@ class ContactMail extends Mailable
 
     public function envelope(): Envelope
     {
-        $subject = $this->subject ?? 'নতুন যোগাযোগ - ' . config('app.name');
+        $subject = $this->mailSubject ?? 'নতুন যোগাযোগ - ' . config('app.name');
 
         if ($this->priority === 'urgent') {
             $subject = '[URGENT] ' . $subject;
@@ -42,12 +42,13 @@ class ContactMail extends Mailable
         return new Content(
             view: 'emails.contact',
             with: [
-                'name' => $this->name,
-                'email' => $this->email,
+                'name'           => $this->name,
+                'email'          => $this->email,
                 'messageContent' => $this->message,
-                'phone' => $this->phone,
-                'priority' => $this->priority,
-                'category' => $this->category
+                'phone'          => $this->phone,
+                'priority'       => $this->priority,
+                'category'       => $this->category,
+                'subject'        => $this->mailSubject,  // ভিউতে পাঠানোর জন্য
             ]
         );
     }

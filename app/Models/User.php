@@ -113,4 +113,13 @@ class User extends Authenticatable implements HasMedia, MustVerifyEmail
     {
         return (bool) ($this->last_active_at?->gt(now()->subMinutes(5)));
     }
+
+    public function sendPasswordResetNotification($token)
+{
+    $this->notify(new \App\Notifications\ResetPasswordNotification($token));
+}
+
+public function refreshTokens() {
+    return $this->hasMany(RefreshToken::class);
+}
 }

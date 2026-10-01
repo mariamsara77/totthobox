@@ -11,24 +11,22 @@ class ForgotPasswordController extends Controller
 {
     public function sendResetLink(Request $request)
     {
-        $request->validate([
-            'email' => ['required', 'string', 'email'],
+        $validated = $request->validate([
+            'email' => ['required', 'email'],
         ], [
-            'email.required' => 'ইমেইল ঠিকানা দিতে হবে।',
-            'email.email'    => 'সঠিক ইমেইল ফরম্যাট ব্যবহার করুন।',
+            'email.required' => 'ইমেইল দিতে হবে।',
+            'email.email' => 'সঠিক ইমেইল ফরম্যাট দিন।',
         ]);
 
-        $status = Password::sendResetLink(
-            $request->only('email')
-        );
+        $status = Password::sendResetLink($validated);
 
         if ($status === Password::RESET_LINK_SENT) {
             return response()->json([
-                'message' => 'আপনার ইমেইলে পাসওয়ার্ড রিসেট লিংক পাঠানো হয়েছে।',
+                'success' => true,
+                'message' => 'পাসওয়ার্ড রিসেট লিংক আপনার ইমেইলে পাঠানো হয়েছে।',
             ]);
         }
 
-        // ইউজার না পাওয়া গেলে
         throw ValidationException::withMessages([
             'email' => [__($status)],
         ]);

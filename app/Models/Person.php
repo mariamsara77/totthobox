@@ -52,11 +52,6 @@ class Person extends Model implements HasMedia, Viewable
         });
     }
 
-    /* -----------------------------------------------------------------
-      |  Activity Log
-      | -----------------------------------------------------------------
-      */
-
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
@@ -66,87 +61,83 @@ class Person extends Model implements HasMedia, Viewable
     }
 
     /* -----------------------------------------------------------------
-     |  Media Library
+     |  Media Library (Multiple Image Support)
      | -----------------------------------------------------------------
      */
-
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('images');
+        $this->addMediaCollection('default');
     }
 
     public function registerMediaConversions(?Media $media = null): void
     {
         $this->addMediaConversion('thumb')
-            ->width(100)
-            ->height(100)
+            ->width(300)
+            ->height(300)
+            ->sharpen(10)
+            ->format('webp')
+            ->nonQueued();
+
+        $this->addMediaConversion('preview')
+            ->width(800)
+            ->height(800)
             ->sharpen(10)
             ->format('webp')
             ->nonQueued();
     }
 
+    /* -----------------------------------------------------------------
+     |  Relationships
+     | -----------------------------------------------------------------
+     */
     public function peopleCategories()
     {
         return $this->belongsToMany(PeopleCategory::class, 'category_people', 'person_id', 'category_id');
     }
-
-    public function roleHistories()
-    {
-        return $this->hasMany(RoleHistory::class);
-    }
-
-    // app/Models/Person.php
 
     public function histories()
     {
         return $this->hasMany(RoleHistory::class);
     }
 
-    // বর্তমানে কোন পদে আছেন তা সহজে পাওয়ার জন্য
     public function currentRole()
     {
-        return $this->hasOne(RoleHistory::class)->where('is_current', true)->withDefault([
-            'custom_role' => 'কোন পদ নেই',
-        ]);
+        return $this->hasOne(RoleHistory::class)->where('is_current', true);
     }
 
-    public function role()
-    {
-        return $this->hasOne(RoleHistory::class);
-    }
-
-    // ── Meilisearch ───────────────────────────────────────────────────────────
-
-    /**
-     * What gets indexed in Meilisearch.
-     *
-     * Include both Bangla and English fields so search works in both scripts.
-     * Also include relation names so "Dhaka division" searches find items
-     * even when division data is denormalized here.
+    /* -----------------------------------------------------------------
+     |  Scout
+     | -----------------------------------------------------------------
      */
+    public function searchableAs(): string
+    {
+        return 'people';
+    }
+
     public function toSearchableArray(): array
-    {
-        // Person মডেলের প্রাসঙ্গিক রিলেশনগুলো লোড করুন
-        $this->loadMissing(['currentRole', 'peopleCategories', 'histories']);
+{
+    $this->loadMissing(['currentRole.position', 'peopleCategories']);
 
-        return [
-            'id' => (int) $this->id,
-            'title' => $this->name, // এখানে 'title' কি হিসেবে 'name' কে ম্যাপ করা হয়েছে সার্চ ইনডেক্সের সুবিধার জন্য
-            'slug' => $this->slug,
-            'description' => strip_tags($this->bio ?? ''),
-            // Person মডেলে status না থাকলে এটি বাদ দিন বা ডিফল্ট ১ দিন
-            'status' => 1,
+    $role = $this->currentRole;
 
-            // রিলেশনাল ডেটা ইনডেক্স করা (সার্চ রেজাল্ট উন্নত করতে)
-            'current_role' => optional($this->currentRole)->custom_role ?? '',
-            'categories' => $this->peopleCategories->pluck('name')->toArray(),
-        ];
+    $currentRoleLabel = '';
+    if ($role) {
+        $currentRoleLabel = $role->custom_role
+            ?? $role->position?->title
+            ?? '';
     }
 
-    /**
-     * যদি status কলাম না থাকে, তবে সরাসরি true রিটার্ন করুন অথবা
-     * আপনার প্রয়োজন অনুযায়ী লজিক লিখুন।
-     */
+    return [
+        'id' => (int) $this->id,
+        'name' => $this->name,
+        'slug' => $this->slug,
+        'bio' => strip_tags($this->bio ?? ''),
+        'current_role' => $currentRoleLabel,
+        'categories' => $this->peopleCategories->pluck('name')->toArray(),
+    ];
+}
+
     public function shouldBeSearchable(): bool
     {
         return true;

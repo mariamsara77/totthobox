@@ -22,23 +22,61 @@ class TrackingController extends Controller
     public function syncPwaStatus(Request $request): JsonResponse
     {
         $request->validate([
-            'is_pwa' => 'required|boolean',
+            'is_pwa'        => 'required|boolean',
+            'has_installed' => 'nullable|boolean',
         ]);
 
         try {
-            $this->trackingService->forceSyncPwaStatus($request);
+            $visitor = $request->attributes->get('current_visitor')
+                ?? $this->trackingService->getOrCreateVisitor($request);
+
+            if (! $visitor) {
+                return response()->json(['status' => 'ignored'], 200);
+            }
+
+            $isPwa        = $request->boolean('is_pwa');
+            $hasInstalled = $request->boolean('has_installed');
+
+            $updateData = [
+                'is_pwa'       => $isPwa,
+                'last_seen_at' => now(),
+            ];
+
+            // একবার true হলে sticky — আর false করা যাবে না
+            if ($hasInstalled || $isPwa) {
+                $updateData['has_installed_pwa'] = true;
+            }
+
+            $visitor->update($updateData);
+
+            $hash = $this->trackingService->makeHash(
+                $request->ip(),
+                (string) $request->userAgent()
+            );
+            $this->trackingService->bustVisitorCache($hash);
+
+            Log::info('PWA Sync Success', [
+                'visitor_id'        => $visitor->id,
+                'is_pwa'            => $isPwa,
+                'has_installed_pwa' => $visitor->fresh()->has_installed_pwa,
+                'ip'                => $request->ip(),
+            ]);
 
             return response()->json([
-                'status' => 'success',
-                'is_pwa' => $request->boolean('is_pwa'),
+                'status'        => 'success',
+                'is_pwa'        => $isPwa,
+                'has_installed' => (bool) $visitor->has_installed_pwa,
+                'visitor_id'    => $visitor->id,
             ]);
         } catch (\Throwable $e) {
-            Log::error('PWA Sync Error', ['message' => $e->getMessage()]);
+            Log::error('PWA Sync Error', [
+                'message' => $e->getMessage(),
+                'file'    => $e->getFile(),
+                'line'    => $e->getLine(),
+            ]);
 
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to sync status',
-            ], 500);
+            // Client retry এড়াতে 200
+            return response()->json(['status' => 'error'], 200);
         }
     }
 
@@ -106,7 +144,7 @@ class TrackingController extends Controller
             'route_name'   => $this->guessRouteName($path, $payload['route_name'] ?? null),
             'referer'      => $payload['referrer'] ?? $request->headers->get('referer'),
             'user_id'      => Auth::id(),
-            'is_pwa'       => $this->trackingService->resolveIsPwa($request) || !empty($payload['is_pwa']),
+            'is_pwa'       => $this->trackingService->resolveIsPwa($request) || ! empty($payload['is_pwa']),
             'utm_source'   => $payload['utm_source'] ?? $request->query('utm_source'),
             'utm_medium'   => $payload['utm_medium'] ?? $request->query('utm_medium'),
             'utm_campaign' => $payload['utm_campaign'] ?? $request->query('utm_campaign'),
@@ -115,11 +153,7 @@ class TrackingController extends Controller
             'timestamp'    => now()->toISOString(),
         ];
 
-        // সরাসরি প্রসেস (ফাস্ট). চাইলে Job ব্যবহার করতে পারো।
         $this->trackingService->processTrackingPayload($data);
-
-        // Queue ব্যবহার করতে চাইলে উপরের লাইন কমেন্ট করে এটা চালাও:
-        // \App\Jobs\TrackVisitorJob::dispatch($data)->onQueue('tracking');
     }
 
     /**
@@ -131,29 +165,28 @@ class TrackingController extends Controller
             return $frontendName;
         }
 
-        if (!$path || $path === '/') {
+        if (! $path || $path === '/') {
             return 'home';
         }
 
-        // তোমার সাইট অনুযায়ী ম্যাপিং বাড়াও
         $map = [
-            '/products'   => 'products.index',
-            '/cart'       => 'cart',
-            '/checkout'   => 'checkout',
-            '/account'    => 'account',
-            '/blog'       => 'blog.index',
-            '/contact'    => 'contact',
-            '/about'      => 'about',
+            '/products' => 'products.index',
+            '/cart'     => 'cart',
+            '/checkout' => 'checkout',
+            '/account'  => 'account',
+            '/blog'     => 'blog.index',
+            '/contact'  => 'contact',
+            '/about'    => 'about',
         ];
 
         if (isset($map[$path])) {
             return $map[$path];
         }
 
-        // Wildcard স্টাইল
         if (str_starts_with($path, '/products/')) {
             return 'products.show';
         }
+
         if (str_starts_with($path, '/blog/')) {
             return 'blog.show';
         }
@@ -168,15 +201,15 @@ class TrackingController extends Controller
     {
         $update = [];
 
-        if (!empty($data['timezone'])) {
+        if (! empty($data['timezone'])) {
             $update['timezone'] = $data['timezone'];
         }
 
-        if (!empty($data['screen_res'])) {
+        if (! empty($data['screen_res'])) {
             $res     = $data['screen_res'];
             $current = $visitor->device_model ?? '';
 
-            if (!str_contains($current, $res)) {
+            if (! str_contains($current, $res)) {
                 $update['device_model'] = trim($current . ' | ' . $res, ' | ');
             }
         }

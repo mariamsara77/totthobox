@@ -78,32 +78,32 @@ class PersonController extends Controller
     }
 
     // GET /api/people/{slug}
-    public function show(string $slug)
-    {
-        $person = Person::query()
-            ->with([
-                'media',
-                'peopleCategories:id,name',
-                'histories' => fn ($q) => $q
-                    ->with('position:id,title')
-                    ->orderByDesc('is_current')
-                    ->orderByDesc('from_date'),
-            ])
-            ->where(function ($q) use ($slug) {
-                $q->where('slug', $slug)->orWhere('id', $slug);
-            })
-            ->first();
+   public function show(string $slug)
+{
+    $person = Person::query()
+        ->with([
+            'media',
+            'peopleCategories:id,name',
+            'histories' => fn ($q) => $q
+                ->with('position:id,title')
+                ->orderByDesc('is_current')
+                ->orderByDesc('from_date'),
+        ])
+        ->where(function ($q) use ($slug) {
+            $q->where('slug', $slug)->orWhere('id', $slug);
+        })
+        ->first();
 
-        if (!$person) {
-            return response()->json(['message' => 'Not found'], 404);
-        }
-
-        views($person)->record();
-
-        return response()->json([
-            'data' => $this->transformShowItem($person),
-        ]);
+    if (!$person) {
+        return response()->json(['message' => 'Not found'], 404);
     }
+
+    views($person)->record();
+
+    return response()->json([
+        'data' => $this->transformShowItem($person),
+    ]);
+}
 
     public function creators()
     {
@@ -147,33 +147,49 @@ class PersonController extends Controller
     }
 
     public function react(Request $request, int $id)
-    {
-        $request->validate(['type' => 'required|in:like,dislike']);
+{
+    $request->validate(['type' => 'required|in:like,dislike']);
 
-        $person = Person::findOrFail($id);
-        $person->react($request->type);
-        $person->refresh();
-
-        Cache::forget("person_profile_show_{$person->slug}");
-        Cache::forget("person_profile_show_{$person->id}");
-
+    if (!auth()->check()) {
         return response()->json([
-            'like_count'    => $person->countReaction('like'),
-            'dislike_count' => $person->countReaction('dislike'),
-            'has_like'      => $person->hasReaction('like'),
-            'has_dislike'   => $person->hasReaction('dislike'),
-        ]);
+            'success' => false,
+            'message' => 'লগইন করা প্রয়োজন',
+        ], 401);
     }
 
-    public function reactionStatus(int $id)
-    {
-        $person = Person::findOrFail($id);
+    $person = Person::findOrFail($id);
+    $person->react($request->type);
+    $person->refresh();
 
-        return response()->json([
-            'has_like'    => auth()->check() ? $person->hasReaction('like') : false,
-            'has_dislike' => auth()->check() ? $person->hasReaction('dislike') : false,
-        ]);
+    return response()->json([
+        'success'           => true,
+        'like_count'        => $person->countReaction('like'),
+        'dislike_count'     => $person->countReaction('dislike'),
+        'user_has_liked'    => $person->hasReaction('like'),
+        'user_has_disliked' => $person->hasReaction('dislike'),
+    ]);
+}
+
+public function reactionStatus(int $id)
+{
+    $person = Person::findOrFail($id);
+
+    $userHasLiked    = false;
+    $userHasDisliked = false;
+
+    if (auth()->check()) {
+        $userHasLiked    = $person->hasReaction('like');
+        $userHasDisliked = $person->hasReaction('dislike');
     }
+
+    return response()->json([
+        'success'           => true,
+        'user_has_liked'    => $userHasLiked,
+        'user_has_disliked' => $userHasDisliked,
+        'like_count'        => $person->countReaction('like'),
+        'dislike_count'     => $person->countReaction('dislike'),
+    ]);
+}
 
     private function transformListItem(Person $person): array
     {
@@ -183,8 +199,10 @@ class PersonController extends Controller
             'id'          => $person->id,
             'name'        => $person->name,
             'slug'        => $person->slug,
-            'image_url'   => $person->getFirstMediaUrl('images', 'thumb')
-                                ?: $person->getFirstMediaUrl('images'),
+            'image_url' => $person->getFirstMediaUrl('images', 'thumb')
+                ?: $person->getFirstMediaUrl('images')
+                ?: $person->getFirstMediaUrl('default', 'thumb')
+                ?: $person->getFirstMediaUrl('default'),
             'categories'  => $person->peopleCategories->map(fn ($c) => [
                 'id'   => $c->id,
                 'name' => $c->name,
@@ -200,46 +218,61 @@ class PersonController extends Controller
     }
 
     private function transformShowItem(Person $person): array
-    {
-        $currentRole = $person->histories->firstWhere('is_current', true);
+{
+    $currentRole = $person->histories->firstWhere('is_current', true);
 
+    // Multiple images support
+    $images = $person->getMedia('images')->map(function ($media) {
         return [
-            'id'          => $person->id,
-            'name'        => $person->name,
-            'slug'        => $person->slug,
-            'bio'         => $person->bio,
-            'image_url'   => $person->getFirstMediaUrl('images')
-                                ?: $person->getFirstMediaUrl('default'),
-            'date_of_birth' => $person->date_of_birth?->format('Y-m-d'),
-            'date_of_death' => $person->date_of_death?->format('Y-m-d'),
-            'categories'  => $person->peopleCategories->map(fn ($c) => [
-                'id'   => $c->id,
-                'name' => $c->name,
-            ])->values(),
-            'current_role' => $currentRole ? [
-                'title'     => $currentRole->position?->title ?? $currentRole->custom_role ?? 'পদবী অজানা',
-                'from_year' => $currentRole->from_date?->format('Y'),
-                'is_current'=> true,
-            ] : null,
-            'histories'   => $person->histories->map(fn ($h) => [
-                'title'      => $h->position?->title ?? $h->custom_role ?? 'পদবী অজানা',
-                'is_current' => (bool) $h->is_current,
-                'from_year'  => $h->from_date?->format('Y'),
-                'to_year'    => $h->to_date?->format('Y'),
-            ])->values(),
-            'views_count'  => views($person)->count(),
-            'like_count'   => $person->countReaction('like'),
-            'dislike_count'=> $person->countReaction('dislike'),
-            'has_like'     => auth()->check() ? $person->hasReaction('like') : false,
-            'has_dislike'  => auth()->check() ? $person->hasReaction('dislike') : false,
-            'reactions'    => [
-                'like_count'        => $person->countReaction('like'),
-                'dislike_count'     => $person->countReaction('dislike'),
-                'user_has_liked'    => auth()->check() ? $person->hasReaction('like') : false,
-                'user_has_disliked' => auth()->check() ? $person->hasReaction('dislike') : false,
-            ],
+            'url'     => $media->getUrl(),
+            'caption' => $media->getCustomProperty('caption') ?? null,
+            'thumb'   => $media->getUrl('thumb'),
         ];
+    })->values()->toArray();
+
+    if (empty($images)) {
+        $images = $person->getMedia('default')->map(function ($media) {
+            return [
+                'url'     => $media->getUrl(),
+                'caption' => $media->getCustomProperty('caption') ?? null,
+                'thumb'   => $media->getUrl('thumb'),
+            ];
+        })->values()->toArray();
     }
+
+    return [
+        'id'            => $person->id,
+        'name'          => $person->name,
+        'slug'          => $person->slug,
+        'bio'           => $person->bio,
+        'image_url'     => $images[0]['url'] ?? null,
+        'images'        => $images,
+        'date_of_birth' => $person->date_of_birth?->format('Y-m-d'),
+        'date_of_death' => $person->date_of_death?->format('Y-m-d'),
+        'categories'    => $person->peopleCategories->map(fn ($c) => [
+            'id'   => $c->id,
+            'name' => $c->name,
+        ])->values(),
+        'current_role'  => $currentRole ? [
+            'title'      => $currentRole->position?->title ?? $currentRole->custom_role ?? 'পদবী অজানা',
+            'from_year'  => $currentRole->from_date?->format('Y'),
+            'is_current' => true,
+        ] : null,
+        'histories'     => $person->histories->map(fn ($h) => [
+            'title'      => $h->position?->title ?? $h->custom_role ?? 'পদবী অজানা',
+            'is_current' => (bool) $h->is_current,
+            'from_year'  => $h->from_date?->format('Y'),
+            'to_year'    => $h->to_date?->format('Y'),
+        ])->values(),
+        'views_count'   => views($person)->count(),
+        'reactions' => [
+            'like_count'        => $person->countReaction('like'),
+            'dislike_count'     => $person->countReaction('dislike'),
+            'user_has_liked'    => false,
+            'user_has_disliked' => false,
+        ],
+    ];
+}
 
     private function transformCreator(User $user): array
     {

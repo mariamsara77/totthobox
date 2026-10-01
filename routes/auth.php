@@ -13,14 +13,14 @@ Route::middleware('guest')->group(function () {
     Volt::route('reset-password/{token}', 'auth.reset-password')->name('password.reset');
 
     // Social Authentication
-    // Route::prefix('auth')->group(function () {
-    //     Route::get('google/redirect', [GoogleLoginController::class, 'redirectToGoogle'])->name('auth.google.redirect');
-    //     Route::get('google/callback', [GoogleLoginController::class, 'handleCallback'])->name('auth.google.callback');
-    //     Route::post('google/one-tap', [GoogleLoginController::class, 'handleOneTapToken'])->name('auth.google.one-tap');
+    Route::prefix('auth')->group(function () {
+        Route::get('google/redirect', [GoogleLoginController::class, 'redirectToGoogle'])->name('auth.google.redirect');
+        Route::get('google/callback', [GoogleLoginController::class, 'handleCallback'])->name('auth.google.callback');
+        Route::post('google/one-tap', [GoogleLoginController::class, 'handleOneTapToken'])->name('auth.google.one-tap');
 
-    //     Route::get('facebook/redirect', [FacebookAuthController::class, 'redirectToFacebook'])->name('login.facebook');
-    //     Route::get('facebook/callback', [FacebookAuthController::class, 'handleFacebookCallback'])->name('login.facebook.callback');
-    // });
+        Route::get('facebook/redirect', [FacebookAuthController::class, 'redirectToFacebook'])->name('login.facebook');
+        Route::get('facebook/callback', [FacebookAuthController::class, 'handleFacebookCallback'])->name('login.facebook.callback');
+    });
 });
 
 Route::middleware('auth')->group(function () {

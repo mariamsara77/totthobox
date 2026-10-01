@@ -40,9 +40,12 @@ return [
     ],
 
     'google' => [
-        'client_id' => env('GOOGLE_CLIENT_ID'),
-        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
-        'redirect' => env('GOOGLE_REDIRECT'),
+        'client_id'     => env('GOOGLE_CLIENT_ID'),
+    'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+    'redirect'      => env('GOOGLE_REDIRECT_URI'),
+        // 'client_id' => env('GOOGLE_CLIENT_ID'),
+        // 'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        // 'redirect' => env('GOOGLE_REDIRECT'),
         'indexing_key' => env('GOOGLE_INDEXING_CREDENTIALS_PATH', 'storage/app/google-credentials.json'),
         'indexing_credentials' => env('GOOGLE_INDEXING_CREDENTIALS_PATH'),
         'indexing_daily_quota' => env('GOOGLE_INDEXING_DAILY_QUOTA', 200),
@@ -54,6 +57,10 @@ return [
         'redirect' => env('FACEBOOK_REDIRECT'),
         'app_id' => env('FACEBOOK_APP_ID'),
     ],
+
+    'news_scraper' => [
+    'proxy' => env('NEWS_SCRAPER_PROXY'),
+],
 
     'groq' => [
         'api_key' => env('GROQ_API_KEY'),

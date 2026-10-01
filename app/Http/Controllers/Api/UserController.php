@@ -2,76 +2,34 @@
 
 namespace App\Http\Controllers\Api;
 
+use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use Illuminate\Http\Request;
 use App\Http\Resources\UserResource;
 
 class UserController extends Controller
 {
-    /**
-     * Get Authenticated User Info
-     *
-     * Existing API:
-     * GET /api/user
-     */
-    public function getUser(Request $request)
+    public function show(Request $request): JsonResponse
     {
-        /** @var \App\Models\User|null $user */
-        $user = $request->user();
+        // 'sanctum' গার্ড উল্লেখ করায় সেশন কনফ্লিক্ট হবে না
+        $user = $request->user('sanctum');
 
         if (!$user) {
-            return response()
-                ->json([
-                    'message' => 'Unauthenticated.',
-                ], 401)
-                ->header('Cache-Control', 'no-store');
+            return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
-        if (method_exists($user, 'initials')) {
-            $user->setAttribute(
-                'initials',
-                $user->initials()
-            );
-        }
-
-        if (method_exists($user, 'isOnline')) {
-            $user->setAttribute(
-                'is_online',
-                $user->isOnline()
-            );
-        }
-
-        $user->loadMissing([
-            'division',
-            'district',
-            'thana',
+        return response()->json([
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'avatar_url' => $user->avatar_url ?? $user->avatar ?? null,
+            'slug' => $user->slug ?? null,
         ]);
-
-        return response()
-            ->json([
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'slug' => $user->slug,
-                'avatar_url' => $user->avatar_url,
-
-                'initials' => $user->initials ?? null,
-                'is_online' => $user->is_online ?? false,
-
-                'division' => $user->division,
-                'district' => $user->district,
-                'thana' => $user->thana,
-            ], 200)
-            ->header(
-                'Cache-Control',
-                'private, no-store, no-cache, must-revalidate, max-age=0'
-            )
-            ->header('Pragma', 'no-cache');
     }
 
 
-    /**
+     /**
      * Toggle Block / Unblock User
      *
      * POST /api/users/{user}/block

@@ -37,21 +37,21 @@ class VisitorTrackingService
         }
 
         $payload = [
-            'ip' => $request->ip(),
-            'user_agent' => (string) $request->userAgent(),
-            'url' => $request->fullUrl(),
-            'route_name' => $request->route()?->getName(),
-            'referer' => $request->headers->get('referer'),
-            'user_id' => Auth::id(),
-            'is_pwa' => $this->resolveIsPwa($request),
-            'utm_source' => $request->query('utm_source'),
-            'utm_medium' => $request->query('utm_medium'),
+            'ip'           => $request->ip(),
+            'user_agent'   => (string) $request->userAgent(),
+            'url'          => $request->fullUrl(),
+            'route_name'   => $request->route()?->getName(),
+            'referer'      => $request->headers->get('referer'),
+            'user_id'      => Auth::id(),
+            'is_pwa'       => $this->resolveIsPwa($request),
+            'utm_source'   => $request->query('utm_source'),
+            'utm_medium'   => $request->query('utm_medium'),
             'utm_campaign' => $request->query('utm_campaign'),
             'load_time_ms' => defined('LARAVEL_START')
-                                ? (int) round((microtime(true) - LARAVEL_START) * 1000)
-                                : 0,
-            'page_title' => config('app.current_page_title'),
-            'timestamp' => now()->toISOString(),
+                ? (int) round((microtime(true) - LARAVEL_START) * 1000)
+                : 0,
+            'page_title'   => config('app.current_page_title'),
+            'timestamp'    => now()->toISOString(),
         ];
 
         TrackVisitorJob::dispatch($payload)->onQueue('tracking');
@@ -63,16 +63,19 @@ class VisitorTrackingService
             $this->agent->setUserAgent($data['user_agent'] ?? '');
 
             $visitor = $this->getOrCreateVisitorFromData($data);
+            if (! $visitor) {
+                return;
+            }
+
             $session = $this->getOrCreateSessionFromData($visitor, $data);
 
             $this->touchVisitor($visitor, $data['user_id'] ?? null);
             $this->touchSession($session);
             $this->recordPageViewFromData($visitor, $session, $data);
-
         } catch (\Throwable $e) {
             Log::error('VisitorTrackingService::processTrackingPayload failed', [
                 'message' => $e->getMessage(),
-                'data' => $data,
+                'data'    => $data,
             ]);
             throw $e;
         }
@@ -89,50 +92,30 @@ class VisitorTrackingService
             $session = $this->resolveActiveSession($visitor);
 
             VisitorEvent::create([
-                'session_id' => $session?->id,
-                'visitor_id' => $visitor->id,
+                'session_id'     => $session?->id,
+                'visitor_id'     => $visitor->id,
                 'event_category' => $category,
-                'event_action' => $action,
-                'event_label' => $label,
-                'payload' => $payload,
-                'created_at' => now(),
+                'event_action'   => $action,
+                'event_label'    => $label,
+                'payload'        => $payload,
+                'created_at'     => now(),
             ]);
-
         } catch (\Throwable $e) {
             Log::error('Event tracking failed', [
-                'message' => $e->getMessage(),
+                'message'  => $e->getMessage(),
                 'category' => $category,
-                'action' => $action,
+                'action'   => $action,
             ]);
         }
     }
 
-    public function forceSyncPwaStatus(Request $request): void
-    {
-        $ip = $request->ip();
-        $ua = (string) $request->userAgent();
-        $hash = $this->makeHash($ip, $ua);
-
-        $isPwa = $request->boolean('is_pwa')
-            || $this->resolveIsPwa($request);
-
-        $visitor = Visitor::where('hash', $hash)->first();
-
-        if ($visitor && $visitor->is_pwa !== $isPwa) {
-            $visitor->update(['is_pwa' => $isPwa]);
-            $this->bustVisitorCache($hash);
-        }
-
-        session(['is_pwa' => $isPwa]);
-    }
-
-    public function getOrCreateVisitor(Request $request): Visitor
+    public function getOrCreateVisitor(Request $request): ?Visitor
     {
         $data = [
-            'ip' => $request->ip(),
+            'ip'         => $request->ip(),
             'user_agent' => (string) $request->userAgent(),
-            'user_id' => Auth::id(),
-            'is_pwa' => $this->resolveIsPwa($request),
+            'user_id'    => Auth::id(),
+            'is_pwa'     => $this->resolveIsPwa($request),
         ];
 
         return $this->getOrCreateVisitorFromData($data);
@@ -140,7 +123,7 @@ class VisitorTrackingService
 
     public function resolveActiveSession(Visitor $visitor): ?VisitorSession
     {
-        $cacheKey = "visitor:session:{$visitor->id}";
+        $cacheKey  = "visitor:session:{$visitor->id}";
         $sessionId = Cache::get($cacheKey);
 
         if ($sessionId) {
@@ -148,7 +131,6 @@ class VisitorTrackingService
             if ($session && $session->last_active_at?->gt(now()->subMinutes(30))) {
                 return $session;
             }
-            // Stale cache — clean it up
             Cache::forget($cacheKey);
         }
 
@@ -159,60 +141,95 @@ class VisitorTrackingService
     }
 
     /* -----------------------------------------------------------------
-     |  PROTECTED HELPERS
+     |  CORE: getOrCreateVisitorFromData (Race-condition safe)
      | ----------------------------------------------------------------- */
 
-    protected function getOrCreateVisitorFromData(array $data): Visitor
+    public function getOrCreateVisitorFromData(array $data): ?Visitor
     {
-        $ip = $data['ip'];
-        $ua = $data['user_agent'] ?? '';
-        $hash = $this->makeHash($ip, $ua);
-        $cacheKey = "visitor:active:{$hash}";
+        $ip   = $data['ip'] ?? request()->ip();
+        $ua   = $data['user_agent'] ?? (string) request()->userAgent();
+        $hash = $data['hash'] ?? $this->makeHash($ip, $ua);
 
-        // Only use cache if it's a fresh Visitor instance (not stale array)
+        $cacheKey = "visitor:{$hash}";
+
+        // 1. Cache
         $cached = Cache::get($cacheKey);
         if ($cached instanceof Visitor) {
             return $cached;
         }
 
-        $location = Cache::remember(
-            "visitor:loc:{$ip}",
-            now()->addDay(),
-            function () use ($ip) {
-                $lookupIp = in_array($ip, ['127.0.0.1', '::1'], true) ? '8.8.8.8' : $ip;
-
-                return Location::get($lookupIp);
-            }
-        );
-
-        $visitor = Visitor::updateOrCreate(
-            ['hash' => $hash],
-            [
-                'user_id' => $data['user_id'] ?? null,
-                'ip_address' => $ip,
-                'browser_family' => $this->agent->browser() ?: null,
-                'os_family' => $this->agent->platform() ?: null,
-                'device_type' => $this->getDeviceType(),
-                'country_code' => $location->countryCode ?? null,
-                'city_name' => $location->cityName ?? null,
-                'is_pwa' => (bool) ($data['is_pwa'] ?? false),
-                'is_bot' => false,
-                'last_seen_at' => now(),
-            ]
-        );
-
-        if ($visitor->wasRecentlyCreated || is_null($visitor->first_seen_at)) {
-            $visitor->forceFill(['first_seen_at' => now()])->saveQuietly();
+        // 2. DB lookup
+        $visitor = Visitor::where('hash', $hash)->first();
+        if ($visitor) {
+            Cache::put($cacheKey, $visitor, now()->addMinutes(30));
+            return $visitor;
         }
 
-        Cache::put($cacheKey, $visitor, now()->addMinutes(10));
+        // 3. Enrich missing fields
+        $this->agent->setUserAgent($ua);
 
-        return $visitor;
+        $browserFamily = $data['browser_family'] ?? $this->agent->browser() ?: null;
+        $osFamily      = $data['os_family'] ?? $this->agent->platform() ?: null;
+        $deviceType    = $data['device_type'] ?? $this->getDeviceType();
+        $isBot         = $data['is_bot'] ?? $this->agent->isRobot();
+
+        $countryCode = $data['country_code'] ?? null;
+        $cityName    = $data['city_name'] ?? null;
+
+        if (! $countryCode || ! $cityName) {
+            try {
+                $position = Location::get($ip);
+                if ($position) {
+                    $countryCode = $countryCode ?: ($position->countryCode ?? null);
+                    $cityName    = $cityName ?: ($position->cityName ?? null);
+                }
+            } catch (\Throwable $e) {
+                // ignore location errors
+            }
+        }
+
+        $isPwa = (bool) ($data['is_pwa'] ?? false);
+
+        // 4. Create (catch duplicate)
+        try {
+            $visitor = Visitor::create([
+                'hash'              => $hash,
+                'user_id'           => $data['user_id'] ?? null,
+                'ip_address'        => $ip,
+                'browser_family'    => $browserFamily,
+                'os_family'         => $osFamily,
+                'device_type'       => $deviceType,
+                'country_code'      => $countryCode,
+                'city_name'         => $cityName,
+                'is_bot'            => (bool) $isBot,
+                'is_pwa'            => $isPwa,
+                'has_installed_pwa' => $isPwa, // sticky from first visit if already PWA
+                'last_seen_at'      => now(),
+            ]);
+
+            Cache::put($cacheKey, $visitor, now()->addMinutes(30));
+
+            return $visitor;
+        } catch (\Illuminate\Database\QueryException $e) {
+            // MySQL duplicate entry (1062)
+            if (isset($e->errorInfo[1]) && (int) $e->errorInfo[1] === 1062) {
+                $visitor = Visitor::where('hash', $hash)->first();
+                if ($visitor) {
+                    Cache::put($cacheKey, $visitor, now()->addMinutes(30));
+                    return $visitor;
+                }
+            }
+            throw $e;
+        }
     }
+
+    /* -----------------------------------------------------------------
+     |  SESSION + PAGE VIEW
+     | ----------------------------------------------------------------- */
 
     protected function getOrCreateSessionFromData(Visitor $visitor, array $data): VisitorSession
     {
-        $cacheKey = "visitor:session:{$visitor->id}";
+        $cacheKey  = "visitor:session:{$visitor->id}";
         $sessionId = Cache::get($cacheKey);
 
         if ($sessionId) {
@@ -224,20 +241,19 @@ class VisitorTrackingService
 
         $source = $this->parseTrafficSource($data['referer'] ?? null);
 
-        // UUID explicitly set here to avoid race conditions in boot()
         $session = VisitorSession::create([
-            'id' => (string) Str::uuid(),
-            'visitor_id' => $visitor->id,
-            'origin_type' => $source['type'],
-            'origin_source' => $source['source'],
-            'entry_url' => Str::limit($data['url'] ?? '', 500),
-            'utm_source' => $data['utm_source'] ?? null,
-            'utm_medium' => $data['utm_medium'] ?? null,
-            'utm_campaign' => $data['utm_campaign'] ?? null,
-            'started_at' => now(),
+            'id'             => (string) Str::uuid(),
+            'visitor_id'     => $visitor->id,
+            'origin_type'    => $source['type'],
+            'origin_source'  => $source['source'],
+            'entry_url'      => Str::limit($data['url'] ?? '', 500),
+            'utm_source'     => $data['utm_source'] ?? null,
+            'utm_medium'     => $data['utm_medium'] ?? null,
+            'utm_campaign'   => $data['utm_campaign'] ?? null,
+            'started_at'     => now(),
             'last_active_at' => now(),
-            'hits_count' => 0,
-            'seconds_spent' => 0,
+            'hits_count'     => 0,
+            'seconds_spent'  => 0,
         ]);
 
         Cache::put($cacheKey, $session->id, now()->addMinutes(35));
@@ -249,32 +265,31 @@ class VisitorTrackingService
     {
         $visitor->forceFill([
             'last_seen_at' => now(),
-            'user_id' => $userId ?? $visitor->user_id,
+            'user_id'      => $userId ?? $visitor->user_id,
         ])->saveQuietly();
     }
 
     protected function touchSession(VisitorSession $session): void
     {
-        $now = now();
+        $now     = now();
         $seconds = 0;
 
         if ($session->last_active_at) {
-            $diff = $session->last_active_at->diffInSeconds($now);
-            $seconds = (int) min(max($diff, 0), 300); // cap at 5 minutes
+            $diff    = $session->last_active_at->diffInSeconds($now);
+            $seconds = (int) min(max($diff, 0), 300);
         }
 
         $session->forceFill([
             'last_active_at' => $now,
-            'seconds_spent' => $session->seconds_spent + $seconds,
+            'seconds_spent'  => $session->seconds_spent + $seconds,
         ])->saveQuietly();
     }
 
     protected function recordPageViewFromData(Visitor $visitor, VisitorSession $session, array $data): void
     {
-        $url = Str::limit($data['url'] ?? '', 500);
+        $url     = Str::limit($data['url'] ?? '', 500);
         $urlHash = sha1($url);
 
-        // Deduplicate: same URL within 8 seconds in same session
         $recentKey = "pageview:recent:{$session->id}:{$urlHash}";
         if (Cache::has($recentKey)) {
             return;
@@ -284,21 +299,23 @@ class VisitorTrackingService
             ?? Str::headline($data['route_name'] ?? 'Home');
 
         PageView::create([
-            'session_id' => $session->id,
-            'visitor_id' => $visitor->id,
-            'url' => $url,
-            'title' => $title,
-            'url_hash' => $urlHash,
-            'route_name' => $data['route_name'] ?? null,
+            'session_id'   => $session->id,
+            'visitor_id'   => $visitor->id,
+            'url'          => $url,
+            'title'        => $title,
+            'url_hash'     => $urlHash,
+            'route_name'   => $data['route_name'] ?? null,
             'load_time_ms' => $data['load_time_ms'] ?? 0,
-            'created_at' => now(),
+            'created_at'   => now(),
         ]);
 
-        // Atomic increment to avoid race condition
         VisitorSession::where('id', $session->id)->increment('hits_count');
-
         Cache::put($recentKey, true, now()->addSeconds(8));
     }
+
+    /* -----------------------------------------------------------------
+     |  HELPERS
+     | ----------------------------------------------------------------- */
 
     protected function parseTrafficSource(?string $referer): array
     {
@@ -315,7 +332,10 @@ class VisitorTrackingService
             }
         }
 
-        $socialDomains = ['facebook', 't.co', 'twitter', 'x.com', 'instagram', 'linkedin', 'tiktok', 'youtube', 'pinterest'];
+        $socialDomains = [
+            'facebook', 't.co', 'twitter', 'x.com',
+            'instagram', 'linkedin', 'tiktok', 'youtube', 'pinterest',
+        ];
         foreach ($socialDomains as $social) {
             if (str_contains($host, $social)) {
                 return ['type' => 'social', 'source' => $host];
@@ -337,35 +357,28 @@ class VisitorTrackingService
         return 'desktop';
     }
 
-    /**
-     * Consistent hash generation — always use this method.
-     * Never inline hash() calls across the codebase to avoid mismatch.
-     */
     public function makeHash(string $ip, string $ua): string
     {
-        return hash('sha256', $ip.$ua);
+        return hash('sha256', $ip . $ua);
     }
 
     /**
-     * Bust all cache keys associated with a visitor hash.
+     * সব related cache key একসাথে clear করে।
      */
     public function bustVisitorCache(string $hash): void
     {
+        Cache::forget("visitor:{$hash}");
         Cache::forget("visitor:active:{$hash}");
         Cache::forget("visitor_v3_{$hash}");
     }
 
-    /**
-     * Resolve PWA status from request — single source of truth.
-     */
     public function resolveIsPwa(Request $request): bool
     {
         return $request->header('X-App-Mode') === 'standalone'
-            || $request->query('utm_source') === 'pwa'
             || $request->boolean('is_pwa');
     }
 
-    // Legacy support
+    // Legacy
     public function trackRequest(Request $request): void
     {
         $this->dispatchTracking($request);

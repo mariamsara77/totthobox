@@ -1,0 +1,1 @@
+<?php /**PATH /var/www/html/totthobox/resources/views/flux/alert.blade.php ENDPATH**/ ?>

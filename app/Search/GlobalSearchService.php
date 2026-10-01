@@ -38,7 +38,7 @@ class GlobalSearchService
 
         $limit = min($limit ?? self::MAX_TOTAL_RESULTS, self::MAX_TOTAL_RESULTS);
 
-        $cacheKey = 'gs_result_v4_'.md5(mb_strtolower($term).'|'.$limit);
+        $cacheKey = 'gs_result_v4_' . md5(mb_strtolower($term) . '|' . $limit);
 
         return Cache::remember($cacheKey, self::RESULT_CACHE_TTL, function () use ($term, $limit) {
 
@@ -115,7 +115,7 @@ class GlobalSearchService
 
         try {
             $items = $model::search($term)
-                ->query(fn ($q) => $q->with($this->filterValidRelations($model, $relations)))
+                ->query(fn($q) => $q->with($this->filterValidRelations($model, $relations)))
                 ->take(self::MAX_RESULTS_PER_MODEL)
                 ->get();
 
@@ -173,11 +173,25 @@ class GlobalSearchService
     private function applyLikeConditions($query, string $table, string $variant): void
     {
         $searchableColumns = [
-            'name', 'title', 'bangla_name', 'english_name', 'arabic_name',
-            'chapter_name', 'source_name', 'slug',
-            'description', 'bio', 'details',
-            'bangla_text', 'arabic_text', 'text_bangla', 'text_arabic',
-            'text_english', 'bangla_meaning', 'bangla_fojilot', 'others',
+            'name',
+            'title',
+            'bangla_name',
+            'english_name',
+            'arabic_name',
+            'chapter_name',
+            'source_name',
+            'slug',
+            'description',
+            'bio',
+            'details',
+            'bangla_text',
+            'arabic_text',
+            'text_bangla',
+            'text_arabic',
+            'text_english',
+            'bangla_meaning',
+            'bangla_fojilot',
+            'others',
         ];
 
         foreach ($searchableColumns as $column) {
@@ -199,14 +213,26 @@ class GlobalSearchService
         $tokenCount = count($tokens);
 
         $nameFields = [
-            'bangla_name', 'english_name', 'arabic_name',
-            'name', 'title', 'chapter_name', 'source_name',
+            'bangla_name',
+            'english_name',
+            'arabic_name',
+            'name',
+            'title',
+            'chapter_name',
+            'source_name',
         ];
 
         $textFields = [
-            'bangla_text', 'arabic_text', 'text_bangla', 'text_arabic',
-            'text_english', 'bangla_meaning', 'description', 'bio',
-            'details', 'others',
+            'bangla_text',
+            'arabic_text',
+            'text_bangla',
+            'text_arabic',
+            'text_english',
+            'bangla_meaning',
+            'description',
+            'bio',
+            'details',
+            'others',
         ];
 
         $deepFields = ['bangla_fojilot', 'tags'];
@@ -312,7 +338,7 @@ class GlobalSearchService
                 if ($score < 45) {
                     $textBlob = '';
                     foreach ($textFields as $field) {
-                        $textBlob .= ' '.mb_strtolower((string) ($item->{$field} ?? ''));
+                        $textBlob .= ' ' . mb_strtolower((string) ($item->{$field} ?? ''));
                     }
                     $textBlob = trim($textBlob);
                     $textNorm = $this->normalizeForCompare($textBlob);
@@ -355,7 +381,7 @@ class GlobalSearchService
 
                 return $item;
             })
-            ->sortByDesc(fn ($item) => $item->_search_score)
+            ->sortByDesc(fn($item) => $item->_search_score)
             ->values();
     }
 
@@ -364,7 +390,7 @@ class GlobalSearchService
         $len = mb_strlen(trim($term));
         $minScore = $len <= 2 ? 55 : ($len <= 4 ? 28 : 18);
 
-        return $items->filter(fn ($item) => ($item->_search_score ?? 0) >= $minScore)->values();
+        return $items->filter(fn($item) => ($item->_search_score ?? 0) >= $minScore)->values();
     }
 
     // ══════════════════════════════════════════════
@@ -383,13 +409,19 @@ class GlobalSearchService
         $text = mb_strtolower($text);
 
         $map = [
-            'ঈ' => 'ই', 'ঊ' => 'উ', 'ঋ' => 'রি',
-            'ষ' => 'শ', 'স' => 'শ',
+            'ঈ' => 'ই',
+            'ঊ' => 'উ',
+            'ঋ' => 'রি',
+            'ষ' => 'শ',
+            'স' => 'শ',
             'ণ' => 'ন',
             'য' => 'জ',
-            'ঢ়' => 'ঢ', 'ড়' => 'ড',
-            'ঁ' => '', '়' => '',
-            "'" => '', '"' => '',
+            'ঢ়' => 'ঢ',
+            'ড়' => 'ড',
+            'ঁ' => '',
+            '়' => '',
+            "'" => '',
+            '"' => '',
         ];
 
         $text = strtr($text, $map);
@@ -514,7 +546,9 @@ class GlobalSearchService
 
     private function enrichItems(Collection $items, array $config): Collection
     {
-        return $items->map(function ($item) use ($config) {
+        $base = rtrim(config('app.frontend_url', env('FRONTEND_URL', 'https://totthobox.com')), '/');
+
+        return $items->map(function ($item) use ($config, $base) {
             $item->_search_title = $item->bangla_name
                 ?? $item->english_name
                 ?? $item->title
@@ -524,12 +558,47 @@ class GlobalSearchService
                 ?? 'No Title';
 
             $item->_search_image = $this->resolveImage($item);
+            $item->_search_type  = $config['key'] ?? '';
+            $item->_search_slug  = $item->slug ?? (string) ($item->id ?? '');
+            $item->_search_extra = [];
 
-            $item->_search_url = isset($config['route'])
-                ? ($config['route'])($item)
-                : ($item->url ?? '#');
+            if (($config['key'] ?? '') === 'sign') {
+                $item->_search_extra = [
+                    'category' => $item->category?->slug ?? null,
+                ];
+            }
 
-            $item->_search_icon = $config['icon'] ?? 'document';
+            // ✅ সঠিক URL
+            $path = '#';
+            if (isset($config['url']) && is_callable($config['url'])) {
+                try {
+                    $generated = (string) ($config['url'])($item);
+                    if ($generated !== '' && $generated !== '/') {
+                        $path = $generated;
+                    }
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('Search URL build failed', [
+                        'key'   => $config['key'] ?? '',
+                        'error' => $e->getMessage(),
+                    ]);
+                    $path = '#';
+                }
+            }
+
+            // slug খালি হলে লিস্ট পেজে fallback
+            if ($path !== '#' && str_ends_with($path, '/')) {
+                $path = rtrim($path, '/');
+            }
+
+            if ($path !== '#' && str_starts_with($path, '/')) {
+                $item->_search_url  = $base . $path;
+                $item->_search_path = $path;
+            } else {
+                $item->_search_url  = '#';
+                $item->_search_path = '#';
+            }
+
+            $item->_search_icon  = $config['icon'] ?? 'document';
             $item->_search_label = $config['label'] ?? '';
             $item->_search_color = $config['color'] ?? 'zinc';
             $item->_search_subtitle = isset($config['subtitle'])
@@ -568,7 +637,7 @@ class GlobalSearchService
 
         return array_values(array_filter(
             $relations,
-            fn ($relation) => method_exists($instance, $relation)
+            fn($relation) => method_exists($instance, $relation)
         ));
     }
 

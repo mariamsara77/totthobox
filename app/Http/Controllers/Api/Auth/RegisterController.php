@@ -3,147 +3,124 @@
 namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Mail\OtpMail;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\{Hash, DB, Mail, Cache, Cookie};
-use Illuminate\Support\Str;
-use Illuminate\Validation\Rules;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 class RegisterController extends Controller
 {
+    private function otpKey(string $email): string
+    {
+        return 'register_otp:'.strtolower($email);
+    }
+
+    private function payloadKey(string $email): string
+    {
+        return 'register_payload:'.strtolower($email);
+    }
+
     public function sendOtp(Request $request)
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'min:3', 'max:50'],
-            'email' => ['required', 'string', 'lowercase', 'email:rfc,dns', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:8', 'max:255', Rules\Password::defaults()],
-            'password_confirmation' => ['required', 'same:password'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
         ], [
-            'name.required' => 'আপনার নাম দিতে হবে।',
-            'name.min' => 'নাম অন্তত ৩ অক্ষরের হতে হবে।',
+            'name.required' => 'নাম দিতে হবে।',
+            'name.min' => 'নাম কমপক্ষে ৩ অক্ষরের হতে হবে।',
             'name.max' => 'নাম ৫০ অক্ষরের বেশি হতে পারবে না।',
-            'email.required' => 'আপনার ইমেইল ঠিকানা দিতে হবে।',
-            'email.email' => 'সঠিক ইমেইল ফরম্যাট ব্যবহার করুন।',
-            'email.unique' => 'এই ইমেইলটি দিয়ে ইতিমধ্যে অ্যাকাউন্ট খোলা হয়েছে।',
-            'password.required' => 'একটি পাসওয়ার্ড দিন।',
-            'password.min' => 'পাসওয়ার্ডটি অন্তত ৮ অক্ষরের হতে হবে।',
-            'password_confirmation.required' => 'পাসওয়ার্ডটি আবার লিখুন।',
-            'password_confirmation.same' => 'পাসওয়ার্ড দুটি মিলছে না, আবার চেক করুন।',
+            'email.required' => 'ইমেইল দিতে হবে।',
+            'email.email' => 'সঠিক ইমেইল ফরম্যাট দিন।',
+            'email.unique' => 'এই ইমেইল দিয়ে ইতিমধ্যে অ্যাকাউন্ট আছে।',
+            'password.required' => 'পাসওয়ার্ড দিতে হবে।',
+            'password.min' => 'পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে।',
+            'password.confirmed' => 'পাসওয়ার্ড মিলছে না।',
         ]);
 
-        $otp = (string) rand(1000, 9999);
-        $email = Str::lower(trim($validated['email']));
+        $otp = (string) random_int(1000, 9999);
 
-        // ১০ মিনিটের জন্য Cache-এ রাখছি
-        Cache::put("pending_register_{$email}", [
-            'name' => trim(ucwords($validated['name'])),
-            'email' => $email,
-            'password' => $validated['password'],
-            'otp' => $otp,
+        Cache::put($this->otpKey($validated['email']), $otp, now()->addMinutes(10));
+        Cache::put($this->payloadKey($validated['email']), [
+            'name' => $validated['name'],
+            'password' => Hash::make($validated['password']),
         ], now()->addMinutes(10));
 
-        try {
-            Mail::to($email)->send(new OtpMail($otp));
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'ইমেইল পাঠাতে সমস্যা হচ্ছে। পরে আবার চেষ্টা করুন।',
-            ], 500);
-        }
+        // TODO: Mail::to($validated['email'])->send(new \App\Mail\RegisterOtpMail($otp));
 
         return response()->json([
-            'message' => 'আপনার ইমেইলে ৪ ডিজিটের একটি কোড পাঠানো হয়েছে।',
-            'email' => $email,
+            'success' => true,
+            'message' => 'ভেরিফিকেশন কোড ইমেইলে পাঠানো হয়েছে।',
+        ]);
+    }
+
+    public function resendOtp(Request $request)
+    {
+        $validated = $request->validate(['email' => ['required', 'email']], [
+            'email.required' => 'ইমেইল দিতে হবে।',
+        ]);
+
+        $payload = Cache::get($this->payloadKey($validated['email']));
+
+        if (! $payload) {
+            throw ValidationException::withMessages([
+                'email' => ['সেশনের মেয়াদ শেষ হয়ে গেছে, আবার শুরু থেকে চেষ্টা করুন।'],
+            ]);
+        }
+
+        $otp = (string) random_int(1000, 9999);
+        Cache::put($this->otpKey($validated['email']), $otp, now()->addMinutes(10));
+        Cache::put($this->payloadKey($validated['email']), $payload, now()->addMinutes(10));
+
+        // TODO: Mail::to($validated['email'])->send(new \App\Mail\RegisterOtpMail($otp));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'নতুন কোড পাঠানো হয়েছে।',
         ]);
     }
 
     public function verifyAndRegister(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'email' => ['required', 'email'],
-            'otp' => ['required', 'string', 'size:4'],
+            'otp' => ['required', 'string'],
         ], [
-            'otp.required' => 'ভেরিফিকেশন কোড দিন।',
-            'otp.size' => 'কোডটি ৪ ডিজিটের হতে হবে।',
+            'email.required' => 'ইমেইল দিতে হবে।',
+            'otp.required' => 'ভেরিফিকেশন কোড দিতে হবে।',
         ]);
 
-        $email = Str::lower(trim($request->email));
-        $pending = Cache::get("pending_register_{$email}");
+        $cachedOtp = Cache::get($this->otpKey($validated['email']));
+        $payload = Cache::get($this->payloadKey($validated['email']));
 
-        if (!$pending) {
+        if (! $cachedOtp || ! $payload) {
             throw ValidationException::withMessages([
-                'otp' => ['ওটিপির মেয়াদ শেষ। পুনরায় চেষ্টা করুন।'],
+                'otp' => ['কোডের মেয়াদ শেষ হয়ে গেছে, আবার চেষ্টা করুন।'],
             ]);
         }
 
-        if ($request->otp !== $pending['otp']) {
+        if ($cachedOtp !== $validated['otp']) {
             throw ValidationException::withMessages([
-                'otp' => ['ভেরিফিকেশন কোডটি সঠিক নয়।'],
+                'otp' => ['কোডটি সঠিক নয়।'],
             ]);
         }
 
-        try {
-            $user = DB::transaction(function () use ($pending) {
-                $user = User::create([
-                    'name' => $pending['name'],
-                    'email' => $pending['email'],
-                    'password' => Hash::make($pending['password']),
-                    'email_verified_at' => now(),
-                ]);
+        $user = User::create([
+            'name' => $payload['name'],
+            'email' => $validated['email'],
+            'password' => $payload['password'],
+            'email_verified_at' => now(),
+        ]);
 
-                // Role assign (Spatie Permission থাকলে)
-                if (method_exists($user, 'assignRole')) {
-                    $user->assignRole('user');
-                }
+        Cache::forget($this->otpKey($validated['email']));
+        Cache::forget($this->payloadKey($validated['email']));
 
-                return $user;
-            });
-
-            Cache::forget("pending_register_{$email}");
-
-            // Token তৈরি (Sanctum)
-            $token = $user->createToken('auth_token')->plainTextToken;
-
-            // --- Multi-user cookie logic (optional for API) ---
-            // Frontend থেকে cookie ম্যানেজ করা ভালো। Backend থেকে চাইলে:
-            // Cookie::queue(...) ইত্যাদি
-
-            return response()->json([
-                'message' => 'অ্যাকাউন্ট সফলভাবে তৈরি হয়েছে।',
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                ],
-                'token' => $token,
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'অ্যাকাউন্ট তৈরিতে কারিগরি সমস্যা হয়েছে।',
-            ], 500);
-        }
-    }
-
-    // Optional: Resend OTP
-    public function resendOtp(Request $request)
-    {
-        $request->validate(['email' => 'required|email']);
-
-        $email = Str::lower(trim($request->email));
-        $pending = Cache::get("pending_register_{$email}");
-
-        if (!$pending) {
-            return response()->json(['message' => 'কোনো pending রেজিস্ট্রেশন পাওয়া যায়নি।'], 404);
-        }
-
-        $otp = (string) rand(1000, 9999);
-        $pending['otp'] = $otp;
-
-        Cache::put("pending_register_{$email}", $pending, now()->addMinutes(10));
-
-        Mail::to($email)->send(new OtpMail($otp));
-
-        return response()->json(['message' => 'নতুন কোড পাঠানো হয়েছে।']);
+        return response()->json([
+            'success' => true,
+            'message' => 'অ্যাকাউন্ট তৈরি হয়েছে।',
+            'token' => $user->createToken('auth_token')->plainTextToken,
+            'user' => $user->only(['id', 'name', 'email', 'slug', 'avatar_url']),
+        ]);
     }
 }

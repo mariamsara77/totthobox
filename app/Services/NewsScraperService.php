@@ -819,12 +819,21 @@ class NewsScraperService
             try {
                 $response = Http::timeout($timeout)
                     ->withHeaders([
-                        'User-Agent' => $this->randomUserAgent(),
-                        'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                        'Accept-Language' => 'en-US,en;q=0.9,bn;q=0.8',
-                        'Accept-Encoding' => 'gzip, deflate, br',
-                        'Cache-Control' => 'no-cache',
-                    ])
+    'User-Agent' => $this->randomUserAgent(),
+    'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+    'Accept-Language' => 'bn-BD,bn;q=0.9,en-US;q=0.8,en;q=0.7',
+    'Accept-Encoding' => 'gzip, deflate, br',
+    'Cache-Control' => 'max-age=0',
+    'Sec-Ch-Ua' => '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+    'Sec-Ch-Ua-Mobile' => '?0',
+    'Sec-Ch-Ua-Platform' => '"Windows"',
+    'Sec-Fetch-Dest' => 'document',
+    'Sec-Fetch-Mode' => 'navigate',
+    'Sec-Fetch-Site' => 'none',
+    'Sec-Fetch-User' => '?1',
+    'Upgrade-Insecure-Requests' => '1',
+    'Referer' => 'https://www.google.com/',
+])
                     ->get($url);
 
                 if ($response->successful()) {

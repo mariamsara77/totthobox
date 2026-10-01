@@ -12,59 +12,56 @@ use Spatie\Activitylog\Models\Activity;
 class IntroBdController extends Controller
 {
     // GET /api/intro-bd?search=
-    public function index(Request $request)
-    {
-        $search = trim((string) $request->get('search', ''));
+   public function index(Request $request)
+{
+    $search = trim((string) $request->get('search', ''));
 
-        $all = Cache::remember('intro_bd_list_v5', now()->addHours(6), function () {
-            return IntroBd::query()
-                ->with(['media'])
-                ->latest('id')
-                ->get()
-                ->map(fn ($item) => $this->transformListItem($item));
-        });
+    $all = Cache::remember('intro_bd_list_v8', now()->addHours(6), function () {
+        return IntroBd::query()
+            ->with(['media'])
+            ->orderBy('sort_order')
+            ->orderBy('category_order')
+            ->orderBy('title')
+            ->get()
+            ->map(fn ($item) => $this->transformListItem($item));
+    });
 
-        if ($search !== '') {
-            $term = mb_strtolower($search, 'UTF-8');
-            $all = $all->filter(function ($item) use ($term) {
-                return str_contains(mb_strtolower($item['title'] ?? '', 'UTF-8'), $term)
-                    || str_contains(mb_strtolower(strip_tags($item['description'] ?? ''), 'UTF-8'), $term)
-                    || str_contains(mb_strtolower($item['intro_category'] ?? '', 'UTF-8'), $term);
-            })->values();
-        }
-
-        $grouped = $all->groupBy(fn ($item) => $item['intro_category'] ?: 'সাধারণ তথ্য');
-
-        return response()->json([
-            'data'  => $grouped,
-            'total' => $all->count(),
-        ]);
+    if ($search !== '') {
+        $term = mb_strtolower($search, 'UTF-8');
+        $all = $all->filter(function ($item) use ($term) {
+            return str_contains(mb_strtolower($item['title'] ?? '', 'UTF-8'), $term)
+                || str_contains(mb_strtolower(strip_tags($item['description'] ?? ''), 'UTF-8'), $term)
+                || str_contains(mb_strtolower($item['intro_category'] ?? '', 'UTF-8'), $term);
+        })->values();
     }
 
-    // GET /api/intro-bd/{slug}  — AppResource show-এর মতো
+    $grouped = $all->groupBy(fn ($item) => $item['intro_category'] ?: 'সাধারণ তথ্য');
+
+    return response()->json([
+        'data'  => $grouped,
+        'total' => $all->count(),
+    ]);
+}
+
+    // GET /api/intro-bd/{slug}
     public function show(string $slug)
-    {
-        $item = Cache::remember("intro_bd_show_{$slug}", 3600, function () use ($slug) {
-            return IntroBd::with(['media'])
-                ->where(function ($q) use ($slug) {
-                    $q->where('slug', $slug)->orWhere('id', $slug);
-                })
-                ->first();
-        });
+{
+    $item = IntroBd::with(['media'])
+        ->where(function ($q) use ($slug) {
+            $q->where('slug', $slug)->orWhere('id', $slug);
+        })
+        ->first();
 
-        if (!$item) {
-            return response()->json(['message' => 'Not found'], 404);
-        }
-
-        // Cache থেকে আসা model — reactions fresh রাখতে reload
-        $item = IntroBd::with(['media'])->find($item->id);
-
-        views($item)->record();
-
-        return response()->json([
-            'data' => $this->transformShowItem($item),
-        ]);
+    if (!$item) {
+        return response()->json(['message' => 'Not found'], 404);
     }
+
+    views($item)->record();
+
+    return response()->json([
+        'data' => $this->transformShowItem($item),
+    ]);
+}
 
     // GET /api/intro-bd/creators
     public function creators()
@@ -80,12 +77,11 @@ class IntroBdController extends Controller
                 ->whereIn('id', $causerIds)
                 ->select(['id', 'name', 'avatar', 'slug', 'email_verified_at', 'last_active_at', 'profession'])
                 ->with(['media'])
-                ->get();
+                ->get()
+                ->map(fn ($u) => $this->transformCreator($u));
         });
 
-        return response()->json([
-            'data' => $creators->map(fn ($user) => $this->transformCreator($user)),
-        ]);
+        return response()->json(['data' => $creators]);
     }
 
     // GET /api/intro-bd/{id}/creators
@@ -103,95 +99,125 @@ class IntroBdController extends Controller
                 ->whereIn('id', $causerIds)
                 ->select(['id', 'name', 'avatar', 'slug', 'email_verified_at', 'last_active_at', 'profession'])
                 ->with(['media'])
-                ->get();
+                ->get()
+                ->map(fn ($u) => $this->transformCreator($u));
         });
 
-        return response()->json([
-            'data' => $creators->map(fn ($user) => $this->transformCreator($user)),
-        ]);
+        return response()->json(['data' => $creators]);
     }
 
-    // POST /api/intro-bd/{id}/react  — AppResource::react exact copy
+    // POST /api/intro-bd/{id}/react
     public function react(Request $request, int $id)
     {
         $request->validate(['type' => 'required|in:like,dislike']);
+
+        if (!auth()->check()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'লগইন করা প্রয়োজন',
+            ], 401);
+        }
 
         $item = IntroBd::findOrFail($id);
         $item->react($request->type);
         $item->refresh();
 
-        // Show cache clear (reload-এ পুরনো count যাতে না আসে)
-        Cache::forget("intro_bd_show_{$item->slug}");
-        Cache::forget("intro_bd_show_{$item->id}");
-
         return response()->json([
-            'like_count'    => $item->countReaction('like'),
-            'dislike_count' => $item->countReaction('dislike'),
-            'has_like'      => $item->hasReaction('like'),
-            'has_dislike'   => $item->hasReaction('dislike'),
+            'success'           => true,
+            'like_count'        => $item->countReaction('like'),
+            'dislike_count'     => $item->countReaction('dislike'),
+            'user_has_liked'    => $item->hasReaction('like'),
+            'user_has_disliked' => $item->hasReaction('dislike'),
         ]);
     }
 
-    // GET /api/intro-bd/{id}/reaction-status  — AppResource exact copy
     public function reactionStatus(int $id)
     {
         $item = IntroBd::findOrFail($id);
 
+        $userHasLiked    = false;
+        $userHasDisliked = false;
+
+        if (auth()->check()) {
+            $userHasLiked    = $item->hasReaction('like');
+            $userHasDisliked = $item->hasReaction('dislike');
+        }
+
         return response()->json([
-            'has_like'    => auth()->check() ? $item->hasReaction('like') : false,
-            'has_dislike' => auth()->check() ? $item->hasReaction('dislike') : false,
+            'success'           => true,
+            'user_has_liked'    => $userHasLiked,
+            'user_has_disliked' => $userHasDisliked,
+            'like_count'        => $item->countReaction('like'),
+            'dislike_count'     => $item->countReaction('dislike'),
         ]);
     }
 
-    // ---------- Helpers ----------
+    // ---------- Transformers ----------
 
     private function transformListItem(IntroBd $item): array
-    {
-        return [
-            'id'             => $item->id,
-            'title'          => $item->title,
-            'slug'           => $item->slug,
-            'intro_category' => $item->intro_category,
-            'description'    => $item->description,
-            'image_url'      => $item->getFirstMediaUrl('intro_images', 'thumb')
-                                ?: $item->getFirstMediaUrl('intro_images')
-                                ?: $item->getFirstMediaUrl('images'),
-        ];
+{
+    $imageUrl = $item->getFirstMediaUrl('intro_images', 'thumb')
+        ?: $item->getFirstMediaUrl('intro_images')
+        ?: $item->getFirstMediaUrl('default', 'thumb')
+        ?: $item->getFirstMediaUrl('default');
+
+    return [
+        'id'             => $item->id,
+        'title'          => $item->title,
+        'slug'           => $item->slug,
+        'intro_category' => $item->intro_category,
+        'description'    => $item->description,
+        'image_url'      => $imageUrl,
+    ];
+}
+
+ private function transformShowItem(IntroBd $item): array
+{
+    // সরাসরি media relationship থেকে নাও (সবচেয়ে নির্ভরযোগ্য)
+    $images = $item->media
+        ->where('collection_name', 'intro_images')
+        ->map(function ($media) {
+            return [
+                'url'     => $media->getUrl(),
+                'caption' => $media->getCustomProperty('caption') ?? null,
+                'thumb'   => $media->hasGeneratedConversion('thumb') 
+                                ? $media->getUrl('thumb') 
+                                : $media->getUrl(),
+            ];
+        })
+        ->values()
+        ->toArray();
+
+    // যদি intro_images না পায়, তাহলে সব মিডিয়া নাও
+    if (empty($images)) {
+        $images = $item->media->map(function ($media) {
+            return [
+                'url'     => $media->getUrl(),
+                'caption' => $media->getCustomProperty('caption') ?? null,
+                'thumb'   => $media->hasGeneratedConversion('thumb') 
+                                ? $media->getUrl('thumb') 
+                                : $media->getUrl(),
+            ];
+        })->values()->toArray();
     }
 
-    // AppResource transformApp($app, true) এর মতো
-    private function transformShowItem(IntroBd $item): array
-    {
-        return [
-            'id'             => $item->id,
-            'title'          => $item->title,
-            'slug'           => $item->slug,
-            'intro_category' => $item->intro_category,
-            'description'    => $item->description,
-            'image_url'      => $item->getFirstMediaUrl('intro_images')
-                                ?: $item->getFirstMediaUrl('images'),
-            'views_count'    => views($item)->count(),
-            'views_count_bn' => function_exists('bn_num')
-                ? bn_num(views($item)->count())
-                : views($item)->count(),
-
-            // AppResource full transform-এর মতো flat fields
-            'like_count'    => $item->countReaction('like'),
-            'dislike_count' => $item->countReaction('dislike'),
-            'has_like'      => auth()->check() ? $item->hasReaction('like') : false,
-            'has_dislike'   => auth()->check() ? $item->hasReaction('dislike') : false,
-
-            // Frontend InteractiveActions-এর জন্য nested-ও রাখুন
-            'reactions' => [
-                'like_count'        => $item->countReaction('like'),
-                'dislike_count'     => $item->countReaction('dislike'),
-                'user_has_liked'    => auth()->check() ? $item->hasReaction('like') : false,
-                'user_has_disliked' => auth()->check() ? $item->hasReaction('dislike') : false,
-            ],
-
-            'created_at' => $item->created_at,
-        ];
-    }
+    return [
+        'id'             => $item->id,
+        'title'          => $item->title,
+        'slug'           => $item->slug,
+        'intro_category' => $item->intro_category,
+        'description'    => $item->description,
+        'image_url'      => $images[0]['url'] ?? null,
+        'images'         => $images,
+        'views_count'    => views($item)->count(),
+        'reactions' => [
+            'like_count'        => $item->countReaction('like'),
+            'dislike_count'     => $item->countReaction('dislike'),
+            'user_has_liked'    => false,
+            'user_has_disliked' => false,
+        ],
+    ];
+}
 
     private function transformCreator(User $user): array
     {

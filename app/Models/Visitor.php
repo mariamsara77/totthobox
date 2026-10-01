@@ -27,6 +27,7 @@ class Visitor extends Model
         'city_name',
         'timezone',
         'is_pwa',
+        'has_installed_pwa',
         'app_version',
         'is_bot',
         'first_seen_at',
@@ -35,6 +36,7 @@ class Visitor extends Model
 
     protected $casts = [
         'is_pwa' => 'boolean',
+        'has_installed_pwa' => 'boolean',
         'is_bot' => 'boolean',
         'first_seen_at' => 'datetime',
         'last_seen_at' => 'datetime',
