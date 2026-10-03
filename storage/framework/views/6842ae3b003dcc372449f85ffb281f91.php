@@ -37,7 +37,7 @@ use Flux\Flux;
 <?php unset($__componentOriginal42da61123f891e63201d7be28f403427); ?>
 <?php endif; ?>
 
-<?php if (! $__env->hasRenderedOnce('5927b050-3644-4ee4-96a3-ac51a43a8280')): $__env->markAsRenderedOnce('5927b050-3644-4ee4-96a3-ac51a43a8280'); ?>
+<?php if (! $__env->hasRenderedOnce('da132765-b405-4f63-93a5-661a3a69c815')): $__env->markAsRenderedOnce('da132765-b405-4f63-93a5-661a3a69c815'); ?>
     <?php $__env->startPush('styles'); ?>
         <style>
             @keyframes blink {
