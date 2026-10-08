@@ -5,6 +5,7 @@ on:
     branches:
       - develop
       - main
+      - audit-hardening-2026
   pull_request:
     branches:
       - develop
