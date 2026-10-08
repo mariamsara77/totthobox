@@ -111,8 +111,15 @@ class TrackingController extends Controller
                 return response()->json(['status' => 'ignored'], 200);
             }
 
-            $category = $request->input('category', 'interaction');
-            $action   = $request->input('action', 'click');
+            $categoryInput = $request->input('category');
+            $actionInput = $request->input('action');
+
+            $category = is_string($categoryInput) && trim($categoryInput) !== ''
+                ? trim($categoryInput)
+                : 'interaction';
+            $action = is_string($actionInput) && trim($actionInput) !== ''
+                ? trim($actionInput)
+                : 'click';
             $payload  = $request->input('payload', []);
             if ($request->filled('event_uuid') && is_string($request->input('event_uuid'))) {
                 $payload['event_uuid'] = $request->input('event_uuid');
