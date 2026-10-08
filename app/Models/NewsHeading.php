@@ -159,18 +159,20 @@ class NewsHeading extends Model
     public static function availableSources(): Collection
     {
         return Cache::remember('news_sidebar_sources_v1', now()->addMinutes(10), function () {
-                return self::selectRaw('source_key, source_name, COUNT(*) as count')
-                    ->groupBy('source_key', 'source_name')
-                    ->orderByDesc('count')
-                    ->get()
-                    ->map(fn ($row) => [
-                        'key' => $row->source_key,
-                        'name' => $row->source_name,
-                        'count' => (int) $row->count,
-                    ]);
-            });
-    }
+            $counts = self::selectRaw('source_key, COUNT(*) as count')
+                ->groupBy('source_key')
+                ->pluck('count', 'source_key');
 
+            return collect(config('news_sources', []))
+                ->sortBy(fn (array $source) => sprintf('%s-%03d', $source['language'], $source['order']))
+                ->values()
+                ->map(fn (array $source) => [
+                    'key' => $source['key'],
+                    'name' => $source['name'],
+                    'count' => (int) ($counts[$source['key']] ?? 0),
+                ]);
+        });
+    }
     // ─── ★ Cross-source coverage (AdSense-এর জন্য "real value-add" ফিচার) ──────
 
     /**
