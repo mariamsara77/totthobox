@@ -310,6 +310,13 @@ Route::prefix('ai')->group(function () {
         Route::post('/edit-regenerate', [ChatController::class, 'editAndRegenerate']);
     });
 });
+Route::middleware(['throttle:120,1'])->prefix('news')->group(function () {
+    Route::get('/sources', [NewsController::class, 'sources']);
+    Route::get('/', [NewsController::class, 'index']);
+    Route::get('/{slug}', [NewsController::class, 'show'])
+        ->where('slug', '[A-Za-z0-9][A-Za-z0-9\\-]*');
+});
+
 Route::prefix('sidebar')->group(function () {
     Route::get('/news-sources', [SidebarController::class, 'newsSources']);
     Route::get('/buysell-categories', [SidebarController::class, 'buysellCategories']);
