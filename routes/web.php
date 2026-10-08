@@ -11,7 +11,7 @@ use Livewire\Volt\Volt;
 | Public & Content Routes (Cached)
 |--------------------------------------------------------------------------
 */
-Route::middleware(['responsecache', 'can:view-dashboard'])->group(function () {
+Route::middleware(['responsecache'])->group(function () {
     // Basic Routes
     Route::view('/', 'welcome')->name('home');
     Volt::route('/privacy-policy', 'global.privacy-policy')->name('privacy.policy');
