@@ -497,10 +497,11 @@ class NewsScraperService
 
         // ক্যাশ ক্লিয়ার করার লজিক এখানে
         if ($persisted > 0) {
-            // ট্যাগ ব্যবহার করলে শুধু এই নির্দিষ্ট ক্যাশটিই ক্লিয়ার হবে
-            Cache::tags(['news_sidebar'])->forget('sources');
+            Cache::forget('news_sidebar_counts_v1');
+            Cache::forget('news_sidebar_grouped_v4');
+            Cache::forget('news_sidebar_sources_v1');
 
-            Log::info("[{$source['key']}] Cache cleared successfully.");
+            Log::info("[{$source['key']}] News sidebar caches cleared.");
         }
     }
 
@@ -923,7 +924,7 @@ class NewsScraperService
 
     /**
      * Fetch og:image / twitter:image from the article's <head> only.
-     * Reads first 8 KB via a HEAD-then-GET strategy to keep latency low.
+     * Reads only the first 8 KB of the returned document head to keep parsing lightweight.
      * Only called for genuinely new articles (not existing DB records).
      */
     protected function getMetaImage(string $url): ?string
