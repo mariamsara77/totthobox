@@ -1,19 +1,23 @@
 <?php
 
-namespace AppHttpControllersApi;
+namespace App\Http\Controllers\Api;
 
-use AppHttpControllersController;
-use AppModelsNewsHeading;
-use IlluminateHttpRequest;
-use IlluminateSupportFacadesCache;
-use IlluminateValidationRule;
+use App\Http\Controllers\Controller;
+use App\Models\NewsHeading;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class NewsController extends Controller
 {
     public function index(Request $request)
     {
         $data = $request->validate([
-            'source' => ['nullable', 'string', 'max:64', Rule::in(collect(config('news_sources', []))->pluck('key')->all())],
+            'source' => [
+                'nullable',
+                'string',
+                'max:64',
+                Rule::in(collect(config('news_sources', []))->pluck('key')->all()),
+            ],
             'language' => ['nullable', Rule::in(['bn', 'en'])],
             'category' => ['nullable', 'string', 'max:50'],
             'search' => ['nullable', 'string', 'max:160'],
@@ -125,9 +129,7 @@ class NewsController extends Controller
     public function sources()
     {
         $configured = collect(config('news_sources', []))
-            ->sortBy(function (array $source) {
-                return sprintf('%s-%03d', $source['language'], $source['order']);
-            })
+            ->sortBy(fn (array $source) => sprintf('%s-%03d', $source['language'], $source['order']))
             ->values();
 
         $counts = NewsHeading::query()
