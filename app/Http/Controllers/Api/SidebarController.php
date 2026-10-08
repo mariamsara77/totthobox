@@ -10,7 +10,6 @@ use App\Models\SignCategory;
 use App\Models\ExcelTutorial;
 use App\Models\AppResource;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 
 class SidebarController extends Controller
 {
@@ -19,14 +18,28 @@ class SidebarController extends Controller
      */
     public function newsSources()
     {
-        $data = Cache::remember('news_sidebar_grouped_v4', now()->addMinutes(30), function () {
+        $configured = collect(config('news_sources', []))
+            ->sortBy(fn (array $source) => sprintf('%s-%03d', $source['language'], $source['order']))
+            ->values();
+
+        $counts = Cache::remember('news_sidebar_counts_v1', now()->addMinutes(5), function () {
             return NewsHeading::query()
-                ->select('source_name', 'source_key', 'language', DB::raw('COUNT(*) as total'))
-                ->groupBy('source_key', 'source_name', 'language')
-                ->get()
-                ->sortBy('source_name')
-                ->groupBy('language');
+                ->selectRaw('source_key, COUNT(*) as total')
+                ->groupBy('source_key')
+                ->pluck('total', 'source_key');
         });
+
+        $data = $configured
+            ->map(function (array $source) use ($counts) {
+                return [
+                    'source_name' => $source['name'],
+                    'source_key' => $source['key'],
+                    'language' => $source['language'],
+                    'home_url' => $source['home_url'],
+                    'total' => (int) ($counts[$source['key']] ?? 0),
+                ];
+            })
+            ->groupBy('language');
 
         return response()->json($data);
     }
