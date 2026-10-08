@@ -94,9 +94,10 @@ class VisitorTrackingService
             VisitorEvent::create([
                 'session_id'     => $session?->id,
                 'visitor_id'     => $visitor->id,
-                'event_category' => $category,
-                'event_action'   => $action,
-                'event_label'    => $label,
+                'event_uuid'     => $payload['event_uuid'] ?? (string) Str::uuid(),
+                'event_category' => Str::limit($category, 50, ''),
+                'event_action'   => Str::limit($action, 50, ''),
+                'event_label'    => $label ? Str::limit($label, 100, '') : null,
                 'payload'        => $payload,
                 'created_at'     => now(),
             ]);
