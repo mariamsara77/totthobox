@@ -85,6 +85,23 @@ class TrackingController extends Controller
      */
     public function trackEvent(Request $request): JsonResponse
     {
+        $request->validate([
+            'event_uuid' => ['nullable', 'uuid'],
+            'category' => ['nullable', 'string', 'max:50'],
+            'action' => ['nullable', 'string', 'max:50'],
+            'label' => ['nullable', 'string', 'max:100'],
+            'payload' => ['nullable', 'array', 'max:100'],
+        ]);
+
+        $payload = $request->input('payload', []);
+
+        if (strlen(json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '') > 32768) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Tracking payload too large.',
+            ], 413);
+        }
+
         try {
             /** @var Visitor|null $visitor */
             $visitor = $request->attributes->get('current_visitor')
@@ -97,6 +114,9 @@ class TrackingController extends Controller
             $category = $request->input('category', 'interaction');
             $action   = $request->input('action', 'click');
             $payload  = $request->input('payload', []);
+            if ($request->filled('event_uuid') && is_string($request->input('event_uuid'))) {
+                $payload['event_uuid'] = $request->input('event_uuid');
+            }
             $label    = $payload['label'] ?? $request->input('label');
 
             // System event → device specs আপডেট
@@ -120,8 +140,7 @@ class TrackingController extends Controller
                 'line'    => $e->getLine(),
             ]);
 
-            // সবসময় 200 দাও যাতে ক্লায়েন্ট রিট্রাই না করে
-            return response()->json(['status' => 'error'], 200);
+            return response()->json(['status' => 'error'], 500);
         }
     }
 
