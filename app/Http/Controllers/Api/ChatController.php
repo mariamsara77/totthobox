@@ -13,6 +13,11 @@ use Illuminate\Support\Str;
 
 class ChatController extends Controller
 {
+    private const USER_RATE_LIMIT = 100;
+    private const USER_RATE_WINDOW = 3600;
+    private const MAX_IMAGE_BASE64_CHARS = 6_000_000;
+    private const MAX_IMAGE_BYTES = 4_500_000;
+
     public function __construct(private AiService $ai) {}
 
     // =========================================================
@@ -135,7 +140,7 @@ public function sessions(Request $request)
             }
         }
 
-        if ($content === '' && !$imageBase64)
+        if ($content === '' && !$imageBase64) {
             return response()->json([
                 'success' => false,
                 'message' => 'প্রশ্ন বা ছবি দিন',
