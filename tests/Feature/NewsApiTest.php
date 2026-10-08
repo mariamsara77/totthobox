@@ -60,5 +60,7 @@ it('returns only discovery-safe fields and supports source filtering', function 
 
     expect($response->json('data.0'))
         ->not->toHaveKey('content')
-        ->not->toHaveKey('body');
+        ->not->toHaveKey('body')
+        ->not->toHaveKey('summary')
+        ->not->toHaveKey('image_url');
 });
