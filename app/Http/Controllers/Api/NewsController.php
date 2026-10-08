@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\NewsHeading;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\Rule;
 
 class NewsController extends Controller
@@ -28,18 +29,17 @@ class NewsController extends Controller
         ]);
 
         $perPage = (int) ($data['per_page'] ?? 18);
+        $hours = (int) ($data['hours'] ?? 168);
 
         $query = NewsHeading::query()
             ->select([
                 'id',
                 'title',
-                'summary',
                 'slug',
                 'source_link',
                 'source_name',
                 'source_key',
                 'category',
-                'image_url',
                 'language',
                 'published_at',
                 'story_group',
@@ -66,9 +66,7 @@ class NewsController extends Controller
             $query->where('title', 'like', '%'.$term.'%');
         }
 
-        if (! empty($data['hours'])) {
-            $query->recent((int) $data['hours']);
-        }
+        $query->recent($hours);
 
         if ($request->boolean('diverse')) {
             $query->diversified(5);
@@ -98,13 +96,11 @@ class NewsController extends Controller
                 return [
                     'id' => $item->id,
                     'title' => $item->title,
-                    'summary' => $item->summary,
                     'slug' => $item->slug,
                     'source_url' => $item->source_link,
                     'source_name' => $item->source_name,
                     'source_key' => $item->source_key,
                     'category' => $item->category,
-                    'image_url' => $item->image_url,
                     'language' => $item->language,
                     'published_at' => $item->published_at?->toIso8601String(),
                     'story_group' => $item->story_group,
@@ -131,26 +127,30 @@ class NewsController extends Controller
 
     public function sources()
     {
-        $configured = collect(config('news_sources', []))
+        $data = Cache::remember('news_api_sources_v1', now()->addMinutes(5), function () {
+            $configured = collect(config('news_sources', []))
             ->sortBy(fn (array $source) => sprintf('%s-%03d', $source['language'], $source['order']))
             ->values();
 
-        $counts = NewsHeading::query()
-            ->selectRaw('source_key, COUNT(*) as total')
-            ->groupBy('source_key')
-            ->pluck('total', 'source_key');
+            $counts = NewsHeading::query()
+                ->selectRaw('source_key, COUNT(*) as total')
+                ->groupBy('source_key')
+                ->pluck('total', 'source_key');
 
-        $result = $configured->map(function (array $source) use ($counts) {
-            return [
-                'key' => $source['key'],
-                'name' => $source['name'],
-                'language' => $source['language'],
-                'home_url' => $source['home_url'],
-                'total' => (int) ($counts[$source['key']] ?? 0),
-            ];
+            $result = $configured->map(function (array $source) use ($counts) {
+                return [
+                    'key' => $source['key'],
+                    'name' => $source['name'],
+                    'language' => $source['language'],
+                    'home_url' => $source['home_url'],
+                    'total' => (int) ($counts[$source['key']] ?? 0),
+                ];
+            });
+
+            return $result->groupBy('language');
         });
 
-        return response()->json($result->groupBy('language'));
+        return response()->json($data)->header('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
     }
 
     public function show(string $slug)
@@ -159,14 +159,12 @@ class NewsController extends Controller
             ->select([
                 'id',
                 'title',
-                'summary',
-                'slug',
+                    'slug',
                 'source_link',
                 'source_name',
                 'source_key',
                 'category',
-                'image_url',
-                'language',
+                    'language',
                 'published_at',
                 'story_group',
             ])
@@ -215,13 +213,11 @@ class NewsController extends Controller
             'data' => [
                 'id' => $item->id,
                 'title' => $item->title,
-                'summary' => $item->summary,
                 'slug' => $item->slug,
                 'source_url' => $item->source_link,
                 'source_name' => $item->source_name,
                 'source_key' => $item->source_key,
                 'category' => $item->category,
-                'image_url' => $item->image_url,
                 'language' => $item->language,
                 'published_at' => $item->published_at?->toIso8601String(),
                 'story_group' => $item->story_group,
