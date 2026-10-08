@@ -2,7 +2,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">
     <url>
     <loc>https://admin.totthobox.com</loc>
-    <lastmod>2026-10-03T00:10:02+06:00</lastmod>
+    <lastmod>2026-10-08T00:10:02+06:00</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
             </url>
@@ -243,7 +243,7 @@
             </url>
     <url>
     <loc>https://admin.totthobox.com/users/mariam-sara-yapwn</loc>
-    <lastmod>2026-10-02T23:42:42+06:00</lastmod>
+    <lastmod>2026-10-07T22:26:49+06:00</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
             </url>
@@ -1142,6 +1142,30 @@
     <priority>0.8</priority>
             </url>
     <url>
+    <loc>https://admin.totthobox.com/bangladesh/history/1974-famine-and-political-crisis</loc>
+    <lastmod>2026-10-04T19:09:45+06:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>https://admin.totthobox.com/bangladesh/history/military-rule-in-bangladesh-1975</loc>
+    <lastmod>2026-10-04T19:23:46+06:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>https://admin.totthobox.com/bangladesh/history/rabindra-centenary-1961-cultural-resistance</loc>
+    <lastmod>2026-10-04T19:45:01+06:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>https://admin.totthobox.com/bangladesh/history/digitization-and-mega-projects-bangladesh</loc>
+    <lastmod>2026-10-04T19:58:46+06:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
     <loc>https://admin.totthobox.com/bangladesh/establishment/lalbag-kella</loc>
     <lastmod>2026-08-08T00:30:23+06:00</lastmod>
     <changefreq>weekly</changefreq>
@@ -1174,6 +1198,132 @@
     <url>
     <loc>https://admin.totthobox.com/bangladesh/establishment/islamic-university-kushtia</loc>
     <lastmod>2026-08-08T01:16:26+06:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>https://admin.totthobox.com/bangladesh/establishment/gnvbn-bangladeser-prdhanmntreer-srkari-basvbn</loc>
+    <lastmod>2026-10-05T13:56:42+06:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>https://admin.totthobox.com/bangladesh/establishment/jateey-sngsd-vbn-bangladeser-srwocc-ainsva</loc>
+    <lastmod>2026-10-05T13:56:26+06:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>https://admin.totthobox.com/bangladesh/establishment/banglades-scibaly-kendreey-prsasnik-karzaly</loc>
+    <lastmod>2026-10-05T14:51:43+06:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>https://admin.totthobox.com/bangladesh/establishment/banglades-bzangk-kendreey-bzangk</loc>
+    <lastmod>2026-10-05T16:15:48+06:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>https://admin.totthobox.com/bangladesh/establishment/suprim-kort-srwocc-bicaralz</loc>
+    <lastmod>2026-10-05T16:28:05+06:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>https://admin.totthobox.com/bangladesh/establishment/central-shaheed-minar</loc>
+    <lastmod>2026-10-05T19:17:02+06:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>https://admin.totthobox.com/bangladesh/establishment/shat-gmbuj-msjid</loc>
+    <lastmod>2026-10-05T21:59:22+06:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>https://admin.totthobox.com/bangladesh/establishment/mhasthangr</loc>
+    <lastmod>2026-10-06T19:33:47+06:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>https://admin.totthobox.com/bangladesh/establishment/paharpur-bouddh-bihar</loc>
+    <lastmod>2026-10-06T21:33:32+06:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>https://admin.totthobox.com/bangladesh/establishment/uttara-ganabhaban-dighapatia-palace</loc>
+    <lastmod>2026-10-06T21:37:23+06:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>https://admin.totthobox.com/bangladesh/establishment/panam-city</loc>
+    <lastmod>2026-10-06T21:46:28+06:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>https://admin.totthobox.com/bangladesh/establishment/mujibnagar-monument</loc>
+    <lastmod>2026-10-06T22:34:23+06:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>https://admin.totthobox.com/bangladesh/establishment/national-museum-bangladesh</loc>
+    <lastmod>2026-10-06T22:45:41+06:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>https://admin.totthobox.com/bangladesh/establishment/liberation-war-museum</loc>
+    <lastmod>2026-10-06T23:01:49+06:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>https://admin.totthobox.com/bangladesh/establishment/bangla-academy</loc>
+    <lastmod>2026-10-06T23:08:09+06:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>https://admin.totthobox.com/bangladesh/establishment/novo-theatre</loc>
+    <lastmod>2026-10-06T23:17:06+06:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>https://admin.totthobox.com/bangladesh/establishment/bangladesh-shilpakala-academy</loc>
+    <lastmod>2026-10-06T23:27:13+06:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>https://admin.totthobox.com/bangladesh/establishment/dhaka-university</loc>
+    <lastmod>2026-10-07T18:46:53+06:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>https://admin.totthobox.com/bangladesh/establishment/bangladesh-university-of-engineering-and-technology</loc>
+    <lastmod>2026-10-07T18:58:03+06:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>https://admin.totthobox.com/bangladesh/establishment/jahangirnagar-university</loc>
+    <lastmod>2026-10-07T19:08:23+06:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+            </url>
+    <url>
+    <loc>https://admin.totthobox.com/bangladesh/establishment/rajshahi-university</loc>
+    <lastmod>2026-10-07T19:37:00+06:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
             </url>
@@ -1611,19 +1761,19 @@
             </url>
     <url>
     <loc>https://admin.totthobox.com/software/bijoy-bayanno</loc>
-    <lastmod>2026-09-30T23:07:14+06:00</lastmod>
+    <lastmod>2026-10-08T00:00:35+06:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
             </url>
     <url>
     <loc>https://admin.totthobox.com/software/avro-keyborad</loc>
-    <lastmod>2026-09-20T19:34:57+06:00</lastmod>
+    <lastmod>2026-10-03T13:34:33+06:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
             </url>
     <url>
     <loc>https://admin.totthobox.com/software/proshika-shabda</loc>
-    <lastmod>2026-09-20T19:36:45+06:00</lastmod>
+    <lastmod>2026-10-07T22:11:57+06:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
             </url>
@@ -1641,7 +1791,7 @@
             </url>
     <url>
     <loc>https://admin.totthobox.com/software/nikosh-unicode-font</loc>
-    <lastmod>2026-09-30T21:46:54+06:00</lastmod>
+    <lastmod>2026-10-06T11:38:25+06:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
             </url>
@@ -1659,7 +1809,7 @@
             </url>
     <url>
     <loc>https://admin.totthobox.com/software/kalpurush-bangla-font</loc>
-    <lastmod>2026-09-30T09:07:36+06:00</lastmod>
+    <lastmod>2026-10-06T10:38:06+06:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
             </url>
@@ -1671,7 +1821,7 @@
             </url>
     <url>
     <loc>https://admin.totthobox.com/software/hind-siliguri-bangla-font</loc>
-    <lastmod>2026-09-20T19:48:08+06:00</lastmod>
+    <lastmod>2026-10-03T09:59:53+06:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
             </url>
@@ -1689,7 +1839,7 @@
             </url>
     <url>
     <loc>https://admin.totthobox.com/software/microsoft-office-2007</loc>
-    <lastmod>2026-09-25T18:10:21+06:00</lastmod>
+    <lastmod>2026-10-07T11:34:38+06:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
             </url>
