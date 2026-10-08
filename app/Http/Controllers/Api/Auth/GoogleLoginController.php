@@ -1,8 +1,9 @@
 <?php
 
-namespace App\Http\Controllers\Api\Auth;
+namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\Auth\GoogleAuthController;
 use App\Models\User;
 use Exception;
 use Illuminate\Http\RedirectResponse;
@@ -33,28 +34,24 @@ class GoogleLoginController extends Controller
                 ->stateless()
                 ->user();
 
-            $googleId = $googleUser->getId();
+            $googleId = trim((string) $googleUser->getId());
             $email = strtolower(trim((string) $googleUser->getEmail()));
 
-            if (!$googleId || !$email) {
+            if ($googleId === '' || $email === '') {
                 throw new Exception('Google did not return a valid identity.');
             }
 
             $user = DB::transaction(function () use ($googleUser, $googleId, $email) {
-
-                // First: Google identity must be unique.
                 $user = User::where('google_id', $googleId)->first();
 
-                if (!$user) {
-                    // Second: allow an existing email account to be linked.
+                if (! $user) {
                     $user = User::whereRaw('LOWER(email) = ?', [$email])->first();
                 }
 
                 if ($user) {
                     $user->forceFill([
-                        'google_id' => $googleId,
-                        'email_verified_at' =>
-                            $user->email_verified_at ?? now(),
+                        'google_id' => $user->google_id ?: $googleId,
+                        'email_verified_at' => $user->email_verified_at ?? now(),
                         'status' => $user->status ?: 'active',
                     ])->save();
 
@@ -77,24 +74,17 @@ class GoogleLoginController extends Controller
                 return $user;
             });
 
-            $token = $user
-                ->createToken('web-google')
-                ->plainTextToken;
+            $code = GoogleAuthController::issueExchangeCode($user);
 
             return redirect()->away(
-                $frontendUrl . '/auth/google/callback?' .
-                http_build_query([
-                    'token' => $token,
-                ])
+                $frontendUrl . '/auth/callback?' .
+                http_build_query(['code' => $code])
             );
-
         } catch (Exception $e) {
-
             report($e);
 
             return redirect()->away(
-                $frontendUrl .
-                '/auth/google/callback?error=google_auth_failed'
+                $frontendUrl . '/auth/callback?error=google_auth_failed'
             );
         }
     }
