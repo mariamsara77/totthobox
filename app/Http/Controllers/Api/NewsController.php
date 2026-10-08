@@ -72,10 +72,19 @@ class NewsController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
-        $sourceCounts = collect($page->items())
-            ->filter(fn ($item) => filled($item->story_group))
-            ->groupBy('story_group')
-            ->map(fn ($items) => $items->pluck('source_key')->unique()->count());
+        $storyGroups = collect($page->items())
+            ->pluck('story_group')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $sourceCounts = $storyGroups->isEmpty()
+            ? collect()
+            : NewsHeading::query()
+                ->whereIn('story_group', $storyGroups)
+                ->get(['story_group', 'source_key'])
+                ->groupBy('story_group')
+                ->map(fn ($items) => $items->pluck('source_key')->unique()->count());
 
         $items = collect($page->items())
             ->map(function (NewsHeading $item) use ($sourceCounts) {
