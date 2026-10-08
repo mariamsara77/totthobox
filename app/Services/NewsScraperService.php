@@ -500,6 +500,7 @@ class NewsScraperService
             Cache::forget('news_sidebar_counts_v1');
             Cache::forget('news_sidebar_grouped_v4');
             Cache::forget('news_sidebar_sources_v1');
+            Cache::forget('news_api_sources_v1');
 
             Log::info("[{$source['key']}] News sidebar caches cleared.");
         }
