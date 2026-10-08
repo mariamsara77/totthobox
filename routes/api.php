@@ -37,6 +37,7 @@ use App\Http\Controllers\Api\Auth\AccountController;
 use App\Http\Controllers\Api\PublicProfileController;
 use Illuminate\Support\Facades\Broadcast;
 use App\Http\Controllers\Api\ContactUsController;
+use App\Http\Controllers\Api\NewsController;
 
 
 
