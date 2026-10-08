@@ -9,6 +9,7 @@ use Google\Client;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
@@ -42,7 +43,7 @@ class GoogleLoginController extends Controller
                 throw new \RuntimeException('Google did not return a valid identity.');
             }
 
-            $user = \DB::transaction(function () use ($googleUser, $googleId, $email) {
+            $user = DB::transaction(function () use ($googleUser, $googleId, $email) {
                 $user = User::where('google_id', $googleId)->first();
 
                 if (! $user) {
