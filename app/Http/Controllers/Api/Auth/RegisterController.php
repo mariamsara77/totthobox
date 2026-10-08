@@ -3,22 +3,45 @@
 namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Mail\OtpMail;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class RegisterController extends Controller
 {
+    private const OTP_TTL_MINUTES = 10;
+    private const OTP_VERIFY_ATTEMPTS = 5;
+    private const OTP_RESEND_SECONDS = 60;
+
+    private function normalizedEmail(string $email): string
+    {
+        return strtolower(trim($email));
+    }
+
     private function otpKey(string $email): string
     {
-        return 'register_otp:'.strtolower($email);
+        return 'register_otp:' . $this->normalizedEmail($email);
     }
 
     private function payloadKey(string $email): string
     {
-        return 'register_payload:'.strtolower($email);
+        return 'register_payload:' . $this->normalizedEmail($email);
+    }
+
+    private function verifyThrottleKey(Request $request, string $email): string
+    {
+        return 'register_otp_verify:' . $request->ip() . ':' . $this->normalizedEmail($email);
+    }
+
+    private function sendThrottleKey(Request $request, string $email): string
+    {
+        return 'register_otp_send:' . $request->ip() . ':' . $this->normalizedEmail($email);
     }
 
     public function sendOtp(Request $request)
@@ -39,15 +62,38 @@ class RegisterController extends Controller
             'password.confirmed' => 'পাসওয়ার্ড মিলছে না।',
         ]);
 
+        $email = $this->normalizedEmail($validated['email']);
+        $sendKey = $this->sendThrottleKey($request, $email);
+
+        if (RateLimiter::tooManyAttempts($sendKey, 1)) {
+            return response()->json([
+                'message' => 'এক মিনিট পরে আবার কোড পাঠানোর চেষ্টা করুন।',
+            ], 429, [
+                'Retry-After' => (string) RateLimiter::availableIn($sendKey),
+            ]);
+        }
+
         $otp = (string) random_int(1000, 9999);
 
-        Cache::put($this->otpKey($validated['email']), $otp, now()->addMinutes(10));
-        Cache::put($this->payloadKey($validated['email']), [
-            'name' => $validated['name'],
+        Cache::put($this->otpKey($email), $otp, now()->addMinutes(self::OTP_TTL_MINUTES));
+        Cache::put($this->payloadKey($email), [
+            'name' => trim($validated['name']),
             'password' => Hash::make($validated['password']),
-        ], now()->addMinutes(10));
+        ], now()->addMinutes(self::OTP_TTL_MINUTES));
 
-        // TODO: Mail::to($validated['email'])->send(new \App\Mail\RegisterOtpMail($otp));
+        try {
+            Mail::to($email)->send(new OtpMail($otp));
+            RateLimiter::hit($sendKey, self::OTP_RESEND_SECONDS);
+        } catch (Throwable $e) {
+            Cache::forget($this->otpKey($email));
+            Cache::forget($this->payloadKey($email));
+
+            report($e);
+
+            return response()->json([
+                'message' => 'ভেরিফিকেশন কোড পাঠানো যায়নি। কিছুক্ষণ পরে আবার চেষ্টা করুন।',
+            ], 503);
+        }
 
         return response()->json([
             'success' => true,
@@ -57,11 +103,14 @@ class RegisterController extends Controller
 
     public function resendOtp(Request $request)
     {
-        $validated = $request->validate(['email' => ['required', 'email']], [
+        $validated = $request->validate([
+            'email' => ['required', 'email'],
+        ], [
             'email.required' => 'ইমেইল দিতে হবে।',
         ]);
 
-        $payload = Cache::get($this->payloadKey($validated['email']));
+        $email = $this->normalizedEmail($validated['email']);
+        $payload = Cache::get($this->payloadKey($email));
 
         if (! $payload) {
             throw ValidationException::withMessages([
@@ -69,11 +118,29 @@ class RegisterController extends Controller
             ]);
         }
 
-        $otp = (string) random_int(1000, 9999);
-        Cache::put($this->otpKey($validated['email']), $otp, now()->addMinutes(10));
-        Cache::put($this->payloadKey($validated['email']), $payload, now()->addMinutes(10));
+        $sendKey = $this->sendThrottleKey($request, $email);
 
-        // TODO: Mail::to($validated['email'])->send(new \App\Mail\RegisterOtpMail($otp));
+        if (RateLimiter::tooManyAttempts($sendKey, 1)) {
+            return response()->json([
+                'message' => 'এক মিনিট পরে আবার কোড পাঠানোর চেষ্টা করুন।',
+            ], 429, [
+                'Retry-After' => (string) RateLimiter::availableIn($sendKey),
+            ]);
+        }
+
+        $otp = (string) random_int(1000, 9999);
+        Cache::put($this->otpKey($email), $otp, now()->addMinutes(self::OTP_TTL_MINUTES));
+
+        try {
+            Mail::to($email)->send(new OtpMail($otp));
+            RateLimiter::hit($sendKey, self::OTP_RESEND_SECONDS);
+        } catch (Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'message' => 'নতুন কোড পাঠানো যায়নি। কিছুক্ষণ পরে আবার চেষ্টা করুন।',
+            ], 503);
+        }
 
         return response()->json([
             'success' => true,
@@ -85,14 +152,26 @@ class RegisterController extends Controller
     {
         $validated = $request->validate([
             'email' => ['required', 'email'],
-            'otp' => ['required', 'string'],
+            'otp' => ['required', 'digits:4'],
         ], [
             'email.required' => 'ইমেইল দিতে হবে।',
             'otp.required' => 'ভেরিফিকেশন কোড দিতে হবে।',
+            'otp.digits' => 'ভেরিফিকেশন কোড ৪ সংখ্যার হতে হবে।',
         ]);
 
-        $cachedOtp = Cache::get($this->otpKey($validated['email']));
-        $payload = Cache::get($this->payloadKey($validated['email']));
+        $email = $this->normalizedEmail($validated['email']);
+        $verifyKey = $this->verifyThrottleKey($request, $email);
+
+        if (RateLimiter::tooManyAttempts($verifyKey, self::OTP_VERIFY_ATTEMPTS)) {
+            return response()->json([
+                'message' => 'অনেকবার ভুল কোড দেওয়া হয়েছে। কিছুক্ষণ পরে আবার চেষ্টা করুন।',
+            ], 429, [
+                'Retry-After' => (string) RateLimiter::availableIn($verifyKey),
+            ]);
+        }
+
+        $cachedOtp = Cache::get($this->otpKey($email));
+        $payload = Cache::get($this->payloadKey($email));
 
         if (! $cachedOtp || ! $payload) {
             throw ValidationException::withMessages([
@@ -100,21 +179,30 @@ class RegisterController extends Controller
             ]);
         }
 
-        if ($cachedOtp !== $validated['otp']) {
+        if (! hash_equals((string) $cachedOtp, (string) $validated['otp'])) {
+            RateLimiter::hit($verifyKey, self::OTP_TTL_MINUTES * 60);
+
             throw ValidationException::withMessages([
                 'otp' => ['কোডটি সঠিক নয়।'],
             ]);
         }
 
+        RateLimiter::clear($verifyKey);
+
         $user = User::create([
             'name' => $payload['name'],
-            'email' => $validated['email'],
+            'email' => $email,
             'password' => $payload['password'],
             'email_verified_at' => now(),
+            'status' => 'active',
         ]);
 
-        Cache::forget($this->otpKey($validated['email']));
-        Cache::forget($this->payloadKey($validated['email']));
+        if (method_exists($user, 'assignRole')) {
+            $user->assignRole('user');
+        }
+
+        Cache::forget($this->otpKey($email));
+        Cache::forget($this->payloadKey($email));
 
         return response()->json([
             'success' => true,
