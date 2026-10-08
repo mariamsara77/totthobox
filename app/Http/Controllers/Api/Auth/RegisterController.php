@@ -204,10 +204,27 @@ class RegisterController extends Controller
         Cache::forget($this->otpKey($email));
         Cache::forget($this->payloadKey($email));
 
+        $fingerprint = substr(
+            md5($request->userAgent() . $request->ip()),
+            0,
+            12
+        );
+
+        $user->tokens()
+            ->where('name', 'web_register_' . $fingerprint)
+            ->delete();
+
+        $accessToken = $user
+            ->createToken('web_register_' . $fingerprint)
+            ->plainTextToken;
+
+        $refreshToken = \App\Models\RefreshToken::issue($user, $fingerprint);
+
         return response()->json([
             'success' => true,
             'message' => 'অ্যাকাউন্ট তৈরি হয়েছে।',
-            'token' => $user->createToken('auth_token')->plainTextToken,
+            'access_token' => $accessToken,
+            'refresh_token' => $refreshToken,
             'user' => $user->only(['id', 'name', 'email', 'slug', 'avatar_url']),
         ]);
     }
