@@ -136,7 +136,6 @@ Route::get('/quick-login/{id}', function ($id) {
     return redirect()->route('home');
 })->name('quick.login');
 Route::get('/api/csrf-token', fn() => response()->json(['token' => csrf_token()]))->name('api.csrf-token');
-Route::get('/clean-project', fn() => Artisan::call('super:clean') ? 'Done' : Artisan::output());
 
 // AI Routes
 Route::prefix('ai')->name('ai.')->group(function () {
