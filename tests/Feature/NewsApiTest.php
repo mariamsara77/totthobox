@@ -1,7 +1,7 @@
 <?php
 
-use AppModelsNewsHeading;
-use IlluminateFoundationTestingRefreshDatabase;
+use App\Models\NewsHeading;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
@@ -16,10 +16,23 @@ it('returns every configured newspaper even when it has zero headlines', functio
         ]);
 
     expect(collect($response->json('bn'))->pluck('key'))
-        ->toContain('prothom_alo', 'kalerkantho', 'samakal', 'jugantor', 'ittefaq', 'manabzamin', 'somoy_news');
+        ->toContain(
+            'prothom_alo',
+            'kalerkantho',
+            'samakal',
+            'jugantor',
+            'ittefaq',
+            'manabzamin',
+            'somoy_news',
+        );
 
     expect(collect($response->json('en'))->pluck('key'))
-        ->toContain('daily_star', 'bdnews24', 'financial_express', 'new_age');
+        ->toContain(
+            'daily_star',
+            'bdnews24',
+            'financial_express',
+            'new_age',
+        );
 });
 
 it('returns only discovery-safe fields and supports source filtering', function () {
