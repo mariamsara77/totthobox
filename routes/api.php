@@ -44,17 +44,17 @@ use App\Http\Controllers\Api\ContactUsController;
 Route::prefix('v1')->group(function () {
 
     // Public
-    Route::post('/login', [AuthController::class, 'login']);
-    Route::post('/auth/google', [GoogleAuthController::class, 'login']);
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
+    Route::post('/auth/google', [GoogleAuthController::class, 'login'])->middleware('throttle:10,1');
     
     Route::prefix('auth')->group(function () {
-        Route::post('/register/send-otp', [RegisterController::class, 'sendOtp']);
-        Route::post('/register/verify', [RegisterController::class, 'verifyAndRegister']);
-        Route::post('/register/resend-otp', [RegisterController::class, 'resendOtp']);
-        Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLink']);
-        Route::post('/reset-password', [NewPasswordController::class, 'store']);
-        Route::post('/switch', [SwitchProfileController::class, 'switch']);
-        Route::post('/refresh', [AuthController::class, 'refresh']);
+        Route::post('/register/send-otp', [RegisterController::class, 'sendOtp'])->middleware('throttle:5,1');
+        Route::post('/register/verify', [RegisterController::class, 'verifyAndRegister'])->middleware('throttle:10,1');
+        Route::post('/register/resend-otp', [RegisterController::class, 'resendOtp'])->middleware('throttle:3,1');
+        Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLink'])->middleware('throttle:5,10');
+        Route::post('/reset-password', [NewPasswordController::class, 'store'])->middleware('throttle:10,10');
+        Route::post('/switch', [SwitchProfileController::class, 'switch'])->middleware('throttle:10,1');
+        Route::post('/refresh', [AuthController::class, 'refresh'])->middleware('throttle:30,1');
     });
 
     // Authenticated
@@ -374,9 +374,9 @@ Route::prefix('v1')->group(function () {
 
 Route::prefix('auth')->group(function () {
     // Register OTP
-    Route::post('/register/send-otp', [RegisterController::class, 'sendOtp']);
-    Route::post('/register/verify', [RegisterController::class, 'verifyAndRegister']);
-    Route::post('/register/resend-otp', [RegisterController::class, 'resendOtp']);
+    Route::post('/register/send-otp', [RegisterController::class, 'sendOtp'])->middleware('throttle:5,1');
+    Route::post('/register/verify', [RegisterController::class, 'verifyAndRegister'])->middleware('throttle:10,1');
+    Route::post('/register/resend-otp', [RegisterController::class, 'resendOtp'])->middleware('throttle:3,1');
 });
 
 
