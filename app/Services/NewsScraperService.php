@@ -23,6 +23,12 @@ class NewsScraperService
      */
     protected array $seenUrls = [];
 
+    protected int $metaImageLookups = 0;
+
+    protected int $maxMetaImageLookupsPerRun = 60;
+
+    protected int $maxResponseBytes = 4194304;
+
     protected array $userAgents = [
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
@@ -441,6 +447,7 @@ class NewsScraperService
     public function scrapeAll(): void
     {
         $this->seenUrls = []; // Reset dedup map for this run
+        $this->metaImageLookups = 0;
 
         foreach ($this->sources as $source) {
             $this->processSource($source);
@@ -450,6 +457,7 @@ class NewsScraperService
     public function scrapeByKey(string $key): void
     {
         $this->seenUrls = [];
+        $this->metaImageLookups = 0;
 
         $source = collect($this->sources)->firstWhere('key', $key);
 
@@ -752,7 +760,9 @@ class NewsScraperService
         // ── Skip articles already in DB to prevent re-touching updated_at ────
         // wasRecentlyCreated is only true for INSERT; UPDATE returns false.
         // But we also need to avoid getMetaImage() on existing records.
-        $exists = NewsHeading::where('source_link', $link)->exists();
+        $sourceHash = hash('sha256', $link);
+
+        $exists = NewsHeading::where('source_hash', $sourceHash)->exists();
         if ($exists) {
             $this->seenUrls[$link] = true;
 
@@ -761,8 +771,9 @@ class NewsScraperService
 
         // ── OG image fallback — only for genuinely new articles ───────────────
         $image = $data['image'] ?? null;
-        if (empty($image)) {
+        if (empty($image) && $this->metaImageLookups < $this->maxMetaImageLookupsPerRun) {
             $image = $this->getMetaImage($link);
+            $this->metaImageLookups++;
         }
 
         // ── Slug ─────────────────────────────────────────────────────────────
@@ -793,6 +804,7 @@ class NewsScraperService
             [
                 'title' => $data['title'],
                 'slug' => $slug,
+                'source_hash' => $sourceHash,
                 'source_name' => $source['name'],
                 'source_key' => $source['key'],
                 'category' => $data['category'] ?? 'National',
@@ -819,24 +831,19 @@ class NewsScraperService
             try {
                 $response = Http::timeout($timeout)
                     ->withHeaders([
-    'User-Agent' => $this->randomUserAgent(),
-    'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-    'Accept-Language' => 'bn-BD,bn;q=0.9,en-US;q=0.8,en;q=0.7',
-    'Accept-Encoding' => 'gzip, deflate, br',
-    'Cache-Control' => 'max-age=0',
-    'Sec-Ch-Ua' => '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
-    'Sec-Ch-Ua-Mobile' => '?0',
-    'Sec-Ch-Ua-Platform' => '"Windows"',
-    'Sec-Fetch-Dest' => 'document',
-    'Sec-Fetch-Mode' => 'navigate',
-    'Sec-Fetch-Site' => 'none',
-    'Sec-Fetch-User' => '?1',
-    'Upgrade-Insecure-Requests' => '1',
-    'Referer' => 'https://www.google.com/',
-])
+                        'User-Agent' => 'TotthoboxNewsAggregator/1.0 (+https://totthobox.com/news)',
+                        'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                        'Accept-Language' => 'bn-BD,bn;q=0.9,en-US;q=0.8,en;q=0.7',
+                    ])
                     ->get($url);
 
                 if ($response->successful()) {
+                    $contentLength = (int) ($response->header('Content-Length') ?? 0);
+                    if ($contentLength > $this->maxResponseBytes || strlen($response->body()) > $this->maxResponseBytes) {
+                        Log::warning("[NewsScraperService] Response too large — skip {$url}");
+                        return null;
+                    }
+
                     return $response->body();
                 }
 
@@ -1042,7 +1049,31 @@ class NewsScraperService
         $parsed = parse_url($baseUrl);
         $root = ($parsed['scheme'] ?? 'https').'://'.($parsed['host'] ?? '');
 
-        return $root.'/'.ltrim($url, '/');
+        if (str_starts_with($url, '?')) {
+            return $root.($parsed['path'] ?? '/').$url;
+        }
+
+        if (str_starts_with($url, '/')) {
+            return $root.$url;
+        }
+
+        $basePath = $parsed['path'] ?? '/';
+        $directory = rtrim(str_replace('\\', '/', dirname($basePath)), '/');
+        $combined = ($directory ? $directory.'/' : '/').ltrim($url, '/');
+
+        $segments = [];
+        foreach (explode('/', $combined) as $segment) {
+            if ($segment === '' || $segment === '.') {
+                continue;
+            }
+            if ($segment === '..') {
+                array_pop($segments);
+                continue;
+            }
+            $segments[] = $segment;
+        }
+
+        return $root.'/'.implode('/', $segments);
     }
 
     protected function detectCategory(string $rssCat, array $source, string $url): string
