@@ -28,7 +28,7 @@ return new class extends Migration
                         ->exists();
 
                     if ($alreadyUsed) {
-                        continue;
+                        $hash = hash('sha256', $sourceLink.'#'.$row->id);
                     }
 
                     DB::table('news_headings')
