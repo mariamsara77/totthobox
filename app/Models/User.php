@@ -52,7 +52,6 @@ class User extends Authenticatable implements HasMedia, MustVerifyEmail
 
     protected $appends = ['avatar_url'];
 
-    protected $with = ['roles', 'permissions', 'media'];
 
     protected $casts = [
         'email_verified_at' => 'datetime',
