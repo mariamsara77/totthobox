@@ -18,6 +18,7 @@ class NewsHeading extends Model
         'summary', // ★ নতুন — এডিটোরিয়াল সারাংশ (ঐচ্ছিক, নিজে লিখে/রিভিউ করে ভরতে হবে)
         'slug',
         'source_link',
+        'source_hash',
         'source_name',
         'source_key',
         'category',
@@ -25,6 +26,7 @@ class NewsHeading extends Model
         'image_url',
         'language',
         'published_at',
+        'local_image_path',
     ];
 
     protected $casts = [
@@ -156,8 +158,7 @@ class NewsHeading extends Model
      */
     public static function availableSources(): Collection
     {
-        return Cache::tags(['news_sidebar'])
-            ->remember('sources', now()->addMinutes(10), function () {
+        return Cache::remember('news_sidebar_sources_v1', now()->addMinutes(10), function () {
                 return self::selectRaw('source_key, source_name, COUNT(*) as count')
                     ->groupBy('source_key', 'source_name')
                     ->orderByDesc('count')
