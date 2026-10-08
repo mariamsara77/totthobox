@@ -44,7 +44,10 @@ class NewsController extends Controller
                 'published_at',
                 'story_group',
             ])
-            ->whereNotNull('source_link');
+            ->where(function ($query) {
+                $query->where('source_link', 'like', 'https://%')
+                    ->orWhere('source_link', 'like', 'http://%');
+            });
 
         if (! empty($data['source'])) {
             $query->where('source_key', $data['source']);
