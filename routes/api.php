@@ -46,6 +46,7 @@ Route::prefix('v1')->group(function () {
     // Public
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
     Route::post('/auth/google', [GoogleAuthController::class, 'login'])->middleware('throttle:10,1');
+    Route::post('/auth/google/exchange', [GoogleAuthController::class, 'exchange'])->middleware('throttle:10,1');
     
     Route::prefix('auth')->group(function () {
         Route::post('/register/send-otp', [RegisterController::class, 'sendOtp'])->middleware('throttle:5,1');
