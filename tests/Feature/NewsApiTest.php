@@ -126,7 +126,7 @@ it('prefers an available local thumbnail over a remote URL', function () {
         'local_image_path' => $path,
     ]);
 
-    $expectedUrl = Storage::disk('public')->url($path);
+    $expectedUrl = rtrim((string) config('app.url'), '/') . Storage::disk('public')->url($path);
 
     $this->getJson('/api/news?source=prothom_alo')
         ->assertOk()
