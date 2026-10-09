@@ -847,7 +847,9 @@ class NewsScraperService
             try {
                 $response = Http::timeout($timeout)
                     ->withHeaders([
-                        'User-Agent' => 'TotthoboxNewsAggregator/1.0 (+https://totthobox.com/news)',
+                        // Use the configured browser user-agent rotation. The previous
+                        // fixed bot identifier was rejected by some publisher HTML pages.
+                        'User-Agent' => $this->userAgents[$attempts % count($this->userAgents)],
                         'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                         'Accept-Language' => 'bn-BD,bn;q=0.9,en-US;q=0.8,en;q=0.7',
                     ])
