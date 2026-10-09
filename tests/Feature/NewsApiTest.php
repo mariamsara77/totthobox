@@ -106,6 +106,28 @@ it('returns discovery-safe fields, images and source slugs for the news frontend
         ->not->toHaveKey('local_image_path');
 });
 
+it('prefers a managed local thumbnail when a remote publisher image is also present', function () {
+    Storage::fake('public');
+    Storage::disk('public')->put('news-thumbs/preferred.jpg', 'sample-image');
+
+    NewsHeading::factory()->create([
+        'title' => 'Prefer local image news item',
+        'source_key' => 'prothom_alo',
+        'source_name' => 'Prothom Alo',
+        'language' => 'bn',
+        'source_link' => 'https://www.prothomalo.com/local-preferred-sample',
+        'image_url' => 'https://images.example.com/expired-or-hotlink-protected.jpg',
+        'local_image_path' => 'news-thumbs/preferred.jpg',
+    ]);
+
+    $response = $this->getJson('/api/news?source=prothom_alo&per_page=10');
+
+    $response->assertOk();
+
+    expect($response->json('data.0.image_url'))
+        ->toEndWith('/storage/news-thumbs/preferred.jpg');
+});
+
 it('resolves managed local news thumbnails into public storage URLs', function () {
     Storage::fake('public');
     Storage::disk('public')->put('news-thumbs/sample.jpg', 'sample-image');
