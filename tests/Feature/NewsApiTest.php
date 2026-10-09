@@ -37,6 +37,32 @@ it('returns every configured newspaper even when it has zero headlines', functio
         );
 });
 
+it('uses database source slugs and live headline counts for sidebar links', function () {
+    NewsHeading::create([
+        'title' => 'Sidebar count headline sample',
+        'slug' => 'sidebar-count-headline-sample',
+        'source_key' => 'ittefaq',
+        'source_name' => 'Old source label',
+        'language' => 'bn',
+        'source_link' => 'https://www.ittefaq.com.bd/sidebar-count-sample',
+        'image_url' => 'https://images.ittefaq-cdn.example/sample.jpg',
+    ]);
+
+    $response = $this->getJson('/api/sidebar/news-sources')
+        ->assertOk()
+        ->assertJsonStructure([
+            'bn' => [['source_key', 'slug', 'source_name', 'language', 'home_url', 'total']],
+            'en' => [['source_key', 'slug', 'source_name', 'language', 'home_url', 'total']],
+        ]);
+
+    $ittefaq = collect($response->json('bn'))->firstWhere('source_key', 'ittefaq');
+
+    expect($ittefaq)->not->toBeNull()
+        ->and($ittefaq['slug'])->toBe('daily-ittefaq')
+        ->and($ittefaq['source_name'])->toBe('Daily Ittefaq')
+        ->and($ittefaq['total'])->toBe(1);
+});
+
 it('returns only discovery-safe fields and supports source filtering', function () {
     NewsHeading::create([
         'title' => 'Sample headline for filtering',
