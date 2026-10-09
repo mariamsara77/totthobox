@@ -382,4 +382,3 @@ class NewsController extends Controller
         return null;
     }
 }
-}
