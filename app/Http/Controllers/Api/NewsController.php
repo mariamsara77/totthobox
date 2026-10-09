@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\NewsHeading;
 use App\Models\NewsSource;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
@@ -54,7 +55,14 @@ class NewsController extends Controller
             });
 
         if (! empty($data['source'])) {
-            $query->where('source_key', $data['source']);
+            $sourceRecord = NewsSource::query()
+                ->where('is_active', true)
+                ->where('source_key', $data['source'])
+                ->first();
+
+            if ($sourceRecord) {
+                $this->applySourceFilter($query, $sourceRecord);
+            }
         }
 
         if (! empty($data['language'])) {
@@ -102,12 +110,15 @@ class NewsController extends Controller
 
         $sourceCatalog = NewsSource::query()
             ->where('is_active', true)
-            ->get(['source_key', 'slug', 'name', 'language'])
+            ->orderBy('language')
+            ->orderBy('position')
+            ->get(['source_key', 'slug', 'name', 'language', 'home_url'])
             ->keyBy('source_key');
 
         $items = collect($page->items())
             ->map(function (NewsHeading $item) use ($sourceCounts, $sourceCatalog) {
-                $source = $sourceCatalog->get($item->source_key);
+                $source = $sourceCatalog->get($item->source_key)
+                    ?? $this->sourceForUrl($item->source_link, $sourceCatalog->values());
 
                 return [
                     'id' => $item->id,
@@ -148,7 +159,6 @@ class NewsController extends Controller
         $data = Cache::remember('news_api_sources_v2', now()->addMinute(), function () {
             $sources = NewsSource::query()
                 ->where('is_active', true)
-                ->withCount('headlines')
                 ->orderBy('language')
                 ->orderBy('position')
                 ->get()
@@ -158,7 +168,7 @@ class NewsController extends Controller
                     'name' => $source->name,
                     'language' => $source->language,
                     'home_url' => $source->home_url,
-                    'total' => (int) $source->headlines_count,
+                    'total' => $this->countHeadlinesForSource($source),
                 ]);
 
             return [
@@ -169,6 +179,53 @@ class NewsController extends Controller
 
         return response()->json($data)
             ->header('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+    }
+
+    /**
+     * Match older saved headlines by publisher URL as well as source_key.
+     * Some legacy rows have a stale source key/name even though their original
+     * source URL is valid; these rows must still appear under the right paper.
+     */
+    private function applySourceFilter(Builder $query, NewsSource $source): Builder
+    {
+        $host = $this->normalizeHost((string) parse_url($source->home_url, PHP_URL_HOST));
+
+        return $query->where(function (Builder $match) use ($source, $host) {
+            $match->where('source_key', $source->source_key)
+                ->orWhere('source_name', $source->name);
+
+            if ($host !== '') {
+                $match->orWhere('source_link', 'like', '%'.$host.'/%');
+            }
+        });
+    }
+
+    private function countHeadlinesForSource(NewsSource $source): int
+    {
+        return $this->applySourceFilter(NewsHeading::query(), $source)->count();
+    }
+
+    private function sourceForUrl(?string $url, $sources): ?NewsSource
+    {
+        $host = $this->normalizeHost((string) parse_url((string) $url, PHP_URL_HOST));
+
+        if ($host === '') {
+            return null;
+        }
+
+        return $sources->first(function (NewsSource $source) use ($host) {
+            $sourceHost = $this->normalizeHost((string) parse_url($source->home_url, PHP_URL_HOST));
+
+            return $sourceHost !== ''
+                && ($host === $sourceHost || str_ends_with($host, '.'.$sourceHost));
+        });
+    }
+
+    private function normalizeHost(string $host): string
+    {
+        $host = strtolower(rtrim($host, '.'));
+
+        return preg_replace('/^www\\./i', '', $host) ?? $host;
     }
 
     public function show(string $slug)
