@@ -1,16 +1,16 @@
 <?php
 
-namespace App\\Http\\Controllers\\Api;
+namespace App\Http\Controllers\Api;
 
-use App\\Http\\Controllers\\Controller;
-use App\\Models\\NewsHeading;
-use App\\Models\\NewsSource;
-use App\\Models\\BuySellCategory;
-use App\\Models\\ContactCategory;
-use App\\Models\\SignCategory;
-use App\\Models\\ExcelTutorial;
-use App\\Models\\AppResource;
-use Illuminate\\Support\\Facades\\Cache;
+use App\Http\Controllers\Controller;
+use App\Models\NewsHeading;
+use App\Models\NewsSource;
+use App\Models\BuySellCategory;
+use App\Models\ContactCategory;
+use App\Models\SignCategory;
+use App\Models\ExcelTutorial;
+use App\Models\AppResource;
+use Illuminate\Support\Facades\Cache;
 
 class SidebarController extends Controller
 {
