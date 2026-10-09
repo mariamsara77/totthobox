@@ -95,8 +95,20 @@ class NewsController extends Controller
                 ->groupBy('story_group')
                 ->map(fn ($items) => $items->pluck('source_key')->unique()->count());
 
+        $sourceKeys = collect($page->items())
+            ->pluck('source_key')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $sourceSlugs = $sourceKeys->isEmpty()
+            ? collect()
+            : NewsSource::query()
+                ->whereIn('source_key', $sourceKeys)
+                ->pluck('slug', 'source_key');
+
         $items = collect($page->items())
-            ->map(function (NewsHeading $item) use ($sourceCounts) {
+            ->map(function (NewsHeading $item) use ($sourceCounts, $sourceSlugs) {
                 return [
                     'id' => $item->id,
                     'title' => $item->title,
@@ -104,7 +116,7 @@ class NewsController extends Controller
                     'source_url' => $item->source_link,
                     'source_name' => $item->source_name,
                     'source_key' => $item->source_key,
-                    'source_slug' => str_replace('_', '-', $item->source_key),
+                    'source_slug' => $sourceSlugs->get($item->source_key) ?? str_replace('_', '-', $item->source_key),
                     'category' => $item->category,
                     'language' => $item->language,
                     'published_at' => $item->published_at?->toIso8601String(),
@@ -184,10 +196,10 @@ class NewsController extends Controller
             return response()->json(['message' => 'News item not found.'], 404);
         }
 
-        $coverage = collect();
+        $coverageItems = collect();
 
         if ($item->story_group) {
-            $coverage = NewsHeading::query()
+            $coverageItems = NewsHeading::query()
                 ->select([
                     'id',
                     'title',
@@ -205,22 +217,35 @@ class NewsController extends Controller
                 ->where('id', '!=', $item->id)
                 ->latestPublished()
                 ->limit(8)
-                ->get()
-                ->map(fn (NewsHeading $news) => [
-                    'id' => $news->id,
-                    'title' => $news->title,
-                    'slug' => $news->slug,
-                    'source_url' => $news->source_link,
-                    'source_name' => $news->source_name,
-                    'source_key' => $news->source_key,
-                    'source_slug' => str_replace('_', '-', $news->source_key),
-                    'category' => $news->category,
-                    'language' => $news->language,
-                    'published_at' => $news->published_at?->toIso8601String(),
-                    'image_url' => $this->resolveImageUrl($news),
-                ])
-                ->values();
+                ->get();
         }
+
+        $sourceKeys = collect([$item->source_key])
+            ->merge($coverageItems->pluck('source_key'))
+            ->filter()
+            ->unique()
+            ->values();
+
+        $sourceSlugs = NewsSource::query()
+            ->whereIn('source_key', $sourceKeys)
+            ->pluck('slug', 'source_key');
+
+        $coverage = $coverageItems
+            ->map(fn (NewsHeading $news) => [
+                'id' => $news->id,
+                'title' => $news->title,
+                'slug' => $news->slug,
+                'source_url' => $news->source_link,
+                'source_name' => $news->source_name,
+                'source_key' => $news->source_key,
+                'source_slug' => $sourceSlugs->get($news->source_key)
+                    ?? str_replace('_', '-', $news->source_key),
+                'category' => $news->category,
+                'language' => $news->language,
+                'published_at' => $news->published_at?->toIso8601String(),
+                'image_url' => $this->resolveImageUrl($news),
+            ])
+            ->values();
 
         return response()->json([
             'data' => [
@@ -230,7 +255,8 @@ class NewsController extends Controller
                 'source_url' => $item->source_link,
                 'source_name' => $item->source_name,
                 'source_key' => $item->source_key,
-                'source_slug' => str_replace('_', '-', $item->source_key),
+                'source_slug' => $sourceSlugs->get($item->source_key)
+                    ?? str_replace('_', '-', $item->source_key),
                 'category' => $item->category,
                 'language' => $item->language,
                 'published_at' => $item->published_at?->toIso8601String(),
