@@ -1,12 +1,13 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\\Http\\Controllers\\Api;
 
-use App\Http\Controllers\Controller;
-use App\Models\NewsHeading;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Validation\Rule;
+use App\\Http\\Controllers\\Controller;
+use App\\Models\\NewsHeading;
+use Illuminate\\Http\\Request;
+use Illuminate\\Support\\Facades\\Cache;
+use Illuminate\\Support\\Facades\\Storage;
+use Illuminate\\Validation\\Rule;
 
 class NewsController extends Controller
 {
@@ -43,6 +44,8 @@ class NewsController extends Controller
                 'language',
                 'published_at',
                 'story_group',
+                'image_url',
+                'local_image_path',
             ])
             ->where(function ($query) {
                 $query->where('source_link', 'like', 'https://%')
@@ -100,9 +103,11 @@ class NewsController extends Controller
                     'source_url' => $item->source_link,
                     'source_name' => $item->source_name,
                     'source_key' => $item->source_key,
+                    'source_slug' => str_replace('_', '-', $item->source_key),
                     'category' => $item->category,
                     'language' => $item->language,
                     'published_at' => $item->published_at?->toIso8601String(),
+                    'image_url' => $this->resolveImageUrl($item),
                     'story_group' => $item->story_group,
                     'coverage_count' => $item->story_group
                         ? ($sourceCounts->get($item->story_group) ?? 1)
@@ -129,8 +134,8 @@ class NewsController extends Controller
     {
         $data = Cache::remember('news_api_sources_v1', now()->addMinutes(5), function () {
             $configured = collect(config('news_sources', []))
-            ->sortBy(fn (array $source) => sprintf('%s-%03d', $source['language'], $source['order']))
-            ->values();
+                ->sortBy(fn (array $source) => sprintf('%s-%03d', $source['language'], $source['order']))
+                ->values();
 
             $counts = NewsHeading::query()
                 ->selectRaw('source_key, COUNT(*) as total')
@@ -140,6 +145,7 @@ class NewsController extends Controller
             $result = $configured->map(function (array $source) use ($counts) {
                 return [
                     'key' => $source['key'],
+                    'slug' => str_replace('_', '-', $source['key']),
                     'name' => $source['name'],
                     'language' => $source['language'],
                     'home_url' => $source['home_url'],
@@ -150,7 +156,8 @@ class NewsController extends Controller
             return $result->groupBy('language');
         });
 
-        return response()->json($data)->header('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+        return response()->json($data)
+            ->header('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
     }
 
     public function show(string $slug)
@@ -159,14 +166,16 @@ class NewsController extends Controller
             ->select([
                 'id',
                 'title',
-                    'slug',
+                'slug',
                 'source_link',
                 'source_name',
                 'source_key',
                 'category',
-                    'language',
+                'language',
                 'published_at',
                 'story_group',
+                'image_url',
+                'local_image_path',
             ])
             ->where('slug', $slug)
             ->first();
@@ -189,6 +198,8 @@ class NewsController extends Controller
                     'category',
                     'language',
                     'published_at',
+                    'image_url',
+                    'local_image_path',
                 ])
                 ->where('story_group', $item->story_group)
                 ->where('id', '!=', $item->id)
@@ -202,9 +213,11 @@ class NewsController extends Controller
                     'source_url' => $news->source_link,
                     'source_name' => $news->source_name,
                     'source_key' => $news->source_key,
+                    'source_slug' => str_replace('_', '-', $news->source_key),
                     'category' => $news->category,
                     'language' => $news->language,
                     'published_at' => $news->published_at?->toIso8601String(),
+                    'image_url' => $this->resolveImageUrl($news),
                 ])
                 ->values();
         }
@@ -217,12 +230,87 @@ class NewsController extends Controller
                 'source_url' => $item->source_link,
                 'source_name' => $item->source_name,
                 'source_key' => $item->source_key,
+                'source_slug' => str_replace('_', '-', $item->source_key),
                 'category' => $item->category,
                 'language' => $item->language,
                 'published_at' => $item->published_at?->toIso8601String(),
+                'image_url' => $this->resolveImageUrl($item),
                 'story_group' => $item->story_group,
                 'coverage' => $coverage,
             ],
         ]);
+    }
+
+    /**
+     * Keep publisher image URLs intact, and resolve managed image paths through
+     * the backend's public storage disk. Never expose filesystem paths to clients.
+     */
+    private function resolveImageUrl(NewsHeading $item): ?string
+    {
+        $remoteUrl = $this->validHttpUrl($item->image_url);
+
+        if ($remoteUrl !== null) {
+            return $remoteUrl;
+        }
+
+        $path = trim((string) $item->local_image_path);
+
+        if ($path === '') {
+            return null;
+        }
+
+        $localUrl = $this->resolvePublicStoragePath($path);
+
+        return $localUrl ?? $this->validHttpUrl($path);
+    }
+
+    private function validHttpUrl(?string $value): ?string
+    {
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        if (str_starts_with($value, '//')) {
+            $value = 'https:'.$value;
+        }
+
+        $scheme = strtolower((string) parse_url($value, PHP_URL_SCHEME));
+
+        if (! in_array($scheme, ['http', 'https'], true) || filter_var($value, FILTER_VALIDATE_URL) === false) {
+            return null;
+        }
+
+        return $value;
+    }
+
+    private function resolvePublicStoragePath(string $path): ?string
+    {
+        $path = str_replace('\\\\', '/', trim($path));
+        $path = ltrim($path, '/');
+
+        foreach (['storage/app/public/', 'public/storage/', 'storage/', 'public/'] as $prefix) {
+            if (str_starts_with($path, $prefix)) {
+                $path = substr($path, strlen($prefix));
+                break;
+            }
+        }
+
+        if ($path === '' || str_contains($path, '../')) {
+            return null;
+        }
+
+        if (! Storage::disk('public')->exists($path)) {
+            return null;
+        }
+
+        $url = Storage::disk('public')->url($path);
+
+        if (filter_var($url, FILTER_VALIDATE_URL) !== false) {
+            return $url;
+        }
+
+        return url('/'.ltrim($url, '/'));
     }
 }
