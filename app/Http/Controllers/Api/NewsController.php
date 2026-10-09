@@ -361,7 +361,7 @@ class NewsController extends Controller
      */
     private function resolveImageUrl(NewsHeading $item): ?string
     {
-        $localPath = trim((string) $item->local_image_path);
+        $localPath = trim((string) $item->getRawOriginal('local_image_path'));
 
         if ($localPath !== '') {
             try {
