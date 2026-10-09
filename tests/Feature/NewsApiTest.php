@@ -42,7 +42,7 @@ it('returns every configured newspaper even when it has zero headlines', functio
         );
 });
 
-it('uses database source slugs and live headline counts for sidebar links', function () {
+it('uses configured source slugs and live headline counts from saved headlines', function () {
     NewsHeading::create([
         'title' => 'Sidebar count headline sample',
         'slug' => 'sidebar-count-headline-sample',
