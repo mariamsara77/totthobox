@@ -7,6 +7,7 @@ use App\Models\NewsHeading;
 use App\Models\NewsSource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class NewsController extends Controller
@@ -45,6 +46,7 @@ class NewsController extends Controller
                 'published_at',
                 'story_group',
                 'image_url',
+                'local_image_path',
             ])
             ->where(function ($query) {
                 $query->where('source_link', 'like', 'https://%')
@@ -118,7 +120,7 @@ class NewsController extends Controller
                     'category' => $item->category,
                     'language' => $source?->language ?? $item->language,
                     'published_at' => $item->published_at?->toIso8601String(),
-                    'image_url' => $this->safeImageUrl($item->image_url),
+                    'image_url' => $this->resolveImageUrl($item),
                     'story_group' => $item->story_group,
                     'coverage_count' => $item->story_group
                         ? ($sourceCounts->get($item->story_group) ?? 1)
@@ -184,6 +186,7 @@ class NewsController extends Controller
                 'published_at',
                 'story_group',
                 'image_url',
+                'local_image_path',
             ])
             ->where('slug', $slug)
             ->first();
@@ -244,6 +247,30 @@ class NewsController extends Controller
                 'coverage' => $coverage,
             ],
         ]);
+    }
+
+    /**
+     * Prefer a locally stored thumbnail when present. This avoids publisher CDN
+     * hotlink restrictions and serves existing local images from our own domain.
+     * Fall back to the publisher's valid remote image URL when no local copy exists.
+     */
+    private function resolveImageUrl(NewsHeading $item): ?string
+    {
+        $localPath = trim((string) $item->local_image_path);
+
+        if ($localPath !== '') {
+            try {
+                $disk = Storage::disk('public');
+
+                if ($disk->exists($localPath)) {
+                    return $disk->url($localPath);
+                }
+            } catch (\\Throwable) {
+                // A storage-driver failure should not prevent using a safe remote image.
+            }
+        }
+
+        return $this->safeImageUrl($item->image_url);
     }
 
     /**
