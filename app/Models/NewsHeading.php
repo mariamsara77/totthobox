@@ -129,13 +129,15 @@ class NewsHeading extends Model
                 ->groupBy('source_key')
                 ->pluck('count', 'source_key');
 
-            return collect(config('news_sources', []))
-                ->sortBy(fn (array $source) => sprintf('%s-%03d', $source['language'], $source['order']))
-                ->values()
-                ->map(fn (array $source) => [
-                    'key' => $source['key'],
-                    'name' => $source['name'],
-                    'count' => (int) ($counts[$source['key']] ?? 0),
+            return NewsSource::query()
+                ->active()
+                ->ordered()
+                ->get()
+                ->map(fn (NewsSource $source) => [
+                    'key' => $source->source_key,
+                    'slug' => $source->slug,
+                    'name' => $source->name,
+                    'count' => (int) ($counts[$source->source_key] ?? 0),
                 ]);
         });
     }
