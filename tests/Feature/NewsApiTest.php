@@ -128,6 +128,28 @@ it('prefers a managed local thumbnail when a remote publisher image is also pres
         ->toEndWith('/storage/news-thumbs/preferred.jpg');
 });
 
+it('resolves media-library thumbnails from the media disk', function () {
+    Storage::fake('media');
+    Storage::disk('media')->put('news-thumbs/sample.jpg', 'sample-image');
+
+    NewsHeading::factory()->create([
+        'title' => 'Media disk thumbnail news item',
+        'source_key' => 'prothom_alo',
+        'source_name' => 'Prothom Alo',
+        'language' => 'bn',
+        'source_link' => 'https://www.prothomalo.com/media-sample',
+        'image_url' => null,
+        'local_image_path' => 'media/news-thumbs/sample.jpg',
+    ]);
+
+    $response = $this->getJson('/api/news?source=prothom_alo&per_page=10');
+
+    $response->assertOk();
+
+    expect($response->json('data.0.image_url'))
+        ->toEndWith('/media/news-thumbs/sample.jpg');
+});
+
 it('resolves managed local news thumbnails into public storage URLs', function () {
     Storage::fake('public');
     Storage::disk('public')->put('news-thumbs/sample.jpg', 'sample-image');
