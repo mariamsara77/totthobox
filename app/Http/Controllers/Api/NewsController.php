@@ -105,7 +105,7 @@ class NewsController extends Controller
             ->withQueryString();
 
         $storyGroups = collect($page->items())
-            ->pluck('story_group')
+            ->map(fn (NewsHeading $item) => $item->getRawOriginal('story_group'))
             ->filter()
             ->unique()
             ->values();
@@ -124,6 +124,7 @@ class NewsController extends Controller
 
         $items = collect($page->items())
             ->map(function (NewsHeading $item) use ($sourceCounts, $sourceCatalog) {
+                $storyGroup = $item->getRawOriginal('story_group');
                 $source = $sourceCatalog->get($item->source_key)
                     ?? $this->sourceForUrl($item->source_link, $sourceCatalog->values());
 
@@ -139,9 +140,9 @@ class NewsController extends Controller
                     'language' => $source['language'] ?? $item->language,
                     'published_at' => $item->published_at?->toIso8601String() ?? $item->created_at?->toIso8601String(),
                     'image_url' => $this->resolveImageUrl($item),
-                    'story_group' => $item->story_group,
-                    'coverage_count' => $item->story_group
-                        ? ($sourceCounts->get($item->story_group) ?? 1)
+                    'story_group' => $storyGroup,
+                    'coverage_count' => $storyGroup
+                        ? ($sourceCounts->get($storyGroup) ?? 1)
                         : 1,
                 ];
             })
@@ -283,8 +284,9 @@ class NewsController extends Controller
         }
 
         $coverage = collect();
+        $storyGroup = $item->getRawOriginal('story_group');
 
-        if ($item->story_group) {
+        if ($storyGroup) {
             $coverage = NewsHeading::query()
                 ->select([
                     'id',
@@ -298,7 +300,7 @@ class NewsController extends Controller
                     'published_at',
                     'created_at',
                 ])
-                ->where('story_group', $item->story_group)
+                ->where('story_group', $storyGroup)
                 ->where('id', '!=', $item->id)
                 ->latestPublished()
                 ->limit(8)
@@ -331,7 +333,7 @@ class NewsController extends Controller
                 'language' => $item->language,
                 'published_at' => $item->published_at?->toIso8601String(),
                 'image_url' => $this->resolveImageUrl($item),
-                'story_group' => $item->story_group,
+                'story_group' => $storyGroup,
                 'coverage' => $coverage,
             ],
         ]);
