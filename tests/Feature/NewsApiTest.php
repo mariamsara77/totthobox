@@ -11,9 +11,11 @@ it('returns every configured newspaper even when it has zero headlines', functio
     $response
         ->assertOk()
         ->assertJsonStructure([
-            'bn',
-            'en',
-        ]);
+            'bn' => [['key', 'slug', 'name', 'language', 'home_url', 'total']],
+            'en' => [['key', 'slug', 'name', 'language', 'home_url', 'total']],
+        ])
+        ->assertJsonPath('bn.0.slug', 'prothom-alo')
+        ->assertJsonPath('en.0.slug', 'the-daily-star');
 
     expect(collect($response->json('bn'))->pluck('key'))
         ->toContain(
