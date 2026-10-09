@@ -6,10 +6,12 @@ on:
       - develop
       - main
       - audit-hardening-2026
+      - fix/sidebar-news-headlines-2026
   pull_request:
     branches:
       - develop
       - main
+      - audit-hardening-2026
 
 jobs:
   ci:
