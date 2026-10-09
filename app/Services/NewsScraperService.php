@@ -759,9 +759,8 @@ class NewsScraperService
             return false;
         }
 
-        // ── Skip articles already in DB to prevent re-touching updated_at ────
-        // wasRecentlyCreated is only true for INSERT; UPDATE returns false.
-        // But we also need to avoid getMetaImage() on existing records.
+        // ── Keep existing story metadata stable while filling missing images ─
+        // Never replace title/source/published_at for an already-seen article.
         $sourceHash = hash('sha256', $link);
 
         $existing = NewsHeading::where('source_hash', $sourceHash)->first();
