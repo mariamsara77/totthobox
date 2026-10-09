@@ -98,22 +98,25 @@ class NewsController extends Controller
                 ->groupBy('story_group')
                 ->map(fn ($items) => $items->pluck('source_key')->unique()->count());
 
-        $sourceSlugs = NewsSource::query()
+        $sourceCatalog = NewsSource::query()
             ->where('is_active', true)
-            ->pluck('slug', 'source_key');
+            ->get(['source_key', 'slug', 'name', 'language'])
+            ->keyBy('source_key');
 
         $items = collect($page->items())
-            ->map(function (NewsHeading $item) use ($sourceCounts, $sourceSlugs) {
+            ->map(function (NewsHeading $item) use ($sourceCounts, $sourceCatalog) {
+                $source = $sourceCatalog->get($item->source_key);
+
                 return [
                     'id' => $item->id,
                     'title' => $item->title,
                     'slug' => $item->slug,
                     'source_url' => $item->source_link,
-                    'source_name' => $item->source_name,
+                    'source_name' => $source?->name ?? $item->source_name,
                     'source_key' => $item->source_key,
-                    'source_slug' => $sourceSlugs->get($item->source_key),
+                    'source_slug' => $source?->slug,
                     'category' => $item->category,
-                    'language' => $item->language,
+                    'language' => $source?->language ?? $item->language,
                     'published_at' => $item->published_at?->toIso8601String(),
                     'image_url' => $this->safeImageUrl($item->image_url),
                     'story_group' => $item->story_group,
