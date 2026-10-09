@@ -1,9 +1,9 @@
 <?php
 
-use App\\Models\\NewsHeading;
-use App\\Models\\NewsSource;
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Illuminate\\Support\\Facades\\Storage;
+use App\Models\NewsHeading;
+use App\Models\NewsSource;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
 
@@ -126,4 +126,27 @@ it('resolves managed local news thumbnails into public storage URLs', function (
 
     expect($response->json('data.0.image_url'))
         ->toEndWith('/storage/news-thumbs/sample.jpg');
+});
+
+
+it('prefers a managed local thumbnail and includes the publisher URL as fallback', function () {
+    Storage::fake('public');
+    Storage::disk('public')->put('news-thumbs/local-first.jpg', 'sample-image');
+
+    NewsHeading::factory()->create([
+        'title' => 'Local preferred news item',
+        'source_key' => 'prothom_alo',
+        'source_name' => 'Prothom Alo',
+        'language' => 'bn',
+        'source_link' => 'https://www.prothomalo.com/local-first-sample',
+        'image_url' => 'https://images.example.com/local-first.jpg',
+        'local_image_path' => 'news-thumbs/local-first.jpg',
+    ]);
+
+    $response = $this->getJson('/api/news?source=prothom_alo&per_page=10')->assertOk();
+
+    expect($response->json('data.0.image_url'))
+        ->toEndWith('/storage/news-thumbs/local-first.jpg')
+        ->and($response->json('data.0.image_fallback_url'))
+        ->toBe('https://images.example.com/local-first.jpg');
 });

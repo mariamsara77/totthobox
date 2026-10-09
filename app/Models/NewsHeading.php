@@ -1,17 +1,19 @@
 <?php
 
-namespace App\\Models;
+namespace App\Models;
 
-use Carbon\\Carbon;
-use Illuminate\\Database\\Eloquent\\Builder;
-use Illuminate\\Database\\Eloquent\\Model;
-use Illuminate\\Database\\Eloquent\\SoftDeletes;
-use Illuminate\\Support\\Collection;
-use Illuminate\\Support\\Facades\\Cache;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Cache\TaggableStore;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 
 class NewsHeading extends Model
 {
-    use SoftDeletes;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'title',
@@ -39,7 +41,11 @@ class NewsHeading extends Model
             cache()->forget('news_sidebar_sources_v1');
             cache()->forget('news_sidebar_counts_v1');
             cache()->forget('news_api_sources_v1');
-            Cache::tags(['news_headlines', 'news_coverage'])->flush();
+            // File/null cache stores do not support tags. Plain cache keys above
+            // are always cleared; tagged caches are flushed only when supported.
+            if (Cache::store()->getStore() instanceof TaggableStore) {
+                Cache::tags(['news_headlines', 'news_coverage'])->flush();
+            }
         };
 
         static::saved($clearNewsCaches);

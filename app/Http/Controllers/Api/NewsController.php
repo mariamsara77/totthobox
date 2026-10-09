@@ -1,14 +1,14 @@
 <?php
 
-namespace App\\Http\\Controllers\\Api;
+namespace App\Http\Controllers\Api;
 
-use App\\Http\\Controllers\\Controller;
-use App\\Models\\NewsHeading;
-use App\\Models\\NewsSource;
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Facades\\Cache;
-use Illuminate\\Support\\Facades\\Storage;
-use Illuminate\\Validation\\Rule;
+use App\Http\Controllers\Controller;
+use App\Models\NewsHeading;
+use App\Models\NewsSource;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class NewsController extends Controller
 {
@@ -120,7 +120,7 @@ class NewsController extends Controller
                     'category' => $item->category,
                     'language' => $item->language,
                     'published_at' => $item->published_at?->toIso8601String(),
-                    'image_url' => $this->resolveImageUrl($item),
+                    ...$this->resolveImagePayload($item),
                     'story_group' => $item->story_group,
                     'coverage_count' => $item->story_group
                         ? ($sourceCounts->get($item->story_group) ?? 1)
@@ -243,7 +243,7 @@ class NewsController extends Controller
                 'category' => $news->category,
                 'language' => $news->language,
                 'published_at' => $news->published_at?->toIso8601String(),
-                'image_url' => $this->resolveImageUrl($news),
+                ...$this->resolveImagePayload($news),
             ])
             ->values();
 
@@ -260,7 +260,7 @@ class NewsController extends Controller
                 'category' => $item->category,
                 'language' => $item->language,
                 'published_at' => $item->published_at?->toIso8601String(),
-                'image_url' => $this->resolveImageUrl($item),
+                ...$this->resolveImagePayload($item),
                 'story_group' => $item->story_group,
                 'coverage' => $coverage,
             ],
@@ -268,28 +268,40 @@ class NewsController extends Controller
     }
 
     /**
-     * Keep publisher image URLs intact, and resolve managed image paths through
-     * the backend's public storage disk. Never expose filesystem paths to clients.
+     * Prefer a managed local thumbnail when it exists, then use the publisher
+     * URL. When both exist, send the publisher URL as a client-side fallback so
+     * a stale local file does not leave a blank card. Filesystem paths stay private.
+     *
+     * @return array{image_url: ?string, image_fallback_url: ?string}
      */
-    private function resolveImageUrl(NewsHeading $item): ?string
+    private function resolveImagePayload(NewsHeading $item): array
     {
         $remoteUrl = $this->validHttpUrl($item->image_url);
+        $localCandidates = [
+            trim((string) $item->local_image_path),
+            $remoteUrl === null ? trim((string) $item->image_url) : '',
+        ];
 
-        if ($remoteUrl !== null) {
-            return $remoteUrl;
+        foreach (array_unique($localCandidates) as $path) {
+            if ($path === '') {
+                continue;
+            }
+
+            $localUrl = $this->resolvePublicStoragePath($path);
+            if ($localUrl !== null) {
+                return [
+                    'image_url' => $localUrl,
+                    'image_fallback_url' => $remoteUrl !== null && $remoteUrl !== $localUrl
+                        ? $remoteUrl
+                        : null,
+                ];
+            }
         }
 
-        // Some older/imported rows keep relative storage paths in image_url;
-        // prefer local_image_path when both are populated, then fall back.
-        $path = trim((string) ($item->local_image_path ?: $item->image_url));
-
-        if ($path === '') {
-            return null;
-        }
-
-        $localUrl = $this->resolvePublicStoragePath($path);
-
-        return $localUrl ?? $this->validHttpUrl($path);
+        return [
+            'image_url' => $remoteUrl,
+            'image_fallback_url' => null,
+        ];
     }
 
     private function validHttpUrl(?string $value): ?string
