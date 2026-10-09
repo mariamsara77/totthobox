@@ -2,13 +2,14 @@
 
 namespace App\\Http\\Controllers\\Api;
 
-use App\\Http\\Controllers\\Controller;
-use App\\Models\\NewsHeading;
-use App\\Models\\NewsSource;
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Facades\\Cache;
-use Illuminate\\Support\\Facades\\Storage;
-use Illuminate\\Validation\\Rule;
+use App\Http\Controllers\Controller;
+use App\Models\NewsHeading;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
 
 class NewsController extends Controller
 {
@@ -19,7 +20,7 @@ class NewsController extends Controller
                 'nullable',
                 'string',
                 'max:64',
-                Rule::in(NewsSource::query()->active()->pluck('source_key')->all()),
+                Rule::in(collect(config('news_sources', []))->pluck('key')->filter()->values()->all()),
             ],
             'language' => ['nullable', Rule::in(['bn', 'en'])],
             'category' => ['nullable', 'string', 'max:50'],
@@ -31,30 +32,47 @@ class NewsController extends Controller
         ]);
 
         $perPage = (int) ($data['per_page'] ?? 18);
-        $hours = (int) ($data['hours'] ?? 168);
+        $hours = isset($data['hours']) ? (int) $data['hours'] : null;
+
+        // story_group and local_image_path were added after the original news
+        // table. Keep the public feed available during staggered deployments;
+        // enhanced coverage/local thumbnails remain enabled when columns exist.
+        $columns = [
+            'id',
+            'title',
+            'slug',
+            'source_link',
+            'source_name',
+            'source_key',
+            'category',
+            'language',
+            'published_at',
+            'image_url',
+            'created_at',
+        ];
+
+        if ($this->hasOptionalNewsColumn('story_group')) {
+            $columns[] = 'story_group';
+        }
+
+        if ($this->hasOptionalNewsColumn('local_image_path')) {
+            $columns[] = 'local_image_path';
+        }
 
         $query = NewsHeading::query()
-            ->select([
-                'id',
-                'title',
-                'slug',
-                'source_link',
-                'source_name',
-                'source_key',
-                'category',
-                'language',
-                'published_at',
-                'story_group',
-                'image_url',
-                'local_image_path',
-            ])
+            ->select($columns)
             ->where(function ($query) {
                 $query->where('source_link', 'like', 'https://%')
                     ->orWhere('source_link', 'like', 'http://%');
             });
 
         if (! empty($data['source'])) {
-            $query->where('source_key', $data['source']);
+            $sourceRecord = collect(config('news_sources', []))
+                ->first(fn (array $source) => ($source['key'] ?? null) === $data['source']);
+
+            if ($sourceRecord) {
+                $this->applySourceFilter($query, $sourceRecord);
+            }
         }
 
         if (! empty($data['language'])) {
@@ -70,7 +88,11 @@ class NewsController extends Controller
             $query->where('title', 'like', '%'.$term.'%');
         }
 
-        $query->recent($hours);
+        // By default show the complete database feed, newest first. A time window
+        // is applied only when the visitor explicitly selects one in the UI.
+        if ($hours !== null) {
+            $query->recent($hours);
+        }
 
         if ($request->boolean('diverse')) {
             $query->diversified(5);
@@ -78,11 +100,12 @@ class NewsController extends Controller
 
         $page = $query
             ->latestPublished()
+            ->orderByDesc('id')
             ->paginate($perPage)
             ->withQueryString();
 
         $storyGroups = collect($page->items())
-            ->pluck('story_group')
+            ->map(fn (NewsHeading $item) => $item->getRawOriginal('story_group'))
             ->filter()
             ->unique()
             ->values();
@@ -95,35 +118,31 @@ class NewsController extends Controller
                 ->groupBy('story_group')
                 ->map(fn ($items) => $items->pluck('source_key')->unique()->count());
 
-        $sourceKeys = collect($page->items())
-            ->pluck('source_key')
-            ->filter()
-            ->unique()
-            ->values();
-
-        $sourceSlugs = $sourceKeys->isEmpty()
-            ? collect()
-            : NewsSource::query()
-                ->whereIn('source_key', $sourceKeys)
-                ->pluck('slug', 'source_key');
+        $sourceCatalog = collect(config('news_sources', []))
+            ->sortBy(fn (array $source) => sprintf('%s-%03d', $source['language'] ?? '', (int) ($source['order'] ?? 0)))
+            ->keyBy('key');
 
         $items = collect($page->items())
-            ->map(function (NewsHeading $item) use ($sourceCounts, $sourceSlugs) {
+            ->map(function (NewsHeading $item) use ($sourceCounts, $sourceCatalog) {
+                $storyGroup = $item->getRawOriginal('story_group');
+                $source = $sourceCatalog->get($item->source_key)
+                    ?? $this->sourceForUrl($item->source_link, $sourceCatalog->values());
+
                 return [
                     'id' => $item->id,
                     'title' => $item->title,
                     'slug' => $item->slug,
                     'source_url' => $item->source_link,
-                    'source_name' => $item->source_name,
+                    'source_name' => $source['name'] ?? $item->source_name,
                     'source_key' => $item->source_key,
-                    'source_slug' => $sourceSlugs->get($item->source_key) ?? str_replace('_', '-', $item->source_key),
+                    'source_slug' => $this->sourceSlugForKey((string) $item->source_key, $source),
                     'category' => $item->category,
-                    'language' => $item->language,
-                    'published_at' => $item->published_at?->toIso8601String(),
+                    'language' => $source['language'] ?? $item->language,
+                    'published_at' => $item->published_at?->toIso8601String() ?? $item->created_at?->toIso8601String(),
                     'image_url' => $this->resolveImageUrl($item),
-                    'story_group' => $item->story_group,
-                    'coverage_count' => $item->story_group
-                        ? ($sourceCounts->get($item->story_group) ?? 1)
+                    'story_group' => $storyGroup,
+                    'coverage_count' => $storyGroup
+                        ? ($sourceCounts->get($storyGroup) ?? 1)
                         : 1,
                 ];
             })
@@ -145,50 +164,118 @@ class NewsController extends Controller
 
     public function sources()
     {
-        $data = Cache::remember('news_api_sources_v1', now()->addMinutes(5), function () {
-            $sources = NewsSource::query()
-                ->active()
-                ->ordered()
-                ->get();
+        $data = Cache::remember('news_api_sources_v2', now()->addMinute(), function () {
+            $sources = collect(config('news_sources', []))
+                ->filter(fn ($source) => is_array($source)
+                    && ! empty($source['key'])
+                    && ! empty($source['name'])
+                    && ! empty($source['language'])
+                    && ! empty($source['home_url']))
+                ->sortBy(fn (array $source) => sprintf('%s-%03d', $source['language'], (int) ($source['order'] ?? 0)))
+                ->values()
+                ->map(fn (array $source) => [
+                    'key' => (string) $source['key'],
+                    'slug' => $this->sourceSlugForKey((string) $source['key'], $source),
+                    'name' => (string) $source['name'],
+                    'language' => (string) $source['language'],
+                    'home_url' => (string) $source['home_url'],
+                    'total' => $this->countHeadlinesForSource($source),
+                ]);
 
-            $counts = NewsHeading::query()
-                ->selectRaw('source_key, COUNT(*) as total')
-                ->groupBy('source_key')
-                ->pluck('total', 'source_key');
-
-            $result = $sources->map(fn (NewsSource $source) => [
-                'key' => $source->source_key,
-                'slug' => $source->slug,
-                'name' => $source->name,
-                'language' => $source->language,
-                'home_url' => $source->home_url,
-                'total' => (int) ($counts[$source->source_key] ?? 0),
-            ]);
-
-            return $result->groupBy('language');
+            return [
+                'bn' => $sources->where('language', 'bn')->values(),
+                'en' => $sources->where('language', 'en')->values(),
+            ];
         });
 
         return response()->json($data)
             ->header('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
     }
 
+    /**
+     * Match legacy rows in the original news_headings table by source key,
+     * stored publisher name, or publisher URL. No separate source table needed.
+     */
+    private function applySourceFilter(Builder $query, array $source): Builder
+    {
+        $host = $this->normalizeHost((string) parse_url((string) ($source['home_url'] ?? ''), PHP_URL_HOST));
+
+        return $query->where(function (Builder $match) use ($source, $host) {
+            $match->where('source_key', $source['key'])
+                ->orWhere('source_name', $source['name']);
+
+            if ($host !== '') {
+                $match->orWhere('source_link', 'like', '%'.$host.'/%');
+            }
+        });
+    }
+
+    private function countHeadlinesForSource(array $source): int
+    {
+        return $this->applySourceFilter(NewsHeading::query(), $source)->count();
+    }
+
+    private function sourceForUrl(?string $url, $sources): ?array
+    {
+        $host = $this->normalizeHost((string) parse_url((string) $url, PHP_URL_HOST));
+
+        if ($host === '') {
+            return null;
+        }
+
+        return $sources->first(function (array $source) use ($host) {
+            $sourceHost = $this->normalizeHost((string) parse_url((string) ($source['home_url'] ?? ''), PHP_URL_HOST));
+
+            return $sourceHost !== ''
+                && ($host === $sourceHost || str_ends_with($host, '.'.$sourceHost));
+        });
+    }
+
+    private function sourceSlugForKey(string $sourceKey, ?array $source = null): string
+    {
+        if ($source === null) {
+            $source = collect(config('news_sources', []))
+                ->first(fn (array $configured) => ($configured['key'] ?? null) === $sourceKey);
+        }
+
+        $slug = $source['slug'] ?? $source['name'] ?? $sourceKey;
+
+        return (string) \Illuminate\Support\Str::slug((string) $slug);
+    }
+
+    private function normalizeHost(string $host): string
+    {
+        $host = strtolower(rtrim($host, '.'));
+
+        return preg_replace('/^www\\./i', '', $host) ?? $host;
+    }
+
     public function show(string $slug)
     {
+        $columns = [
+            'id',
+            'title',
+            'slug',
+            'source_link',
+            'source_name',
+            'source_key',
+            'category',
+            'language',
+            'published_at',
+            'image_url',
+            'created_at',
+        ];
+
+        if ($this->hasOptionalNewsColumn('story_group')) {
+            $columns[] = 'story_group';
+        }
+
+        if ($this->hasOptionalNewsColumn('local_image_path')) {
+            $columns[] = 'local_image_path';
+        }
+
         $item = NewsHeading::query()
-            ->select([
-                'id',
-                'title',
-                'slug',
-                'source_link',
-                'source_name',
-                'source_key',
-                'category',
-                'language',
-                'published_at',
-                'story_group',
-                'image_url',
-                'local_image_path',
-            ])
+            ->select($columns)
             ->where('slug', $slug)
             ->first();
 
@@ -196,10 +283,11 @@ class NewsController extends Controller
             return response()->json(['message' => 'News item not found.'], 404);
         }
 
-        $coverageItems = collect();
+        $coverage = collect();
+        $storyGroup = $item->getRawOriginal('story_group');
 
-        if ($item->story_group) {
-            $coverageItems = NewsHeading::query()
+        if ($storyGroup) {
+            $coverage = NewsHeading::query()
                 ->select([
                     'id',
                     'title',
@@ -210,14 +298,26 @@ class NewsController extends Controller
                     'category',
                     'language',
                     'published_at',
-                    'image_url',
-                    'local_image_path',
+                    'created_at',
                 ])
-                ->where('story_group', $item->story_group)
+                ->where('story_group', $storyGroup)
                 ->where('id', '!=', $item->id)
                 ->latestPublished()
                 ->limit(8)
-                ->get();
+                ->get()
+                ->map(fn (NewsHeading $news) => [
+                    'id' => $news->id,
+                    'title' => $news->title,
+                    'slug' => $news->slug,
+                    'source_url' => $news->source_link,
+                    'source_name' => $news->source_name,
+                    'source_key' => $news->source_key,
+                    'source_slug' => $this->sourceSlugForKey((string) $news->source_key),
+                    'category' => $news->category,
+                    'language' => $news->language,
+                    'published_at' => $news->published_at?->toIso8601String() ?? $news->created_at?->toIso8601String(),
+                ])
+                ->values();
         }
 
         $sourceKeys = collect([$item->source_key])
@@ -255,101 +355,107 @@ class NewsController extends Controller
                 'source_url' => $item->source_link,
                 'source_name' => $item->source_name,
                 'source_key' => $item->source_key,
-                'source_slug' => $sourceSlugs->get($item->source_key)
-                    ?? str_replace('_', '-', $item->source_key),
+                'source_slug' => $this->sourceSlugForKey((string) $item->source_key),
                 'category' => $item->category,
                 'language' => $item->language,
                 'published_at' => $item->published_at?->toIso8601String(),
                 'image_url' => $this->resolveImageUrl($item),
-                'story_group' => $item->story_group,
+                'story_group' => $storyGroup,
                 'coverage' => $coverage,
             ],
         ]);
     }
 
     /**
-     * Keep publisher image URLs intact, and resolve managed image paths through
-     * the backend's public storage disk. Never expose filesystem paths to clients.
+     * Enhanced news columns are optional during a rolling deployment. Cache
+     * their availability briefly so every request does not query table metadata.
+     */
+    private function hasOptionalNewsColumn(string $column): bool
+    {
+        if (! in_array($column, ['story_group', 'local_image_path'], true)) {
+            return false;
+        }
+
+        return Cache::remember(
+            'news_headings_has_column_'.$column,
+            now()->addMinutes(5),
+            fn () => Schema::hasColumn('news_headings', $column)
+        );
+    }
+
+    /**
+     * Prefer a locally stored thumbnail when present. This avoids publisher CDN
+     * hotlink restrictions and serves existing local images from our own domain.
+     * Fall back to the publisher's valid remote image URL when no local copy exists.
      */
     private function resolveImageUrl(NewsHeading $item): ?string
     {
-        $remoteUrl = $this->validHttpUrl($item->image_url);
+        $localPath = trim((string) $item->getRawOriginal('local_image_path'));
 
-        if ($remoteUrl !== null) {
-            return $remoteUrl;
-        }
+        if ($localPath !== '') {
+            try {
+                $disk = Storage::disk('public');
 
-        // Some older/imported rows keep relative storage paths in image_url;
-        // prefer local_image_path when both are populated, then fall back.
-        $path = trim((string) ($item->local_image_path ?: $item->image_url));
+                if ($disk->exists($localPath)) {
+                    $url = $disk->url($localPath);
 
-        if ($path === '') {
-            return null;
-        }
+                    // Public disk URLs can be relative in custom filesystems. The
+                    // frontend lives on a different origin, so make them absolute.
+                    if (str_starts_with($url, '/')) {
+                        $url = rtrim((string) config('app.url'), '/').$url;
+                    }
 
-        $localUrl = $this->resolvePublicStoragePath($path);
-
-        return $localUrl ?? $this->validHttpUrl($path);
-    }
-
-    private function validHttpUrl(?string $value): ?string
-    {
-        $value = trim((string) $value);
-
-        if ($value === '') {
-            return null;
-        }
-
-        if (str_starts_with($value, '//')) {
-            $value = 'https:'.$value;
-        }
-
-        $scheme = strtolower((string) parse_url($value, PHP_URL_SCHEME));
-
-        if (! in_array($scheme, ['http', 'https'], true) || filter_var($value, FILTER_VALIDATE_URL) === false) {
-            return null;
-        }
-
-        return $value;
-    }
-
-    private function resolvePublicStoragePath(string $path): ?string
-    {
-        $path = str_replace(chr(92), '/', trim($path));
-        $path = ltrim($path, '/');
-
-        foreach (['storage/app/public/', 'public/storage/', 'storage/', 'public/'] as $prefix) {
-            if (str_starts_with($path, $prefix)) {
-                $path = substr($path, strlen($prefix));
-                break;
+                    return $url;
+                }
+            } catch (\Throwable) {
+                // A storage-driver failure should not prevent using a safe remote image.
             }
         }
 
-        if ($path === '' || str_contains($path, '../')) {
+        return $this->safeImageUrl($item->image_url);
+    }
+
+    /**
+     * Return only valid absolute HTTP(S) image URLs stored by the scraper.
+     * Publishers frequently host images on separate CDN domains, so requiring
+     * the article's domain here incorrectly hid otherwise valid thumbnails.
+     */
+    private function safeImageUrl(?string $url): ?string
+    {
+        if (! $url || strlen($url) > 2048) {
             return null;
         }
 
-        if (Storage::disk('public')->exists($path)) {
-            $url = Storage::disk('public')->url($path);
+        $url = trim($url);
 
-            if (filter_var($url, FILTER_VALIDATE_URL) !== false) {
-                return $url;
-            }
-
-            return url('/'.ltrim($url, '/'));
+        // Normalize legacy protocol-relative and backend-relative image paths.
+        if (str_starts_with($url, '//')) {
+            $url = 'https:'.$url;
+        } elseif (str_starts_with($url, '/')) {
+            $url = rtrim((string) config('app.url'), '/').$url;
         }
 
-        // Support legacy files stored directly in Laravel's public directory
-        // while still returning a public URL, never an absolute server path.
-        $publicPath = ltrim($path, '/');
-        if (str_starts_with($publicPath, 'public/')) {
-            $publicPath = substr($publicPath, strlen('public/'));
+        if (! filter_var($url, FILTER_VALIDATE_URL)) {
+            return null;
         }
 
-        if ($publicPath !== '' && file_exists(public_path($publicPath))) {
-            return url('/'.ltrim($publicPath, '/'));
+        $image = parse_url($url);
+        $scheme = strtolower((string) ($image['scheme'] ?? ''));
+        $host = strtolower(rtrim((string) ($image['host'] ?? ''), '.'));
+
+        if (! in_array($scheme, ['http', 'https'], true)
+            || $host === ''
+            || isset($image['user'])
+            || isset($image['pass'])) {
+            return null;
         }
 
-        return null;
+        // Do not emit local/private IP addresses as image destinations.
+        if (filter_var($host, FILTER_VALIDATE_IP)
+            && ! filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+            return null;
+        }
+
+        return $url;
     }
 }

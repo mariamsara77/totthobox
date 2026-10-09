@@ -759,22 +759,36 @@ class NewsScraperService
             return false;
         }
 
-        // ── Skip articles already in DB to prevent re-touching updated_at ────
-        // wasRecentlyCreated is only true for INSERT; UPDATE returns false.
-        // But we also need to avoid getMetaImage() on existing records.
+        // ── Keep existing story metadata stable while filling missing images ─
+        // Never replace title/source/published_at for an already-seen article.
         $sourceHash = hash('sha256', $link);
 
-        $exists = NewsHeading::where('source_hash', $sourceHash)->exists();
-        if ($exists) {
+        $existing = NewsHeading::where('source_hash', $sourceHash)->first();
+        if ($existing) {
             $this->seenUrls[$link] = true;
+
+            // Backfill missing thumbnails on old rows without touching their
+            // headline, source URL, or published_at ordering.
+            if (empty($existing->image_url)) {
+                $image = $this->normalizeImage($data['image'] ?? null, $link);
+
+                if (empty($image) && $this->metaImageLookups < $this->maxMetaImageLookupsPerRun) {
+                    $image = $this->normalizeImage($this->getMetaImage($link), $link);
+                    $this->metaImageLookups++;
+                }
+
+                if ($image) {
+                    $existing->forceFill(['image_url' => $image])->save();
+                }
+            }
 
             return false;
         }
 
-        // ── OG image fallback — only for genuinely new articles ───────────────
-        $image = $data['image'] ?? null;
+        // ── Image normalization + OG fallback for genuinely new articles ────
+        $image = $this->normalizeImage($data['image'] ?? null, $link);
         if (empty($image) && $this->metaImageLookups < $this->maxMetaImageLookupsPerRun) {
-            $image = $this->getMetaImage($link);
+            $image = $this->normalizeImage($this->getMetaImage($link), $link);
             $this->metaImageLookups++;
         }
 
@@ -833,7 +847,9 @@ class NewsScraperService
             try {
                 $response = Http::timeout($timeout)
                     ->withHeaders([
-                        'User-Agent' => 'TotthoboxNewsAggregator/1.0 (+https://totthobox.com/news)',
+                        // Use the configured browser user-agent rotation. The previous
+                        // fixed bot identifier was rejected by some publisher HTML pages.
+                        'User-Agent' => $this->userAgents[$attempts % count($this->userAgents)],
                         'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                         'Accept-Language' => 'bn-BD,bn;q=0.9,en-US;q=0.8,en;q=0.7',
                     ])
@@ -965,6 +981,41 @@ class NewsScraperService
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    protected function normalizeImage(?string $url, string $articleUrl): ?string
+    {
+        if (! $url) {
+            return null;
+        }
+
+        $url = $this->makeAbsolute($url, $articleUrl);
+        if (! $url || $this->isPlaceholderImage($url) || ! filter_var($url, FILTER_VALIDATE_URL)) {
+            return null;
+        }
+
+        $image = parse_url($url);
+        $scheme = strtolower((string) ($image['scheme'] ?? ''));
+        $host = strtolower(rtrim((string) ($image['host'] ?? ''), '.'));
+
+        // Publisher thumbnails may live on a dedicated image CDN. Do not require
+        // the thumbnail host to match the article host; only accept safe web URLs.
+        if (
+            ! in_array($scheme, ['http', 'https'], true)
+            || $host === ''
+            || isset($image['user'])
+            || isset($image['pass'])
+        ) {
+            return null;
+        }
+
+        // Reject loopback/private/reserved IP hosts.
+        if (filter_var($host, FILTER_VALIDATE_IP)
+            && ! filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+            return null;
+        }
+
+        return $url;
     }
 
     protected function isPlaceholderImage(?string $url): bool

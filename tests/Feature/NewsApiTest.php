@@ -1,21 +1,26 @@
 <?php
 
-use App\\Models\\NewsHeading;
-use App\\Models\\NewsSource;
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Illuminate\\Support\\Facades\\Storage;
+use App\Models\NewsHeading;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
 
 uses(RefreshDatabase::class);
 
 it('returns every configured newspaper even when it has zero headlines', function () {
+    expect(Schema::hasTable('news_sources'))->toBeFalse();
+
     $response = $this->getJson('/api/news/sources');
 
     $response
         ->assertOk()
         ->assertJsonStructure([
-            'bn',
-            'en',
-        ]);
+            'bn' => [['key', 'slug', 'name', 'language', 'home_url', 'total']],
+            'en' => [['key', 'slug', 'name', 'language', 'home_url', 'total']],
+        ])
+        ->assertJsonPath('bn.0.slug', 'prothom-alo')
+        ->assertJsonPath('en.0.slug', 'the-daily-star');
 
     expect(collect($response->json('bn'))->pluck('key'))
         ->toContain(
@@ -44,47 +49,55 @@ it('returns every configured newspaper even when it has zero headlines', functio
         ->toBe('prothom-alo');
 });
 
-
-it('uses database-managed slugs in both the news API and sidebar menu API', function () {
-    NewsSource::query()
-        ->where('source_key', 'prothom_alo')
-        ->firstOrFail()
-        ->update(['slug' => 'prothom-alo-latest']);
-
-    $newsSources = $this->getJson('/api/news/sources')->assertOk()->json();
-    $sidebarSources = $this->getJson('/api/sidebar/news-sources')->assertOk()->json();
-
-    expect(collect($newsSources['bn'])->firstWhere('key', 'prothom_alo')['slug'])
-        ->toBe('prothom-alo-latest');
-
-    expect(collect($sidebarSources['bn'])->firstWhere('source_key', 'prothom_alo')['slug'])
-        ->toBe('prothom-alo-latest');
-
-    NewsHeading::factory()->create([
-        'title' => 'Database slug headline',
-        'source_key' => 'prothom_alo',
-        'source_name' => 'Prothom Alo',
+it('uses configured source slugs and live headline counts from saved headlines', function () {
+    NewsHeading::create([
+        'title' => 'Sidebar count headline sample',
+        'slug' => 'sidebar-count-headline-sample',
+        'source_key' => 'daily-ittefaq', // Legacy key from older scraper records.
+        'source_name' => 'Old source label',
         'language' => 'bn',
-        'source_link' => 'https://www.prothomalo.com/database-slug-headline',
+        'source_link' => 'https://www.ittefaq.com.bd/sidebar-count-sample',
+        'image_url' => 'https://images.ittefaq-cdn.example/sample.jpg',
     ]);
 
-    $news = $this->getJson('/api/news?source=prothom_alo')->assertOk();
+    $response = $this->getJson('/api/sidebar/news-sources')
+        ->assertOk()
+        ->assertJsonStructure([
+            'bn' => [['source_key', 'slug', 'source_name', 'language', 'home_url', 'total']],
+            'en' => [['source_key', 'slug', 'source_name', 'language', 'home_url', 'total']],
+        ]);
 
-    expect($news->json('data.0.source_slug'))->toBe('prothom-alo-latest');
+    $ittefaq = collect($response->json('bn'))->firstWhere('source_key', 'ittefaq');
+
+    expect($ittefaq)->not->toBeNull()
+        ->and($ittefaq['slug'])->toBe('daily-ittefaq')
+        ->and($ittefaq['source_name'])->toBe('Daily Ittefaq')
+        ->and($ittefaq['total'])->toBe(1);
+
+    $catalog = $this->getJson('/api/news/sources')->assertOk();
+    $catalogIttefaq = collect($catalog->json('bn'))->firstWhere('key', 'ittefaq');
+    expect($catalogIttefaq['total'])->toBe(1);
+
+    $this->getJson('/api/news?source=ittefaq')
+        ->assertOk()
+        ->assertJsonPath('data.0.title', 'Sidebar count headline sample')
+        ->assertJsonPath('data.0.source_slug', 'daily-ittefaq');
 });
 
-it('returns discovery-safe fields, images and source slugs for the news frontend', function () {
-    NewsHeading::factory()->create([
+it('returns only discovery-safe fields and supports source filtering', function () {
+    NewsHeading::create([
         'title' => 'Sample headline for filtering',
+        'slug' => 'sample-headline-for-filtering',
         'source_key' => 'prothom_alo',
         'source_name' => 'Prothom Alo',
         'language' => 'bn',
         'source_link' => 'https://www.prothomalo.com/sample',
-        'image_url' => 'https://images.example.com/sample.jpg',
+        'image_url' => 'https://www.prothomalo.com/images/sample.jpg',
     ]);
 
-    NewsHeading::factory()->create([
+    NewsHeading::create([
         'title' => 'Another outlet headline',
+        'slug' => 'another-outlet-headline',
         'source_key' => 'daily_star',
         'source_name' => 'The Daily Star',
         'language' => 'en',
@@ -96,34 +109,133 @@ it('returns discovery-safe fields, images and source slugs for the news frontend
     $response
         ->assertOk()
         ->assertJsonPath('data.0.title', 'Sample headline for filtering')
-        ->assertJsonPath('data.0.image_url', 'https://images.example.com/sample.jpg')
-        ->assertJsonPath('data.0.source_slug', 'prothom-alo');
+        ->assertJsonPath('data.0.image_url', 'https://www.prothomalo.com/images/sample.jpg');
 
     expect($response->json('data.0'))
         ->not->toHaveKey('content')
         ->not->toHaveKey('body')
-        ->not->toHaveKey('summary')
-        ->not->toHaveKey('local_image_path');
+        ->not->toHaveKey('summary');
 });
 
-it('resolves managed local news thumbnails into public storage URLs', function () {
+it('prefers an available local thumbnail over a remote URL', function () {
     Storage::fake('public');
-    Storage::disk('public')->put('news-thumbs/sample.jpg', 'sample-image');
+    $path = 'news-images/local-thumbnail.jpg';
+    Storage::disk('public')->put($path, 'test-image-data');
 
-    NewsHeading::factory()->create([
-        'title' => 'Local thumbnail news item',
+    NewsHeading::create([
+        'title' => 'Headline with locally stored thumbnail',
+        'slug' => 'headline-with-locally-stored-thumbnail',
         'source_key' => 'prothom_alo',
         'source_name' => 'Prothom Alo',
         'language' => 'bn',
-        'source_link' => 'https://www.prothomalo.com/local-sample',
-        'image_url' => null,
-        'local_image_path' => 'news-thumbs/sample.jpg',
+        'source_link' => 'https://www.prothomalo.com/local-image-test',
+        'image_url' => 'https://img.publisher-cdn.example/image.jpg',
+        'local_image_path' => $path,
     ]);
 
-    $response = $this->getJson('/api/news?source=prothom_alo&per_page=10');
+    $expectedUrl = rtrim((string) config('app.url'), '/') . Storage::disk('public')->url($path);
 
-    $response->assertOk();
+    $this->getJson('/api/news?source=prothom_alo')
+        ->assertOk()
+        ->assertJsonPath('data.0.image_url', $expectedUrl);
+});
 
-    expect($response->json('data.0.image_url'))
-        ->toEndWith('/storage/news-thumbs/sample.jpg');
+it('allows valid CDN thumbnails while keeping article content out of the public feed', function () {
+    NewsHeading::create([
+        'title' => 'Headline with CDN thumbnail',
+        'slug' => 'headline-with-cdn-thumbnail',
+        'source_key' => 'prothom_alo',
+        'source_name' => 'Prothom Alo',
+        'language' => 'bn',
+        'source_link' => 'https://www.prothomalo.com/cdn-image-test',
+        'image_url' => 'https://img.publisher-cdn.example/image.jpg',
+    ]);
+
+    $this->getJson('/api/news?source=prothom_alo')
+        ->assertOk()
+        ->assertJsonPath('data.0.image_url', 'https://img.publisher-cdn.example/image.jpg');
+});
+
+it('normalizes legacy relative thumbnail paths to the backend origin', function () {
+    NewsHeading::create([
+        'title' => 'Headline with relative thumbnail',
+        'slug' => 'headline-with-relative-thumbnail',
+        'source_key' => 'prothom_alo',
+        'source_name' => 'Prothom Alo',
+        'language' => 'bn',
+        'source_link' => 'https://www.prothomalo.com/relative-image-test',
+        'image_url' => '/storage/news-images/legacy-thumbnail.jpg',
+    ]);
+
+    $expectedUrl = rtrim((string) config('app.url'), '/').'/storage/news-images/legacy-thumbnail.jpg';
+
+    $this->getJson('/api/news?source=prothom_alo')
+        ->assertOk()
+        ->assertJsonPath('data.0.image_url', $expectedUrl);
+});
+
+it('returns saved headlines older than seven days unless the visitor chooses a time filter', function () {
+    NewsHeading::create([
+        'title' => 'Older saved headline should remain visible',
+        'slug' => 'older-saved-headline-should-remain-visible',
+        'source_key' => 'prothom_alo',
+        'source_name' => 'Prothom Alo',
+        'language' => 'bn',
+        'source_link' => 'https://www.prothomalo.com/old-saved-headline',
+        'published_at' => now()->subDays(10),
+    ]);
+
+    $this->getJson('/api/news?source=prothom_alo')
+        ->assertOk()
+        ->assertJsonPath('data.0.title', 'Older saved headline should remain visible');
+
+    $this->getJson('/api/news?source=prothom_alo&hours=48')
+        ->assertOk()
+        ->assertJsonPath('meta.total', 0);
+});
+
+
+it('continues returning headlines when optional enhancement columns are not deployed yet', function () {
+    Cache::forget('news_headings_has_column_story_group');
+    Cache::forget('news_headings_has_column_local_image_path');
+
+    // Simulate a staggered deployment without changing the test database schema.
+    Schema::shouldReceive('hasColumn')
+        ->with('news_headings', 'story_group')
+        ->andReturnFalse();
+    Schema::shouldReceive('hasColumn')
+        ->with('news_headings', 'local_image_path')
+        ->andReturnFalse();
+
+    NewsHeading::create([
+        'title' => 'Headline survives an older production schema',
+        'slug' => 'headline-survives-older-production-schema',
+        'source_key' => 'prothom_alo',
+        'source_name' => 'Prothom Alo',
+        'language' => 'bn',
+        'source_link' => 'https://www.prothomalo.com/schema-compatibility-test',
+    ]);
+
+    $this->getJson('/api/news')
+        ->assertOk()
+        ->assertJsonPath('data.0.title', 'Headline survives an older production schema')
+        ->assertJsonPath('data.0.story_group', null)
+        ->assertJsonPath('data.0.image_url', null);
+});
+
+it('uses the saved creation timestamp when a headline has no publication timestamp', function () {
+    $headline = NewsHeading::create([
+        'title' => 'Headline without a publisher timestamp',
+        'slug' => 'headline-without-publisher-timestamp',
+        'source_key' => 'prothom_alo',
+        'source_name' => 'Prothom Alo',
+        'language' => 'bn',
+        'source_link' => 'https://www.prothomalo.com/created-at-fallback-test',
+        'published_at' => null,
+    ]);
+
+    $this->getJson('/api/news?source=prothom_alo')
+        ->assertOk()
+        ->assertJsonPath('data.0.title', 'Headline without a publisher timestamp')
+        ->assertJsonPath('data.0.published_at', $headline->created_at->toIso8601String());
 });
