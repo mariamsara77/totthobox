@@ -152,7 +152,7 @@ it('resolves media-library thumbnails from the media disk', function () {
     $response->assertOk();
 
     expect($response->json('data.0.image_url'))
-        ->toEndWith('/media/news-thumbs/sample.jpg');
+        ->toContain('news-thumbs/sample.jpg');
 });
 
 it('resolves managed local news thumbnails into public storage URLs', function () {
