@@ -38,11 +38,19 @@ class NewsHeading extends Model
 
         static::saved(function () {
             cache()->forget('news_sidebar_sources_v1');
+            cache()->forget('news_sidebar_sources_v2');
+            cache()->forget('news_sidebar_counts_v1');
+            cache()->forget('news_api_sources_v1');
+            cache()->forget('news_api_sources_v2');
             Cache::tags(['news_headlines', 'news_coverage'])->flush();
         });
 
         static::deleted(function () {
             cache()->forget('news_sidebar_sources_v1');
+            cache()->forget('news_sidebar_sources_v2');
+            cache()->forget('news_sidebar_counts_v1');
+            cache()->forget('news_api_sources_v1');
+            cache()->forget('news_api_sources_v2');
             Cache::tags(['news_headlines', 'news_coverage'])->flush();
         });
 
