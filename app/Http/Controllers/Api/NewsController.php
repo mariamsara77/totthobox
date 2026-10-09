@@ -265,7 +265,7 @@ class NewsController extends Controller
                 if ($disk->exists($localPath)) {
                     return $disk->url($localPath);
                 }
-            } catch (\\Throwable) {
+            } catch (\Throwable) {
                 // A storage-driver failure should not prevent using a safe remote image.
             }
         }
