@@ -4,6 +4,7 @@ namespace App\\Http\\Controllers\\Api;
 
 use App\\Http\\Controllers\\Controller;
 use App\\Models\\NewsHeading;
+use App\\Models\\NewsSource;
 use App\\Models\\BuySellCategory;
 use App\\Models\\ContactCategory;
 use App\\Models\\SignCategory;
@@ -18,10 +19,6 @@ class SidebarController extends Controller
      */
     public function newsSources()
     {
-        $configured = collect(config('news_sources', []))
-            ->sortBy(fn (array $source) => sprintf('%s-%03d', $source['language'], $source['order']))
-            ->values();
-
         $counts = Cache::remember('news_sidebar_counts_v1', now()->addMinutes(5), function () {
             return NewsHeading::query()
                 ->selectRaw('source_key, COUNT(*) as total')
@@ -29,17 +26,18 @@ class SidebarController extends Controller
                 ->pluck('total', 'source_key');
         });
 
-        $data = $configured
-            ->map(function (array $source) use ($counts) {
-                return [
-                    'source_name' => $source['name'],
-                    'source_key' => $source['key'],
-                    'slug' => str_replace('_', '-', $source['key']),
-                    'language' => $source['language'],
-                    'home_url' => $source['home_url'],
-                    'total' => (int) ($counts[$source['key']] ?? 0),
-                ];
-            })
+        $data = NewsSource::query()
+            ->active()
+            ->ordered()
+            ->get()
+            ->map(fn (NewsSource $source) => [
+                'source_name' => $source->name,
+                'source_key' => $source->source_key,
+                'slug' => $source->slug,
+                'language' => $source->language,
+                'home_url' => $source->home_url,
+                'total' => (int) ($counts[$source->source_key] ?? 0),
+            ])
             ->groupBy('language');
 
         return response()->json($data)->header('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
