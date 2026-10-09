@@ -65,3 +65,18 @@ it('returns only discovery-safe fields and supports source filtering', function 
         ->not->toHaveKey('body')
         ->not->toHaveKey('summary');
 });
+
+it('does not expose thumbnails hosted outside the configured newspaper domain', function () {
+    NewsHeading::factory()->create([
+        'title' => 'Headline with untrusted thumbnail',
+        'source_key' => 'prothom_alo',
+        'source_name' => 'Prothom Alo',
+        'language' => 'bn',
+        'source_link' => 'https://www.prothomalo.com/untrusted-image-test',
+        'image_url' => 'https://untrusted.example/image.jpg',
+    ]);
+
+    $this->getJson('/api/news?source=prothom_alo')
+        ->assertOk()
+        ->assertJsonPath('data.0.image_url', null);
+});
