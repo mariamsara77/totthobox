@@ -24,7 +24,7 @@ class NewsSource extends Model
 
     protected static function booted(): void
     {
-        $forgetSourceCaches = static function (): void {
+        $forgetSourceCaches = static function (NewsSource $source): void {
             cache()->forget('news_api_sources_v2');
             cache()->forget('news_sidebar_sources_v2');
         };
