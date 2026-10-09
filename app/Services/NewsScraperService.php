@@ -796,8 +796,17 @@ class NewsScraperService
             $missingImage = $currentImage === '' || $this->isPlaceholderImage($currentImage);
             $hasLocalImage = trim((string) $existing->local_image_path) !== '';
 
-            if ($missingImage && ! $hasLocalImage && $image !== null) {
-                $existing->forceFill(['image_url' => $image])->save();
+            if ($missingImage && ! $hasLocalImage) {
+                // RSS may not expose a thumbnail. Try a bounded Open Graph lookup
+                // for older records too, without replacing their publication date.
+                if ($image === null && $this->metaImageLookups < $this->maxMetaImageLookupsPerRun) {
+                    $image = $this->getMetaImage($link);
+                    $this->metaImageLookups++;
+                }
+
+                if ($image !== null) {
+                    $existing->forceFill(['image_url' => $image])->save();
+                }
             }
 
             $this->seenUrls[$link] = true;
@@ -955,7 +964,7 @@ class NewsScraperService
     /**
      * Fetch og:image / twitter:image from the article's <head> only.
      * Reads only the first 8 KB of the returned document head to keep parsing lightweight.
-     * Only called for genuinely new articles (not existing DB records).
+     * Used for new stories and as a bounded fallback for older rows missing images.
      */
     protected function getMetaImage(string $url): ?string
     {

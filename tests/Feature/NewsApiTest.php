@@ -209,3 +209,49 @@ it('backfills missing images on existing headlines without promoting them', func
         ->and($headline->image_url)->toBe('https://www.prothomalo.com/media/news/existing-image.webp')
         ->and($headline->published_at->toDateString())->toBe(now()->subDays(2)->toDateString());
 });
+
+ 
+it('uses a bounded Open Graph image fallback to repair existing image-less headlines', function () {
+    $link = 'https://www.prothomalo.com/bangladesh/og-image-backfill';
+
+    $headline = NewsHeading::factory()->create([
+        'title' => 'Existing headline missing image',
+        'source_key' => 'prothom_alo',
+        'source_name' => 'Prothom Alo',
+        'language' => 'bn',
+        'source_link' => $link,
+        'source_hash' => hash('sha256', $link),
+        'image_url' => null,
+        'local_image_path' => null,
+        'published_at' => now()->subDays(3),
+    ]);
+
+    $service = new class extends NewsScraperService {
+        public function storeHeadline(array $source, array $data): bool
+        {
+            return $this->persistNews($source, $data);
+        }
+
+        protected function getMetaImage(string $url): ?string
+        {
+            return 'https://images.example.com/recovered-og-image.jpg';
+        }
+    };
+
+    $created = $service->storeHeadline(
+        ['key' => 'prothom_alo', 'name' => 'Prothom Alo', 'language' => 'bn'],
+        [
+            'title' => 'Existing headline missing image',
+            'link' => $link,
+            'image' => null,
+            'date' => now(),
+            'category' => 'National',
+        ]
+    );
+
+    $headline->refresh();
+
+    expect($created)->toBeFalse()
+        ->and($headline->image_url)->toBe('https://images.example.com/recovered-og-image.jpg')
+        ->and($headline->published_at->toDateString())->toBe(now()->subDays(3)->toDateString());
+});
