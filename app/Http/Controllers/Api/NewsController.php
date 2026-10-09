@@ -61,7 +61,7 @@ class NewsController extends Controller
         }
 
         if (! empty($data['category'])) {
-            $query->where('category', $data['category']);
+            $query->whereRaw('LOWER(category) = ?', [mb_strtolower(trim($data['category']))]);
         }
 
         if (! empty($data['search'])) {
@@ -287,7 +287,7 @@ class NewsController extends Controller
 
     private function resolvePublicStoragePath(string $path): ?string
     {
-        $path = str_replace('\\\\', '/', trim($path));
+        $path = str_replace(chr(92), '/', trim($path));
         $path = ltrim($path, '/');
 
         foreach (['storage/app/public/', 'public/storage/', 'storage/', 'public/'] as $prefix) {
