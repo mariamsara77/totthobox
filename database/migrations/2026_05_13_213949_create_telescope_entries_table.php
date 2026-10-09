@@ -1,26 +1,30 @@
 <?php
 
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\\Database\\Migrations\\Migration;
+use Illuminate\\Database\\Schema\\Blueprint;
+use Illuminate\\Support\\Facades\\Schema;
 
+/**
+ * Duplicate of the earlier Telescope entries migration.
+ *
+ * Keep this migration identifier for installations whose migration history
+ * may already reference it, but do not create or drop tables owned by the
+ * original migration.
+ */
 return new class extends Migration
 {
-    /**
-     * Get the migration connection name.
-     */
-    public function getConnection(): ?string
-    {
-        return config('telescope.storage.database.connection');
-    }
-
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         $schema = Schema::connection($this->getConnection());
 
+        // The original migration creates these tables. A fresh database runs
+        // both timestamped files, so the duplicate must be a safe no-op.
+        if ($schema->hasTable('telescope_entries')) {
+            return;
+        }
+
+        // Recovery path for installations where the original migration record
+        // exists but its tables were removed. Use the same schema as Telescope.
         $schema->create('telescope_entries', function (Blueprint $table) {
             $table->bigIncrements('sequence');
             $table->uuid('uuid');
@@ -56,15 +60,15 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
+    public function getConnection(): ?string
+    {
+        return config('telescope.storage.database.connection');
+    }
+
     public function down(): void
     {
-        $schema = Schema::connection($this->getConnection());
-
-        $schema->dropIfExists('telescope_entries_tags');
-        $schema->dropIfExists('telescope_entries');
-        $schema->dropIfExists('telescope_monitoring');
+        // The canonical 2026_03_14_165651 migration owns these tables.
+        // Keeping this duplicate migration's rollback empty prevents it from
+        // dropping tables still owned by the earlier migration.
     }
 };
