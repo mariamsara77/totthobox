@@ -1,6 +1,7 @@
 <?php
 
 use App\\Models\\NewsHeading;
+use App\\Models\\NewsSource;
 use Illuminate\\Foundation\\Testing\\RefreshDatabase;
 use Illuminate\\Support\\Facades\\Storage;
 
@@ -37,6 +38,27 @@ it('returns every configured newspaper even when it has zero headlines', functio
 
     expect(collect($response->json('bn'))->firstWhere('key', 'prothom_alo')['slug'])
         ->toBe('prothom-alo');
+
+    $sidebar = $this->getJson('/api/sidebar/news-sources')->assertOk();
+    expect(collect($sidebar->json('bn'))->firstWhere('source_key', 'prothom_alo')['slug'])
+        ->toBe('prothom-alo');
+});
+
+
+it('uses database-managed slugs in both the news API and sidebar menu API', function () {
+    NewsSource::query()
+        ->where('source_key', 'prothom_alo')
+        ->firstOrFail()
+        ->update(['slug' => 'prothom-alo-latest']);
+
+    $newsSources = $this->getJson('/api/news/sources')->assertOk()->json();
+    $sidebarSources = $this->getJson('/api/sidebar/news-sources')->assertOk()->json();
+
+    expect(collect($newsSources['bn'])->firstWhere('key', 'prothom_alo')['slug'])
+        ->toBe('prothom-alo-latest');
+
+    expect(collect($sidebarSources['bn'])->firstWhere('source_key', 'prothom_alo')['slug'])
+        ->toBe('prothom-alo-latest');
 });
 
 it('returns discovery-safe fields, images and source slugs for the news frontend', function () {
