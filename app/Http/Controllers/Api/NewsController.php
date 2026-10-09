@@ -4,6 +4,7 @@ namespace App\\Http\\Controllers\\Api;
 
 use App\\Http\\Controllers\\Controller;
 use App\\Models\\NewsHeading;
+use App\\Models\\NewsSource;
 use Illuminate\\Http\\Request;
 use Illuminate\\Support\\Facades\\Cache;
 use Illuminate\\Support\\Facades\\Storage;
@@ -18,7 +19,7 @@ class NewsController extends Controller
                 'nullable',
                 'string',
                 'max:64',
-                Rule::in(collect(config('news_sources', []))->pluck('key')->all()),
+                Rule::in(NewsSource::query()->active()->pluck('source_key')->all()),
             ],
             'language' => ['nullable', Rule::in(['bn', 'en'])],
             'category' => ['nullable', 'string', 'max:50'],
@@ -133,25 +134,24 @@ class NewsController extends Controller
     public function sources()
     {
         $data = Cache::remember('news_api_sources_v1', now()->addMinutes(5), function () {
-            $configured = collect(config('news_sources', []))
-                ->sortBy(fn (array $source) => sprintf('%s-%03d', $source['language'], $source['order']))
-                ->values();
+            $sources = NewsSource::query()
+                ->active()
+                ->ordered()
+                ->get();
 
             $counts = NewsHeading::query()
                 ->selectRaw('source_key, COUNT(*) as total')
                 ->groupBy('source_key')
                 ->pluck('total', 'source_key');
 
-            $result = $configured->map(function (array $source) use ($counts) {
-                return [
-                    'key' => $source['key'],
-                    'slug' => str_replace('_', '-', $source['key']),
-                    'name' => $source['name'],
-                    'language' => $source['language'],
-                    'home_url' => $source['home_url'],
-                    'total' => (int) ($counts[$source['key']] ?? 0),
-                ];
-            });
+            $result = $sources->map(fn (NewsSource $source) => [
+                'key' => $source->source_key,
+                'slug' => $source->slug,
+                'name' => $source->name,
+                'language' => $source->language,
+                'home_url' => $source->home_url,
+                'total' => (int) ($counts[$source->source_key] ?? 0),
+            ]);
 
             return $result->groupBy('language');
         });
