@@ -5,7 +5,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Database\Schema\Blueprint;
 
 uses(RefreshDatabase::class);
 
@@ -191,9 +190,13 @@ it('continues returning headlines when optional enhancement columns are not depl
     Cache::forget('news_headings_has_column_story_group');
     Cache::forget('news_headings_has_column_local_image_path');
 
-    Schema::table('news_headings', function (Blueprint $table) {
-        $table->dropColumn(['story_group', 'local_image_path']);
-    });
+    // Simulate a staggered deployment without changing the test database schema.
+    Schema::shouldReceive('hasColumn')
+        ->with('news_headings', 'story_group')
+        ->andReturnFalse();
+    Schema::shouldReceive('hasColumn')
+        ->with('news_headings', 'local_image_path')
+        ->andReturnFalse();
 
     NewsHeading::create([
         'title' => 'Headline survives an older production schema',
