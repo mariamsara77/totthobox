@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Schema;
 uses(RefreshDatabase::class);
 
 it('returns every configured newspaper even when it has zero headlines', function () {
+    expect(Schema::hasTable('news_sources'))->toBeFalse();
+
     $response = $this->getJson('/api/news/sources');
 
     $response
