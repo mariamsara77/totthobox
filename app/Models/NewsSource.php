@@ -22,6 +22,17 @@ class NewsSource extends Model
         'is_active' => 'boolean',
     ];
 
+    protected static function booted(): void
+    {
+        $forgetSourceCaches = static function (): void {
+            cache()->forget('news_api_sources_v2');
+            cache()->forget('news_sidebar_sources_v2');
+        };
+
+        static::saved($forgetSourceCaches);
+        static::deleted($forgetSourceCaches);
+    }
+
     public function headlines(): HasMany
     {
         return $this->hasMany(NewsHeading::class, 'source_key', 'source_key');
