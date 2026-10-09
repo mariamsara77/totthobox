@@ -42,7 +42,6 @@ return new class extends Migration {
 
             $table->index(['is_featured', 'status', 'featured_order'], 'idx_featured_display');
 
-            $table->index(['status']);
         });
     }
 
