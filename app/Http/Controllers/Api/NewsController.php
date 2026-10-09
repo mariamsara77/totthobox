@@ -253,7 +253,9 @@ class NewsController extends Controller
             return $remoteUrl;
         }
 
-        $path = trim((string) $item->local_image_path);
+        // Some older/imported rows keep relative storage paths in image_url;
+        // prefer local_image_path when both are populated, then fall back.
+        $path = trim((string) ($item->local_image_path ?: $item->image_url));
 
         if ($path === '') {
             return null;
