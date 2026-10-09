@@ -1,0 +1,81 @@
+<?php
+
+return [
+    [
+        'key' => 'prothom_alo',
+        'name' => 'Prothom Alo',
+        'language' => 'bn',
+        'home_url' => 'https://www.prothomalo.com/',
+        'order' => 10,
+    ],
+    [
+        'key' => 'kalerkantho',
+        'name' => 'Kaler Kantho',
+        'language' => 'bn',
+        'home_url' => 'https://www.kalerkantho.com/',
+        'order' => 20,
+    ],
+    [
+        'key' => 'samakal',
+        'name' => 'Samakal',
+        'language' => 'bn',
+        'home_url' => 'https://samakal.com/',
+        'order' => 30,
+    ],
+    [
+        'key' => 'jugantor',
+        'name' => 'Jugantor',
+        'language' => 'bn',
+        'home_url' => 'https://www.jugantor.com/',
+        'order' => 40,
+    ],
+    [
+        'key' => 'ittefaq',
+        'name' => 'Daily Ittefaq',
+        'language' => 'bn',
+        'home_url' => 'https://www.ittefaq.com.bd/',
+        'order' => 50,
+    ],
+    [
+        'key' => 'manabzamin',
+        'name' => 'Manabzamin',
+        'language' => 'bn',
+        'home_url' => 'https://www.mzamin.com/',
+        'order' => 60,
+    ],
+    [
+        'key' => 'somoy_news',
+        'name' => 'Somoy News',
+        'language' => 'bn',
+        'home_url' => 'https://www.somoynews.tv/',
+        'order' => 70,
+    ],
+    [
+        'key' => 'daily_star',
+        'name' => 'The Daily Star',
+        'language' => 'en',
+        'home_url' => 'https://www.thedailystar.net/',
+        'order' => 10,
+    ],
+    [
+        'key' => 'bdnews24',
+        'name' => 'bdnews24',
+        'language' => 'en',
+        'home_url' => 'https://bdnews24.com/',
+        'order' => 20,
+    ],
+    [
+        'key' => 'financial_express',
+        'name' => 'The Financial Express',
+        'language' => 'en',
+        'home_url' => 'https://thefinancialexpress.com.bd/',
+        'order' => 30,
+    ],
+    [
+        'key' => 'new_age',
+        'name' => 'New Age',
+        'language' => 'en',
+        'home_url' => 'https://www.newagebd.net/',
+        'order' => 40,
+    ],
+];

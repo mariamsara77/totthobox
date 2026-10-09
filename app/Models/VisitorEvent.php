@@ -12,6 +12,8 @@ class VisitorEvent extends Model
     protected $fillable = [
         'session_id',
         'visitor_id',
+        'event_uuid',
+        'visitor_id',
         'event_category',
         'event_action',
         'event_label',
