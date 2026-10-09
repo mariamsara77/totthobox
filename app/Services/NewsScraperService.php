@@ -993,22 +993,23 @@ class NewsScraperService
         }
 
         $image = parse_url($url);
-        $article = parse_url($articleUrl);
         $scheme = strtolower((string) ($image['scheme'] ?? ''));
-        $imageHost = strtolower(rtrim((string) ($image['host'] ?? ''), '.'));
-        $articleHost = strtolower(rtrim((string) ($article['host'] ?? ''), '.'));
+        $host = strtolower(rtrim((string) ($image['host'] ?? ''), '.'));
 
-        $imageHost = preg_replace('/^www\\./i', '', $imageHost) ?? $imageHost;
-        $articleHost = preg_replace('/^www\\./i', '', $articleHost) ?? $articleHost;
-
+        // Publisher thumbnails may live on a dedicated image CDN. Do not require
+        // the thumbnail host to match the article host; only accept safe web URLs.
         if (
             ! in_array($scheme, ['http', 'https'], true)
-            || $imageHost === ''
-            || $articleHost === ''
+            || $host === ''
             || isset($image['user'])
             || isset($image['pass'])
-            || ($imageHost !== $articleHost && ! str_ends_with($imageHost, '.'.$articleHost))
         ) {
+            return null;
+        }
+
+        // Reject loopback/private/reserved IP hosts.
+        if (filter_var($host, FILTER_VALIDATE_IP)
+            && ! filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
             return null;
         }
 
