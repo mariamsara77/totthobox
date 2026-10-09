@@ -66,17 +66,36 @@ it('returns only discovery-safe fields and supports source filtering', function 
         ->not->toHaveKey('summary');
 });
 
-it('does not expose thumbnails hosted outside the configured newspaper domain', function () {
+it('allows valid CDN thumbnails while keeping article content out of the public feed', function () {
     NewsHeading::factory()->create([
         'title' => 'Headline with untrusted thumbnail',
         'source_key' => 'prothom_alo',
         'source_name' => 'Prothom Alo',
         'language' => 'bn',
-        'source_link' => 'https://www.prothomalo.com/untrusted-image-test',
-        'image_url' => 'https://untrusted.example/image.jpg',
+        'source_link' => 'https://www.prothomalo.com/cdn-image-test',
+        'image_url' => 'https://img.publisher-cdn.example/image.jpg',
     ]);
 
     $this->getJson('/api/news?source=prothom_alo')
         ->assertOk()
-        ->assertJsonPath('data.0.image_url', null);
+        ->assertJsonPath('data.0.image_url', 'https://img.publisher-cdn.example/image.jpg');
+});
+
+it('returns saved headlines older than seven days unless the visitor chooses a time filter', function () {
+    NewsHeading::factory()->create([
+        'title' => 'Older saved headline should remain visible',
+        'source_key' => 'prothom_alo',
+        'source_name' => 'Prothom Alo',
+        'language' => 'bn',
+        'source_link' => 'https://www.prothomalo.com/old-saved-headline',
+        'published_at' => now()->subDays(10),
+    ]);
+
+    $this->getJson('/api/news?source=prothom_alo')
+        ->assertOk()
+        ->assertJsonPath('data.0.title', 'Older saved headline should remain visible');
+
+    $this->getJson('/api/news?source=prothom_alo&hours=48')
+        ->assertOk()
+        ->assertJsonPath('meta.total', 0);
 });
