@@ -793,9 +793,23 @@ class NewsScraperService
             if (
                 empty($existing->local_image_path)
                 && ($this->isPlaceholderImage($existing->image_url) || empty($existing->image_url))
-                && ! empty($data['image'])
             ) {
-                $candidateImage = $this->makeAbsolute($data['image'], $link);
+                $candidateImage = $data['image'] ?? null;
+
+                // Existing stories can also recover their Open Graph image when
+                // the feed/listing itself omitted a thumbnail. Keep this lookup
+                // under the same per-run budget as new stories.
+                if (
+                    empty($candidateImage)
+                    && $this->metaImageLookups < $this->maxMetaImageLookupsPerRun
+                ) {
+                    $candidateImage = $this->getMetaImage($link);
+                    $this->metaImageLookups++;
+                }
+
+                $candidateImage = $candidateImage
+                    ? $this->makeAbsolute($candidateImage, $link)
+                    : null;
 
                 if (
                     $candidateImage
