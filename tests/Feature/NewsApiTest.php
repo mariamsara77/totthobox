@@ -2,6 +2,7 @@
 
 use App\Models\NewsHeading;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
 
@@ -94,6 +95,29 @@ it('returns only discovery-safe fields and supports source filtering', function 
         ->not->toHaveKey('content')
         ->not->toHaveKey('body')
         ->not->toHaveKey('summary');
+});
+
+it('prefers an available local thumbnail over a remote URL', function () {
+    Storage::fake('public');
+    $path = 'news-images/local-thumbnail.jpg';
+    Storage::disk('public')->put($path, 'test-image-data');
+
+    NewsHeading::create([
+        'title' => 'Headline with locally stored thumbnail',
+        'slug' => 'headline-with-locally-stored-thumbnail',
+        'source_key' => 'prothom_alo',
+        'source_name' => 'Prothom Alo',
+        'language' => 'bn',
+        'source_link' => 'https://www.prothomalo.com/local-image-test',
+        'image_url' => 'https://img.publisher-cdn.example/image.jpg',
+        'local_image_path' => $path,
+    ]);
+
+    $expectedUrl = Storage::disk('public')->url($path);
+
+    $this->getJson('/api/news?source=prothom_alo')
+        ->assertOk()
+        ->assertJsonPath('data.0.image_url', $expectedUrl);
 });
 
 it('allows valid CDN thumbnails while keeping article content out of the public feed', function () {
