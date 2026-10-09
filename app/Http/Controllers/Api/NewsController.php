@@ -271,25 +271,40 @@ class NewsController extends Controller
      * Keep publisher image URLs intact, and resolve managed image paths through
      * the backend's public storage disk. Never expose filesystem paths to clients.
      */
+    /**
+     * Resolve a usable image URL for the frontend.
+     *
+     * Locally managed thumbnails take priority over publisher URLs because some
+     * publishers expire, rotate, or hotlink-protect remote image URLs. If the
+     * managed file is unavailable, retain the valid remote image as a fallback.
+     */
     private function resolveImageUrl(NewsHeading $item): ?string
     {
+        $localPath = trim((string) $item->local_image_path);
+
+        if ($localPath !== '') {
+            $localUrl = $this->resolvePublicStoragePath($localPath);
+
+            if ($localUrl !== null) {
+                return $localUrl;
+            }
+        }
+
         $remoteUrl = $this->validHttpUrl($item->image_url);
 
         if ($remoteUrl !== null) {
             return $remoteUrl;
         }
 
-        // Some older/imported rows keep relative storage paths in image_url;
-        // prefer local_image_path when both are populated, then fall back.
-        $path = trim((string) ($item->local_image_path ?: $item->image_url));
+        // Legacy rows can contain a relative storage path in image_url.
+        $legacyPath = trim((string) $item->image_url);
 
-        if ($path === '') {
+        if ($legacyPath === '') {
             return null;
         }
 
-        $localUrl = $this->resolvePublicStoragePath($path);
-
-        return $localUrl ?? $this->validHttpUrl($path);
+        return $this->resolvePublicStoragePath($legacyPath)
+            ?? $this->validHttpUrl($legacyPath);
     }
 
     private function validHttpUrl(?string $value): ?string
