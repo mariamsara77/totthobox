@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\NewsHeading;
+use App\Models\NewsSource;
 use App\Models\BuySellCategory;
 use App\Models\ContactCategory;
 use App\Models\SignCategory;
@@ -18,30 +19,30 @@ class SidebarController extends Controller
      */
     public function newsSources()
     {
-        $configured = collect(config('news_sources', []))
-            ->sortBy(fn (array $source) => sprintf('%s-%03d', $source['language'], $source['order']))
-            ->values();
+        $data = Cache::remember('news_sidebar_sources_v2', now()->addMinute(), function () {
+            $sources = NewsSource::query()
+                ->where('is_active', true)
+                ->withCount('headlines')
+                ->orderBy('language')
+                ->orderBy('position')
+                ->get()
+                ->map(fn (NewsSource $source) => [
+                    'source_name' => $source->name,
+                    'source_key' => $source->source_key,
+                    'slug' => $source->slug,
+                    'language' => $source->language,
+                    'home_url' => $source->home_url,
+                    'total' => (int) $source->headlines_count,
+                ]);
 
-        $counts = Cache::remember('news_sidebar_counts_v1', now()->addMinutes(5), function () {
-            return NewsHeading::query()
-                ->selectRaw('source_key, COUNT(*) as total')
-                ->groupBy('source_key')
-                ->pluck('total', 'source_key');
+            return [
+                'bn' => $sources->where('language', 'bn')->values(),
+                'en' => $sources->where('language', 'en')->values(),
+            ];
         });
 
-        $data = $configured
-            ->map(function (array $source) use ($counts) {
-                return [
-                    'source_name' => $source['name'],
-                    'source_key' => $source['key'],
-                    'language' => $source['language'],
-                    'home_url' => $source['home_url'],
-                    'total' => (int) ($counts[$source['key']] ?? 0),
-                ];
-            })
-            ->groupBy('language');
-
-        return response()->json($data);
+        return response()->json($data)
+            ->header('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
     }
 
     /**
