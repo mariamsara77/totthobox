@@ -333,7 +333,16 @@ class NewsController extends Controller
         $path = str_replace(chr(92), '/', trim($path));
         $path = ltrim($path, '/');
 
-        foreach (['storage/app/public/', 'public/storage/', 'storage/', 'public/'] as $prefix) {
+        // Media-library files live under public/media, while older uploads may
+        // use Laravel's standard public storage disk.
+        foreach ([
+            'storage/app/public/',
+            'public/storage/',
+            'storage/',
+            'public/media/',
+            'media/',
+            'public/',
+        ] as $prefix) {
             if (str_starts_with($path, $prefix)) {
                 $path = substr($path, strlen($prefix));
                 break;
@@ -342,6 +351,16 @@ class NewsController extends Controller
 
         if ($path === '' || str_contains($path, '../')) {
             return null;
+        }
+
+        if (Storage::disk('media')->exists($path)) {
+            $url = Storage::disk('media')->url($path);
+
+            if (filter_var($url, FILTER_VALIDATE_URL) !== false) {
+                return $url;
+            }
+
+            return url('/'.ltrim($url, '/'));
         }
 
         if (Storage::disk('public')->exists($path)) {
@@ -356,15 +375,11 @@ class NewsController extends Controller
 
         // Support legacy files stored directly in Laravel's public directory
         // while still returning a public URL, never an absolute server path.
-        $publicPath = ltrim($path, '/');
-        if (str_starts_with($publicPath, 'public/')) {
-            $publicPath = substr($publicPath, strlen('public/'));
-        }
-
-        if ($publicPath !== '' && file_exists(public_path($publicPath))) {
-            return url('/'.ltrim($publicPath, '/'));
+        if (file_exists(public_path($path))) {
+            return url('/'.ltrim($path, '/'));
         }
 
         return null;
     }
+}
 }
