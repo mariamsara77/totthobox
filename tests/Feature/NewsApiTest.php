@@ -3,10 +3,14 @@
 use App\Models\NewsHeading;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
 
 uses(RefreshDatabase::class);
 
 it('returns every configured newspaper even when it has zero headlines', function () {
+    expect(Schema::hasTable('news_sources'))->toBeFalse();
+
     $response = $this->getJson('/api/news/sources');
 
     $response
@@ -38,7 +42,7 @@ it('returns every configured newspaper even when it has zero headlines', functio
         );
 });
 
-it('uses database source slugs and live headline counts for sidebar links', function () {
+it('uses configured source slugs and live headline counts from saved headlines', function () {
     NewsHeading::create([
         'title' => 'Sidebar count headline sample',
         'slug' => 'sidebar-count-headline-sample',
@@ -122,7 +126,7 @@ it('prefers an available local thumbnail over a remote URL', function () {
         'local_image_path' => $path,
     ]);
 
-    $expectedUrl = Storage::disk('public')->url($path);
+    $expectedUrl = rtrim((string) config('app.url'), '/') . Storage::disk('public')->url($path);
 
     $this->getJson('/api/news?source=prothom_alo')
         ->assertOk()
@@ -181,4 +185,50 @@ it('returns saved headlines older than seven days unless the visitor chooses a t
     $this->getJson('/api/news?source=prothom_alo&hours=48')
         ->assertOk()
         ->assertJsonPath('meta.total', 0);
+});
+
+
+it('continues returning headlines when optional enhancement columns are not deployed yet', function () {
+    Cache::forget('news_headings_has_column_story_group');
+    Cache::forget('news_headings_has_column_local_image_path');
+
+    // Simulate a staggered deployment without changing the test database schema.
+    Schema::shouldReceive('hasColumn')
+        ->with('news_headings', 'story_group')
+        ->andReturnFalse();
+    Schema::shouldReceive('hasColumn')
+        ->with('news_headings', 'local_image_path')
+        ->andReturnFalse();
+
+    NewsHeading::create([
+        'title' => 'Headline survives an older production schema',
+        'slug' => 'headline-survives-older-production-schema',
+        'source_key' => 'prothom_alo',
+        'source_name' => 'Prothom Alo',
+        'language' => 'bn',
+        'source_link' => 'https://www.prothomalo.com/schema-compatibility-test',
+    ]);
+
+    $this->getJson('/api/news')
+        ->assertOk()
+        ->assertJsonPath('data.0.title', 'Headline survives an older production schema')
+        ->assertJsonPath('data.0.story_group', null)
+        ->assertJsonPath('data.0.image_url', null);
+});
+
+it('uses the saved creation timestamp when a headline has no publication timestamp', function () {
+    $headline = NewsHeading::create([
+        'title' => 'Headline without a publisher timestamp',
+        'slug' => 'headline-without-publisher-timestamp',
+        'source_key' => 'prothom_alo',
+        'source_name' => 'Prothom Alo',
+        'language' => 'bn',
+        'source_link' => 'https://www.prothomalo.com/created-at-fallback-test',
+        'published_at' => null,
+    ]);
+
+    $this->getJson('/api/news?source=prothom_alo')
+        ->assertOk()
+        ->assertJsonPath('data.0.title', 'Headline without a publisher timestamp')
+        ->assertJsonPath('data.0.published_at', $headline->created_at->toIso8601String());
 });
