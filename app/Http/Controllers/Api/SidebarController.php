@@ -1,20 +1,20 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\\Http\\Controllers\\Api;
 
-use App\Http\Controllers\Controller;
-use App\Models\NewsHeading;
-use App\Models\BuySellCategory;
-use App\Models\ContactCategory;
-use App\Models\SignCategory;
-use App\Models\ExcelTutorial;
-use App\Models\AppResource;
-use Illuminate\Support\Facades\Cache;
+use App\\Http\\Controllers\\Controller;
+use App\\Models\\NewsHeading;
+use App\\Models\\BuySellCategory;
+use App\\Models\\ContactCategory;
+use App\\Models\\SignCategory;
+use App\\Models\\ExcelTutorial;
+use App\\Models\\AppResource;
+use Illuminate\\Support\\Facades\\Cache;
 
 class SidebarController extends Controller
 {
     /**
-     * News Sources (Livewire-এর newsSources এর exact copy)
+     * Configured newspaper sources for the dynamic sidebar.
      */
     public function newsSources()
     {
@@ -34,6 +34,7 @@ class SidebarController extends Controller
                 return [
                     'source_name' => $source['name'],
                     'source_key' => $source['key'],
+                    'slug' => str_replace('_', '-', $source['key']),
                     'language' => $source['language'],
                     'home_url' => $source['home_url'],
                     'total' => (int) ($counts[$source['key']] ?? 0),
@@ -41,39 +42,24 @@ class SidebarController extends Controller
             })
             ->groupBy('language');
 
-        return response()->json($data);
+        return response()->json($data)->header('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
     }
 
-    /**
-     * BuySell Categories
-     */
     public function buysellCategories()
     {
-        $categories = BuySellCategory::all();
-        return response()->json($categories);
+        return response()->json(BuySellCategory::all());
     }
 
-    /**
-     * Contact Categories
-     */
     public function contactCategories()
     {
-        $categories = ContactCategory::all();
-        return response()->json($categories);
+        return response()->json(ContactCategory::all());
     }
 
-    /**
-     * Sign Categories
-     */
     public function signCategories()
     {
-        $categories = SignCategory::all();
-        return response()->json($categories);
+        return response()->json(SignCategory::all());
     }
 
-    /**
-     * Excel Chapters (grouped by chapter_name)
-     */
     public function excelChapters()
     {
         $chapters = ExcelTutorial::query()
@@ -85,9 +71,6 @@ class SidebarController extends Controller
         return response()->json($chapters);
     }
 
-    /**
-     * Software Platforms
-     */
     public function softwarePlatforms()
     {
         $platforms = AppResource::query()
