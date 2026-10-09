@@ -764,17 +764,32 @@ class NewsScraperService
         // But we also need to avoid getMetaImage() on existing records.
         $sourceHash = hash('sha256', $link);
 
-        $exists = NewsHeading::where('source_hash', $sourceHash)->exists();
-        if ($exists) {
+        $existing = NewsHeading::where('source_hash', $sourceHash)->first();
+        if ($existing) {
             $this->seenUrls[$link] = true;
+
+            // Backfill missing thumbnails on old rows without touching their
+            // headline, source URL, or published_at ordering.
+            if (empty($existing->image_url)) {
+                $image = $this->normalizeImage($data['image'] ?? null, $link);
+
+                if (empty($image) && $this->metaImageLookups < $this->maxMetaImageLookupsPerRun) {
+                    $image = $this->normalizeImage($this->getMetaImage($link), $link);
+                    $this->metaImageLookups++;
+                }
+
+                if ($image) {
+                    $existing->forceFill(['image_url' => $image])->save();
+                }
+            }
 
             return false;
         }
 
-        // ── OG image fallback — only for genuinely new articles ───────────────
-        $image = $data['image'] ?? null;
+        // ── Image normalization + OG fallback for genuinely new articles ────
+        $image = $this->normalizeImage($data['image'] ?? null, $link);
         if (empty($image) && $this->metaImageLookups < $this->maxMetaImageLookupsPerRun) {
-            $image = $this->getMetaImage($link);
+            $image = $this->normalizeImage($this->getMetaImage($link), $link);
             $this->metaImageLookups++;
         }
 
@@ -965,6 +980,40 @@ class NewsScraperService
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    protected function normalizeImage(?string $url, string $articleUrl): ?string
+    {
+        if (! $url) {
+            return null;
+        }
+
+        $url = $this->makeAbsolute($url, $articleUrl);
+        if (! $url || $this->isPlaceholderImage($url) || ! filter_var($url, FILTER_VALIDATE_URL)) {
+            return null;
+        }
+
+        $image = parse_url($url);
+        $article = parse_url($articleUrl);
+        $scheme = strtolower((string) ($image['scheme'] ?? ''));
+        $imageHost = strtolower(rtrim((string) ($image['host'] ?? ''), '.'));
+        $articleHost = strtolower(rtrim((string) ($article['host'] ?? ''), '.'));
+
+        $imageHost = preg_replace('/^www\\./i', '', $imageHost) ?? $imageHost;
+        $articleHost = preg_replace('/^www\\./i', '', $articleHost) ?? $articleHost;
+
+        if (
+            ! in_array($scheme, ['http', 'https'], true)
+            || $imageHost === ''
+            || $articleHost === ''
+            || isset($image['user'])
+            || isset($image['pass'])
+            || ($imageHost !== $articleHost && ! str_ends_with($imageHost, '.'.$articleHost))
+        ) {
+            return null;
+        }
+
+        return $url;
     }
 
     protected function isPlaceholderImage(?string $url): bool
