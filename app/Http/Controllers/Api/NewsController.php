@@ -242,7 +242,7 @@ class NewsController extends Controller
                 'category' => $item->category,
                 'language' => $item->language,
                 'published_at' => $item->published_at?->toIso8601String(),
-                'image_url' => $this->safeImageUrl($item->image_url),
+                'image_url' => $this->resolveImageUrl($item),
                 'story_group' => $item->story_group,
                 'coverage' => $coverage,
             ],
