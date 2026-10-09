@@ -180,6 +180,7 @@ class NewsController extends Controller
                     'language',
                 'published_at',
                 'story_group',
+                'image_url',
             ])
             ->where('slug', $slug)
             ->first();
