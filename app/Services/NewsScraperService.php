@@ -537,7 +537,7 @@ class NewsScraperService
             $persisted = $this->persistNews($source, [
                 'title' => $title,
                 'link' => $link,
-                'image' => $this->extractRssImage($item),
+                'image' => $this->makeAbsolute($this->extractRssImage($item), $link),
                 'date' => $this->parseDate((string) $item->pubDate),
                 'category' => $this->detectCategory((string) ($item->category ?? ''), $source, $link),
             ]);
@@ -642,15 +642,33 @@ class NewsScraperService
                             continue;
                         }
 
-                        $image = $imgNode->attr('data-main-img')
-                            ?? $imgNode->attr('data-src')
-                            ?? $imgNode->attr('data-original')
-                            ?? $imgNode->attr('data-lazy-src')
-                            ?? $imgNode->attr('data-lazy')
-                            ?? $imgNode->attr('srcset')
-                            ?? $imgNode->attr('src');
+                        // Try non-empty lazy-load variants before falling back to src.
+                        // Null-coalescing alone is insufficient because some publishers
+                        // emit empty data-src/data-main-img attributes alongside a valid src.
+                        foreach ([
+                            'data-main-img',
+                            'data-src',
+                            'data-original',
+                            'data-original-src',
+                            'data-lazy-src',
+                            'data-lazy',
+                            'data-image',
+                            'data-srcset',
+                            'data-lazy-srcset',
+                            'srcset',
+                            'src',
+                        ] as $attribute) {
+                            $candidate = trim((string) ($imgNode->attr($attribute) ?? ''));
+                            if ($candidate !== '') {
+                                $image = $candidate;
+                                break;
+                            }
+                        }
 
-                        // Take first URL from srcset
+                        // Select the first candidate in a responsive srcset string.
+                        if ($image && str_contains($image, ',')) {
+                            $image = trim(explode(',', $image)[0]);
+                        }
                         if ($image && str_contains($image, ' ')) {
                             $image = explode(' ', trim($image))[0];
                         }
@@ -764,8 +782,30 @@ class NewsScraperService
         // But we also need to avoid getMetaImage() on existing records.
         $sourceHash = hash('sha256', $link);
 
-        $exists = NewsHeading::where('source_hash', $sourceHash)->exists();
-        if ($exists) {
+        $existing = NewsHeading::query()
+            ->where('source_hash', $sourceHash)
+            ->orWhere('source_link', $link)
+            ->first();
+
+        if ($existing) {
+            // Backfill old rows whose thumbnails were missed by earlier scraper
+            // selectors. Never overwrite a working/local image or change dates.
+            if (
+                empty($existing->local_image_path)
+                && ($this->isPlaceholderImage($existing->image_url) || empty($existing->image_url))
+                && ! empty($data['image'])
+            ) {
+                $candidateImage = $this->makeAbsolute($data['image'], $link);
+
+                if (
+                    $candidateImage
+                    && filter_var($candidateImage, FILTER_VALIDATE_URL) !== false
+                    && ! $this->isPlaceholderImage($candidateImage)
+                ) {
+                    $existing->forceFill(['image_url' => $candidateImage])->save();
+                }
+            }
+
             $this->seenUrls[$link] = true;
 
             return false;
