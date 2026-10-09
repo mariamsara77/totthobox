@@ -253,117 +253,75 @@ class NewsController extends Controller
     public function show(string $slug)
     {
         $columns = [
-            'id',
-            'title',
-            'slug',
-            'source_link',
-            'source_name',
-            'source_key',
-            'category',
-            'language',
-            'published_at',
-            'image_url',
-            'created_at',
+            'id', 'title', 'slug', 'source_link', 'source_name', 'source_key',
+            'category', 'language', 'published_at', 'image_url', 'created_at',
         ];
+        $hasStoryGroup = $this->hasOptionalNewsColumn('story_group');
+        $hasLocalImage = $this->hasOptionalNewsColumn('local_image_path');
+        if ($hasStoryGroup) $columns[] = 'story_group';
+        if ($hasLocalImage) $columns[] = 'local_image_path';
 
-        if ($this->hasOptionalNewsColumn('story_group')) {
-            $columns[] = 'story_group';
-        }
+        $item = NewsHeading::query()->select($columns)->where('slug', $slug)->first();
+        if (! $item) return response()->json(['message' => 'News item not found.'], 404);
 
-        if ($this->hasOptionalNewsColumn('local_image_path')) {
-            $columns[] = 'local_image_path';
-        }
+        $storyGroup = $hasStoryGroup ? $item->getRawOriginal('story_group') : null;
+        $coverageItems = collect();
+        if ($storyGroup !== null && $storyGroup !== '') {
+            $coverageColumns = [
+                'id', 'title', 'slug', 'source_link', 'source_name', 'source_key',
+                'category', 'language', 'published_at', 'image_url', 'created_at',
+            ];
+            if ($hasStoryGroup) $coverageColumns[] = 'story_group';
+            if ($hasLocalImage) $coverageColumns[] = 'local_image_path';
 
-        $item = NewsHeading::query()
-            ->select($columns)
-            ->where('slug', $slug)
-            ->first();
-
-        if (! $item) {
-            return response()->json(['message' => 'News item not found.'], 404);
-        }
-
-        $coverage = collect();
-        $storyGroup = $item->getRawOriginal('story_group');
-
-        if ($storyGroup) {
-            $coverage = NewsHeading::query()
-                ->select([
-                    'id',
-                    'title',
-                    'slug',
-                    'source_link',
-                    'source_name',
-                    'source_key',
-                    'category',
-                    'language',
-                    'published_at',
-                    'created_at',
-                ])
+            $coverageItems = NewsHeading::query()
+                ->select($coverageColumns)
                 ->where('story_group', $storyGroup)
                 ->where('id', '!=', $item->id)
                 ->latestPublished()
                 ->limit(8)
-                ->get()
-                ->map(fn (NewsHeading $news) => [
-                    'id' => $news->id,
-                    'title' => $news->title,
-                    'slug' => $news->slug,
-                    'source_url' => $news->source_link,
-                    'source_name' => $news->source_name,
-                    'source_key' => $news->source_key,
-                    'source_slug' => $this->sourceSlugForKey((string) $news->source_key),
-                    'category' => $news->category,
-                    'language' => $news->language,
-                    'published_at' => $news->published_at?->toIso8601String() ?? $news->created_at?->toIso8601String(),
-                ])
-                ->values();
+                ->get();
         }
 
-        $sourceKeys = collect([$item->source_key])
-            ->merge($coverageItems->pluck('source_key'))
-            ->filter()
-            ->unique()
-            ->values();
-
-        $sourceSlugs = NewsSource::query()
-            ->whereIn('source_key', $sourceKeys)
-            ->pluck('slug', 'source_key');
-
-        $coverage = $coverageItems
-            ->map(fn (NewsHeading $news) => [
+        $sourceCatalog = collect(config('news_sources', []))->keyBy('key');
+        $coverage = $coverageItems->map(function (NewsHeading $news) use ($sourceCatalog) {
+            $source = $sourceCatalog->get($news->source_key)
+                ?? $this->sourceForUrl($news->source_link, $sourceCatalog->values());
+            return [
                 'id' => $news->id,
                 'title' => $news->title,
                 'slug' => $news->slug,
                 'source_url' => $news->source_link,
-                'source_name' => $news->source_name,
+                'source_name' => $source['name'] ?? $news->source_name,
                 'source_key' => $news->source_key,
-                'source_slug' => $sourceSlugs->get($news->source_key)
-                    ?? str_replace('_', '-', $news->source_key),
+                'source_slug' => $this->sourceSlugForKey((string) $news->source_key, $source),
                 'category' => $news->category,
-                'language' => $news->language,
-                'published_at' => $news->published_at?->toIso8601String(),
+                'language' => $source['language'] ?? $news->language,
+                'published_at' => $news->published_at?->toIso8601String()
+                    ?? $news->created_at?->toIso8601String(),
                 'image_url' => $this->resolveImageUrl($news),
-            ])
-            ->values();
+            ];
+        })->values();
 
-        return response()->json([
-            'data' => [
-                'id' => $item->id,
-                'title' => $item->title,
-                'slug' => $item->slug,
-                'source_url' => $item->source_link,
-                'source_name' => $item->source_name,
-                'source_key' => $item->source_key,
-                'source_slug' => $this->sourceSlugForKey((string) $item->source_key),
-                'category' => $item->category,
-                'language' => $item->language,
-                'published_at' => $item->published_at?->toIso8601String(),
-                'image_url' => $this->resolveImageUrl($item),
-                'story_group' => $storyGroup,
-                'coverage' => $coverage,
-            ],
-        ]);
+        $itemSource = $sourceCatalog->get($item->source_key)
+            ?? $this->sourceForUrl($item->source_link, $sourceCatalog->values());
+
+        return response()->json(['data' => [
+            'id' => $item->id,
+            'title' => $item->title,
+            'slug' => $item->slug,
+            'source_url' => $item->source_link,
+            'source_name' => $itemSource['name'] ?? $item->source_name,
+            'source_key' => $item->source_key,
+            'source_slug' => $this->sourceSlugForKey((string) $item->source_key, $itemSource),
+            'category' => $item->category,
+            'language' => $itemSource['language'] ?? $item->language,
+            'published_at' => $item->published_at?->toIso8601String()
+                ?? $item->created_at?->toIso8601String(),
+            'image_url' => $this->resolveImageUrl($item),
+            'story_group' => $storyGroup,
+            'coverage' => $coverage,
+        ]]);
     }
 
     /**
