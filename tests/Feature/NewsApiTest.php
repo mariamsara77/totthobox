@@ -42,6 +42,7 @@ it('returns only discovery-safe fields and supports source filtering', function 
         'source_name' => 'Prothom Alo',
         'language' => 'bn',
         'source_link' => 'https://www.prothomalo.com/sample',
+        'image_url' => 'https://www.prothomalo.com/images/sample.jpg',
     ]);
 
     NewsHeading::factory()->create([
@@ -56,11 +57,11 @@ it('returns only discovery-safe fields and supports source filtering', function 
 
     $response
         ->assertOk()
-        ->assertJsonPath('data.0.title', 'Sample headline for filtering');
+        ->assertJsonPath('data.0.title', 'Sample headline for filtering')
+        ->assertJsonPath('data.0.image_url', 'https://www.prothomalo.com/images/sample.jpg');
 
     expect($response->json('data.0'))
         ->not->toHaveKey('content')
         ->not->toHaveKey('body')
-        ->not->toHaveKey('summary')
-        ->not->toHaveKey('image_url');
+        ->not->toHaveKey('summary');
 });
