@@ -42,7 +42,12 @@ class NewsHeading extends Model
             cache()->forget('news_sidebar_counts_v1');
             cache()->forget('news_api_sources_v1');
             cache()->forget('news_api_sources_v2');
-            Cache::tags(['news_headlines', 'news_coverage'])->flush();
+            try {
+                Cache::tags(['news_headlines', 'news_coverage'])->flush();
+            } catch (\Throwable) {
+                // Cache tags are not supported by every Laravel cache driver.
+                // A cache backend limitation must never block headline persistence.
+            }
         });
 
         static::deleted(function () {
@@ -51,7 +56,12 @@ class NewsHeading extends Model
             cache()->forget('news_sidebar_counts_v1');
             cache()->forget('news_api_sources_v1');
             cache()->forget('news_api_sources_v2');
-            Cache::tags(['news_headlines', 'news_coverage'])->flush();
+            try {
+                Cache::tags(['news_headlines', 'news_coverage'])->flush();
+            } catch (\Throwable) {
+                // Cache tags are not supported by every Laravel cache driver.
+                // A cache backend limitation must never block headline persistence.
+            }
         });
 
     }
