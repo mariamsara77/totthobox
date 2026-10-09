@@ -60,8 +60,9 @@ it('uses database-managed slugs in both the news API and sidebar menu API', func
     expect(collect($sidebarSources['bn'])->firstWhere('source_key', 'prothom_alo')['slug'])
         ->toBe('prothom-alo-latest');
 
-    NewsHeading::factory()->create([
+    NewsHeading::create([
         'title' => 'Database slug headline',
+        'slug' => 'database-slug-headline',
         'source_key' => 'prothom_alo',
         'source_name' => 'Prothom Alo',
         'language' => 'bn',
@@ -74,8 +75,9 @@ it('uses database-managed slugs in both the news API and sidebar menu API', func
 });
 
 it('returns discovery-safe fields, images and source slugs for the news frontend', function () {
-    NewsHeading::factory()->create([
+    NewsHeading::create([
         'title' => 'Sample headline for filtering',
+        'slug' => 'sample-headline-for-filtering',
         'source_key' => 'prothom_alo',
         'source_name' => 'Prothom Alo',
         'language' => 'bn',
@@ -83,8 +85,9 @@ it('returns discovery-safe fields, images and source slugs for the news frontend
         'image_url' => 'https://images.example.com/sample.jpg',
     ]);
 
-    NewsHeading::factory()->create([
+    NewsHeading::create([
         'title' => 'Another outlet headline',
+        'slug' => 'another-outlet-headline',
         'source_key' => 'daily_star',
         'source_name' => 'The Daily Star',
         'language' => 'en',
@@ -110,8 +113,9 @@ it('prefers a managed local thumbnail when a remote publisher image is also pres
     Storage::fake('public');
     Storage::disk('public')->put('news-thumbs/preferred.jpg', 'sample-image');
 
-    NewsHeading::factory()->create([
+    NewsHeading::create([
         'title' => 'Prefer local image news item',
+        'slug' => 'prefer-local-image-news-item',
         'source_key' => 'prothom_alo',
         'source_name' => 'Prothom Alo',
         'language' => 'bn',
@@ -132,8 +136,9 @@ it('resolves media-library thumbnails from the media disk', function () {
     Storage::fake('media');
     Storage::disk('media')->put('news-thumbs/sample.jpg', 'sample-image');
 
-    NewsHeading::factory()->create([
+    NewsHeading::create([
         'title' => 'Media disk thumbnail news item',
+        'slug' => 'media-disk-thumbnail-news-item',
         'source_key' => 'prothom_alo',
         'source_name' => 'Prothom Alo',
         'language' => 'bn',
@@ -154,8 +159,9 @@ it('resolves managed local news thumbnails into public storage URLs', function (
     Storage::fake('public');
     Storage::disk('public')->put('news-thumbs/sample.jpg', 'sample-image');
 
-    NewsHeading::factory()->create([
+    NewsHeading::create([
         'title' => 'Local thumbnail news item',
+        'slug' => 'local-thumbnail-news-item',
         'source_key' => 'prothom_alo',
         'source_name' => 'Prothom Alo',
         'language' => 'bn',
