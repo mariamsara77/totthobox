@@ -39,7 +39,12 @@ class NewsHeading extends Model
             cache()->forget('news_sidebar_sources_v1');
             cache()->forget('news_sidebar_counts_v1');
             cache()->forget('news_api_sources_v1');
-            Cache::tags(['news_headlines', 'news_coverage'])->flush();
+            // Array/file cache stores do not support tags (including the test cache).
+            // Keep model writes safe on every configured cache driver.
+            $store = Cache::getStore();
+            if (method_exists($store, 'tags')) {
+                Cache::tags(['news_headlines', 'news_coverage'])->flush();
+            }
         };
 
         static::saved($clearNewsCaches);
