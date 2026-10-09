@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 class NewsController extends Controller
@@ -34,21 +35,33 @@ class NewsController extends Controller
         $perPage = (int) ($data['per_page'] ?? 18);
         $hours = isset($data['hours']) ? (int) $data['hours'] : null;
 
+        // story_group and local_image_path were added after the original news
+        // table. Keep the public feed available during staggered deployments;
+        // enhanced coverage/local thumbnails remain enabled when columns exist.
+        $columns = [
+            'id',
+            'title',
+            'slug',
+            'source_link',
+            'source_name',
+            'source_key',
+            'category',
+            'language',
+            'published_at',
+            'image_url',
+            'created_at',
+        ];
+
+        if ($this->hasOptionalNewsColumn('story_group')) {
+            $columns[] = 'story_group';
+        }
+
+        if ($this->hasOptionalNewsColumn('local_image_path')) {
+            $columns[] = 'local_image_path';
+        }
+
         $query = NewsHeading::query()
-            ->select([
-                'id',
-                'title',
-                'slug',
-                'source_link',
-                'source_name',
-                'source_key',
-                'category',
-                'language',
-                'published_at',
-                'story_group',
-                'image_url',
-                'local_image_path',
-            ])
+            ->select($columns)
             ->where(function ($query) {
                 $query->where('source_link', 'like', 'https://%')
                     ->orWhere('source_link', 'like', 'http://%');
@@ -130,7 +143,7 @@ class NewsController extends Controller
                     'source_slug' => $source?->slug,
                     'category' => $item->category,
                     'language' => $source?->language ?? $item->language,
-                    'published_at' => $item->published_at?->toIso8601String(),
+                    'published_at' => $item->published_at?->toIso8601String() ?? $item->created_at?->toIso8601String(),
                     'image_url' => $this->resolveImageUrl($item),
                     'story_group' => $item->story_group,
                     'coverage_count' => $item->story_group
@@ -230,21 +243,30 @@ class NewsController extends Controller
 
     public function show(string $slug)
     {
+        $columns = [
+            'id',
+            'title',
+            'slug',
+            'source_link',
+            'source_name',
+            'source_key',
+            'category',
+            'language',
+            'published_at',
+            'image_url',
+            'created_at',
+        ];
+
+        if ($this->hasOptionalNewsColumn('story_group')) {
+            $columns[] = 'story_group';
+        }
+
+        if ($this->hasOptionalNewsColumn('local_image_path')) {
+            $columns[] = 'local_image_path';
+        }
+
         $item = NewsHeading::query()
-            ->select([
-                'id',
-                'title',
-                    'slug',
-                'source_link',
-                'source_name',
-                'source_key',
-                'category',
-                    'language',
-                'published_at',
-                'story_group',
-                'image_url',
-                'local_image_path',
-            ])
+            ->select($columns)
             ->where('slug', $slug)
             ->first();
 
@@ -266,6 +288,7 @@ class NewsController extends Controller
                     'category',
                     'language',
                     'published_at',
+                    'created_at',
                 ])
                 ->where('story_group', $item->story_group)
                 ->where('id', '!=', $item->id)
@@ -282,7 +305,7 @@ class NewsController extends Controller
                     'source_slug' => NewsSource::query()->where('source_key', $news->source_key)->value('slug'),
                     'category' => $news->category,
                     'language' => $news->language,
-                    'published_at' => $news->published_at?->toIso8601String(),
+                    'published_at' => $news->published_at?->toIso8601String() ?? $news->created_at?->toIso8601String(),
                 ])
                 ->values();
         }
@@ -304,6 +327,23 @@ class NewsController extends Controller
                 'coverage' => $coverage,
             ],
         ]);
+    }
+
+    /**
+     * Enhanced news columns are optional during a rolling deployment. Cache
+     * their availability briefly so every request does not query table metadata.
+     */
+    private function hasOptionalNewsColumn(string $column): bool
+    {
+        if (! in_array($column, ['story_group', 'local_image_path'], true)) {
+            return false;
+        }
+
+        return Cache::remember(
+            'news_headings_has_column_'.$column,
+            now()->addMinutes(5),
+            fn () => Schema::hasColumn('news_headings', $column)
+        );
     }
 
     /**
