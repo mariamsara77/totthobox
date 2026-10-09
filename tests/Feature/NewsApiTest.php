@@ -42,7 +42,7 @@ it('uses database source slugs and live headline counts for sidebar links', func
     NewsHeading::create([
         'title' => 'Sidebar count headline sample',
         'slug' => 'sidebar-count-headline-sample',
-        'source_key' => 'ittefaq',
+        'source_key' => 'daily-ittefaq', // Legacy key from older scraper records.
         'source_name' => 'Old source label',
         'language' => 'bn',
         'source_link' => 'https://www.ittefaq.com.bd/sidebar-count-sample',
@@ -62,6 +62,11 @@ it('uses database source slugs and live headline counts for sidebar links', func
         ->and($ittefaq['slug'])->toBe('daily-ittefaq')
         ->and($ittefaq['source_name'])->toBe('Daily Ittefaq')
         ->and($ittefaq['total'])->toBe(1);
+
+    $this->getJson('/api/news?source=ittefaq')
+        ->assertOk()
+        ->assertJsonPath('data.0.title', 'Sidebar count headline sample')
+        ->assertJsonPath('data.0.source_slug', 'daily-ittefaq');
 });
 
 it('returns only discovery-safe fields and supports source filtering', function () {
