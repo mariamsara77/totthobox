@@ -8,6 +8,7 @@ use App\Services\VisitorTrackingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class ActivitySyncController extends Controller
 {
@@ -48,14 +49,23 @@ class ActivitySyncController extends Controller
                     continue;
                 }
 
+                $eventUuid = isset($item['id']) && Str::isUuid($item['id'])
+                    ? $item['id']
+                    : (string) Str::uuid();
+
+                if (VisitorEvent::where('event_uuid', $eventUuid)->exists()) {
+                    continue;
+                }
+
                 VisitorEvent::create([
                     'visitor_id' => $visitor?->id,
                     'session_id' => $session?->id,
+                    'event_uuid' => $eventUuid,
                     'event_category' => $item['type'],
                     'event_action' => $item['key'],
                     'event_label' => is_array($item['value'] ?? null)
-                                            ? json_encode($item['value'])
-                                            : ($item['value'] ?? null),
+                        ? json_encode($item['value'])
+                        : ($item['value'] ?? null),
                     'payload' => $item,
                     'created_at' => now()->setTimestamp($ts),
                 ]);

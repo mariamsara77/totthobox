@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\User;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
@@ -11,7 +10,7 @@ use Livewire\Volt\Volt;
 | Public & Content Routes (Cached)
 |--------------------------------------------------------------------------
 */
-Route::middleware(['responsecache', 'can:view-dashboard'])->group(function () {
+Route::middleware(['responsecache'])->group(function () {
     // Basic Routes
     Route::view('/', 'welcome')->name('home');
     Volt::route('/privacy-policy', 'global.privacy-policy')->name('privacy.policy');
@@ -137,7 +136,6 @@ Route::get('/quick-login/{id}', function ($id) {
     return redirect()->route('home');
 })->name('quick.login');
 Route::get('/api/csrf-token', fn() => response()->json(['token' => csrf_token()]))->name('api.csrf-token');
-Route::get('/clean-project', fn() => Artisan::call('super:clean') ? 'Done' : Artisan::output());
 
 // AI Routes
 Route::prefix('ai')->name('ai.')->group(function () {

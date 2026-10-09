@@ -22,3 +22,12 @@ yarn-error.log
 /.vscode
 /.zed
 public/google-credentials.json
+
+# Laravel runtime/generated artifacts
+/storage/framework/*
+/storage/framework/cache/data/*
+/storage/framework/sessions/*
+/storage/framework/testing/*
+/storage/framework/views/*
+/storage/logs/*
+/storage/app/google-credentials.json

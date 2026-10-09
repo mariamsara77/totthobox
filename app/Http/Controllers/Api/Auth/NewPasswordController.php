@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
+use App\Models\RefreshToken;
 use Illuminate\Validation\ValidationException;
 
 class NewPasswordController extends Controller
@@ -48,10 +49,23 @@ class NewPasswordController extends Controller
         );
 
         if ($status === Password::PASSWORD_RESET && $user) {
+            $fingerprint = substr(
+                md5($request->userAgent() . $request->ip()),
+                0,
+                12
+            );
+
+            $accessToken = $user
+                ->createToken('web_reset_' . $fingerprint)
+                ->plainTextToken;
+
+            $refreshToken = RefreshToken::issue($user, $fingerprint);
+
             return response()->json([
                 'success' => true,
                 'message' => __($status),
-                'token' => $user->createToken('auth_token')->plainTextToken,
+                'access_token' => $accessToken,
+                'refresh_token' => $refreshToken,
                 'user' => $user->only(['id', 'name', 'email', 'slug', 'avatar_url']),
             ]);
         }

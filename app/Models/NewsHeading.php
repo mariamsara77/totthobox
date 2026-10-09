@@ -18,6 +18,7 @@ class NewsHeading extends Model
         'summary', // ★ নতুন — এডিটোরিয়াল সারাংশ (ঐচ্ছিক, নিজে লিখে/রিভিউ করে ভরতে হবে)
         'slug',
         'source_link',
+        'source_hash',
         'source_name',
         'source_key',
         'category',
@@ -25,6 +26,7 @@ class NewsHeading extends Model
         'image_url',
         'language',
         'published_at',
+        'local_image_path',
     ];
 
     protected $casts = [
@@ -36,12 +38,30 @@ class NewsHeading extends Model
 
         static::saved(function () {
             cache()->forget('news_sidebar_sources_v1');
-            Cache::tags(['news_headlines', 'news_coverage'])->flush();
+            cache()->forget('news_sidebar_sources_v2');
+            cache()->forget('news_sidebar_counts_v1');
+            cache()->forget('news_api_sources_v1');
+            cache()->forget('news_api_sources_v2');
+            try {
+                Cache::tags(['news_headlines', 'news_coverage'])->flush();
+            } catch (\Throwable) {
+                // Cache tags are not supported by every Laravel cache driver.
+                // A cache backend limitation must never block headline persistence.
+            }
         });
 
         static::deleted(function () {
             cache()->forget('news_sidebar_sources_v1');
-            Cache::tags(['news_headlines', 'news_coverage'])->flush();
+            cache()->forget('news_sidebar_sources_v2');
+            cache()->forget('news_sidebar_counts_v1');
+            cache()->forget('news_api_sources_v1');
+            cache()->forget('news_api_sources_v2');
+            try {
+                Cache::tags(['news_headlines', 'news_coverage'])->flush();
+            } catch (\Throwable) {
+                // Cache tags are not supported by every Laravel cache driver.
+                // A cache backend limitation must never block headline persistence.
+            }
         });
 
     }
@@ -156,20 +176,21 @@ class NewsHeading extends Model
      */
     public static function availableSources(): Collection
     {
-        return Cache::tags(['news_sidebar'])
-            ->remember('sources', now()->addMinutes(10), function () {
-                return self::selectRaw('source_key, source_name, COUNT(*) as count')
-                    ->groupBy('source_key', 'source_name')
-                    ->orderByDesc('count')
-                    ->get()
-                    ->map(fn ($row) => [
-                        'key' => $row->source_key,
-                        'name' => $row->source_name,
-                        'count' => (int) $row->count,
-                    ]);
-            });
-    }
+        return Cache::remember('news_sidebar_sources_v1', now()->addMinutes(10), function () {
+            $counts = self::selectRaw('source_key, COUNT(*) as count')
+                ->groupBy('source_key')
+                ->pluck('count', 'source_key');
 
+            return collect(config('news_sources', []))
+                ->sortBy(fn (array $source) => sprintf('%s-%03d', $source['language'], $source['order']))
+                ->values()
+                ->map(fn (array $source) => [
+                    'key' => $source['key'],
+                    'name' => $source['name'],
+                    'count' => (int) ($counts[$source['key']] ?? 0),
+                ]);
+        });
+    }
     // ─── ★ Cross-source coverage (AdSense-এর জন্য "real value-add" ফিচার) ──────
 
     /**

@@ -23,6 +23,12 @@ class NewsScraperService
      */
     protected array $seenUrls = [];
 
+    protected int $metaImageLookups = 0;
+
+    protected int $maxMetaImageLookupsPerRun = 60;
+
+    protected int $maxResponseBytes = 4194304;
+
     protected array $userAgents = [
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
@@ -441,6 +447,7 @@ class NewsScraperService
     public function scrapeAll(): void
     {
         $this->seenUrls = []; // Reset dedup map for this run
+        $this->metaImageLookups = 0;
 
         foreach ($this->sources as $source) {
             $this->processSource($source);
@@ -450,6 +457,7 @@ class NewsScraperService
     public function scrapeByKey(string $key): void
     {
         $this->seenUrls = [];
+        $this->metaImageLookups = 0;
 
         $source = collect($this->sources)->firstWhere('key', $key);
 
@@ -489,10 +497,12 @@ class NewsScraperService
 
         // ক্যাশ ক্লিয়ার করার লজিক এখানে
         if ($persisted > 0) {
-            // ট্যাগ ব্যবহার করলে শুধু এই নির্দিষ্ট ক্যাশটিই ক্লিয়ার হবে
-            Cache::tags(['news_sidebar'])->forget('sources');
+            Cache::forget('news_sidebar_counts_v1');
+            Cache::forget('news_sidebar_grouped_v4');
+            Cache::forget('news_sidebar_sources_v1');
+            Cache::forget('news_api_sources_v1');
 
-            Log::info("[{$source['key']}] Cache cleared successfully.");
+            Log::info("[{$source['key']}] News sidebar caches cleared.");
         }
     }
 
@@ -749,20 +759,37 @@ class NewsScraperService
             return false;
         }
 
-        // ── Skip articles already in DB to prevent re-touching updated_at ────
-        // wasRecentlyCreated is only true for INSERT; UPDATE returns false.
-        // But we also need to avoid getMetaImage() on existing records.
-        $exists = NewsHeading::where('source_link', $link)->exists();
-        if ($exists) {
+        // ── Keep existing story metadata stable while filling missing images ─
+        // Never replace title/source/published_at for an already-seen article.
+        $sourceHash = hash('sha256', $link);
+
+        $existing = NewsHeading::where('source_hash', $sourceHash)->first();
+        if ($existing) {
             $this->seenUrls[$link] = true;
+
+            // Backfill missing thumbnails on old rows without touching their
+            // headline, source URL, or published_at ordering.
+            if (empty($existing->image_url)) {
+                $image = $this->normalizeImage($data['image'] ?? null, $link);
+
+                if (empty($image) && $this->metaImageLookups < $this->maxMetaImageLookupsPerRun) {
+                    $image = $this->normalizeImage($this->getMetaImage($link), $link);
+                    $this->metaImageLookups++;
+                }
+
+                if ($image) {
+                    $existing->forceFill(['image_url' => $image])->save();
+                }
+            }
 
             return false;
         }
 
-        // ── OG image fallback — only for genuinely new articles ───────────────
-        $image = $data['image'] ?? null;
-        if (empty($image)) {
-            $image = $this->getMetaImage($link);
+        // ── Image normalization + OG fallback for genuinely new articles ────
+        $image = $this->normalizeImage($data['image'] ?? null, $link);
+        if (empty($image) && $this->metaImageLookups < $this->maxMetaImageLookupsPerRun) {
+            $image = $this->normalizeImage($this->getMetaImage($link), $link);
+            $this->metaImageLookups++;
         }
 
         // ── Slug ─────────────────────────────────────────────────────────────
@@ -793,6 +820,7 @@ class NewsScraperService
             [
                 'title' => $data['title'],
                 'slug' => $slug,
+                'source_hash' => $sourceHash,
                 'source_name' => $source['name'],
                 'source_key' => $source['key'],
                 'category' => $data['category'] ?? 'National',
@@ -819,24 +847,21 @@ class NewsScraperService
             try {
                 $response = Http::timeout($timeout)
                     ->withHeaders([
-    'User-Agent' => $this->randomUserAgent(),
-    'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-    'Accept-Language' => 'bn-BD,bn;q=0.9,en-US;q=0.8,en;q=0.7',
-    'Accept-Encoding' => 'gzip, deflate, br',
-    'Cache-Control' => 'max-age=0',
-    'Sec-Ch-Ua' => '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
-    'Sec-Ch-Ua-Mobile' => '?0',
-    'Sec-Ch-Ua-Platform' => '"Windows"',
-    'Sec-Fetch-Dest' => 'document',
-    'Sec-Fetch-Mode' => 'navigate',
-    'Sec-Fetch-Site' => 'none',
-    'Sec-Fetch-User' => '?1',
-    'Upgrade-Insecure-Requests' => '1',
-    'Referer' => 'https://www.google.com/',
-])
+                        // Use the configured browser user-agent rotation. The previous
+                        // fixed bot identifier was rejected by some publisher HTML pages.
+                        'User-Agent' => $this->userAgents[$attempts % count($this->userAgents)],
+                        'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                        'Accept-Language' => 'bn-BD,bn;q=0.9,en-US;q=0.8,en;q=0.7',
+                    ])
                     ->get($url);
 
                 if ($response->successful()) {
+                    $contentLength = (int) ($response->header('Content-Length') ?? 0);
+                    if ($contentLength > $this->maxResponseBytes || strlen($response->body()) > $this->maxResponseBytes) {
+                        Log::warning("[NewsScraperService] Response too large — skip {$url}");
+                        return null;
+                    }
+
                     return $response->body();
                 }
 
@@ -916,7 +941,7 @@ class NewsScraperService
 
     /**
      * Fetch og:image / twitter:image from the article's <head> only.
-     * Reads first 8 KB via a HEAD-then-GET strategy to keep latency low.
+     * Reads only the first 8 KB of the returned document head to keep parsing lightweight.
      * Only called for genuinely new articles (not existing DB records).
      */
     protected function getMetaImage(string $url): ?string
@@ -956,6 +981,41 @@ class NewsScraperService
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    protected function normalizeImage(?string $url, string $articleUrl): ?string
+    {
+        if (! $url) {
+            return null;
+        }
+
+        $url = $this->makeAbsolute($url, $articleUrl);
+        if (! $url || $this->isPlaceholderImage($url) || ! filter_var($url, FILTER_VALIDATE_URL)) {
+            return null;
+        }
+
+        $image = parse_url($url);
+        $scheme = strtolower((string) ($image['scheme'] ?? ''));
+        $host = strtolower(rtrim((string) ($image['host'] ?? ''), '.'));
+
+        // Publisher thumbnails may live on a dedicated image CDN. Do not require
+        // the thumbnail host to match the article host; only accept safe web URLs.
+        if (
+            ! in_array($scheme, ['http', 'https'], true)
+            || $host === ''
+            || isset($image['user'])
+            || isset($image['pass'])
+        ) {
+            return null;
+        }
+
+        // Reject loopback/private/reserved IP hosts.
+        if (filter_var($host, FILTER_VALIDATE_IP)
+            && ! filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+            return null;
+        }
+
+        return $url;
     }
 
     protected function isPlaceholderImage(?string $url): bool
@@ -1042,7 +1102,31 @@ class NewsScraperService
         $parsed = parse_url($baseUrl);
         $root = ($parsed['scheme'] ?? 'https').'://'.($parsed['host'] ?? '');
 
-        return $root.'/'.ltrim($url, '/');
+        if (str_starts_with($url, '?')) {
+            return $root.($parsed['path'] ?? '/').$url;
+        }
+
+        if (str_starts_with($url, '/')) {
+            return $root.$url;
+        }
+
+        $basePath = $parsed['path'] ?? '/';
+        $directory = rtrim(str_replace('\\', '/', dirname($basePath)), '/');
+        $combined = ($directory ? $directory.'/' : '/').ltrim($url, '/');
+
+        $segments = [];
+        foreach (explode('/', $combined) as $segment) {
+            if ($segment === '' || $segment === '.') {
+                continue;
+            }
+            if ($segment === '..') {
+                array_pop($segments);
+                continue;
+            }
+            $segments[] = $segment;
+        }
+
+        return $root.'/'.implode('/', $segments);
     }
 
     protected function detectCategory(string $rssCat, array $source, string $url): string

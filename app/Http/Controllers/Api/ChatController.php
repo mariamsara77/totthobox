@@ -7,11 +7,17 @@ use App\Models\ChatSession;
 use App\Services\AiService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class ChatController extends Controller
 {
+    private const USER_RATE_LIMIT = 100;
+    private const USER_RATE_WINDOW = 3600;
+    private const MAX_IMAGE_BASE64_CHARS = 6_000_000;
+    private const MAX_IMAGE_BYTES = 4_500_000;
+
     public function __construct(private AiService $ai) {}
 
     // =========================================================
@@ -106,7 +112,7 @@ public function sessions(Request $request)
     {
         $request->validate([
             'question'   => 'nullable|string|max:8000',
-            'image'      => 'nullable|string',
+            'image'      => 'nullable|string|max:6000000',
             'image_mime' => 'nullable|string|in:image/jpeg,image/png,image/gif,image/webp',
             'uuid'       => 'nullable|uuid',
             'history'    => 'nullable|array',
@@ -115,6 +121,24 @@ public function sessions(Request $request)
         $content     = trim((string) $request->input('question', ''));
         $imageBase64 = $request->input('image');
         $imageMime   = $request->input('image_mime');
+
+        if (is_string($imageBase64) && strlen($imageBase64) > self::MAX_IMAGE_BASE64_CHARS) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ছবিটি অনেক বড়। ৪.৫ MB-এর মধ্যে ছবি দিন।',
+            ], 413);
+        }
+
+        if ($imageBase64) {
+            $decoded = base64_decode($imageBase64, true);
+
+            if ($decoded === false || strlen($decoded) > self::MAX_IMAGE_BYTES) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'ছবিটি অনেক বড় বা সঠিক ফরম্যাটে নেই।',
+                ], 413);
+            }
+        }
 
         if ($content === '' && !$imageBase64) {
             return response()->json([
@@ -130,6 +154,15 @@ public function sessions(Request $request)
             return $this->handleGuestAsk($request, $content, $imageBase64, $imageMime);
         }
 
+        if (! $this->allowUserRequest($user->id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'প্রতি ঘণ্টায় সর্বোচ্চ ১০০টি AI অনুরোধ করা যায়। কিছুক্ষণ পরে আবার চেষ্টা করুন।',
+            ], 429, [
+                'Retry-After' => (string) RateLimiter::availableIn($this->userRateKey($user->id)),
+            ]);
+        }
+
         return $this->handleAuthAsk($request, $user, $content, $imageBase64, $imageMime);
     }
 
@@ -139,6 +172,15 @@ public function sessions(Request $request)
     public function regenerate(Request $request)
     {
         $request->validate(['uuid' => 'required|uuid']);
+
+        if (! $this->allowUserRequest($request->user()->id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'প্রতি ঘণ্টায় সর্বোচ্চ ১০০টি AI অনুরোধ করা যায়। কিছুক্ষণ পরে আবার চেষ্টা করুন।',
+            ], 429, [
+                'Retry-After' => (string) RateLimiter::availableIn($this->userRateKey($request->user()->id)),
+            ]);
+        }
 
         $uuid = $request->input('uuid'); // ✅ $request->uuid নয়
 
@@ -210,6 +252,15 @@ public function sessions(Request $request)
             'content'    => 'required|string|max:8000',
         ]);
 
+        if (! $this->allowUserRequest($request->user()->id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'প্রতি ঘণ্টায় সর্বোচ্চ ১০০টি AI অনুরোধ করা যায়। কিছুক্ষণ পরে আবার চেষ্টা করুন।',
+            ], 429, [
+                'Retry-After' => (string) RateLimiter::availableIn($this->userRateKey($request->user()->id)),
+            ]);
+        }
+
         $session = ChatSession::where('uuid', $request->input('uuid'))
             ->where('user_id', $request->user()->id)
             ->firstOrFail();
@@ -274,6 +325,24 @@ public function sessions(Request $request)
     // =========================================================
     // Private helpers
     // =========================================================
+    private function userRateKey(int $userId): string
+    {
+        return 'ai_user:' . $userId;
+    }
+
+    private function allowUserRequest(int $userId): bool
+    {
+        $key = $this->userRateKey($userId);
+
+        if (RateLimiter::tooManyAttempts($key, self::USER_RATE_LIMIT)) {
+            return false;
+        }
+
+        RateLimiter::hit($key, self::USER_RATE_WINDOW);
+
+        return true;
+    }
+
 
     private function handleGuestAsk(
         Request $request,
