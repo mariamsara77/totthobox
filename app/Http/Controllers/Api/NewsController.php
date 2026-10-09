@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\NewsHeading;
+use App\Models\NewsSource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\Rule;
@@ -17,7 +18,7 @@ class NewsController extends Controller
                 'nullable',
                 'string',
                 'max:64',
-                Rule::in(collect(config('news_sources', []))->pluck('key')->all()),
+                Rule::in(NewsSource::query()->where('is_active', true)->pluck('source_key')->all()),
             ],
             'language' => ['nullable', Rule::in(['bn', 'en'])],
             'category' => ['nullable', 'string', 'max:50'],
@@ -29,7 +30,7 @@ class NewsController extends Controller
         ]);
 
         $perPage = (int) ($data['per_page'] ?? 18);
-        $hours = (int) ($data['hours'] ?? 168);
+        $hours = isset($data['hours']) ? (int) $data['hours'] : null;
 
         $query = NewsHeading::query()
             ->select([
@@ -67,7 +68,11 @@ class NewsController extends Controller
             $query->where('title', 'like', '%'.$term.'%');
         }
 
-        $query->recent($hours);
+        // By default show the complete database feed, newest first. A time window
+        // is applied only when the visitor explicitly selects one in the UI.
+        if ($hours !== null) {
+            $query->recent($hours);
+        }
 
         if ($request->boolean('diverse')) {
             $query->diversified(5);
@@ -75,6 +80,7 @@ class NewsController extends Controller
 
         $page = $query
             ->latestPublished()
+            ->orderByDesc('id')
             ->paginate($perPage)
             ->withQueryString();
 
@@ -92,8 +98,12 @@ class NewsController extends Controller
                 ->groupBy('story_group')
                 ->map(fn ($items) => $items->pluck('source_key')->unique()->count());
 
+        $sourceSlugs = NewsSource::query()
+            ->where('is_active', true)
+            ->pluck('slug', 'source_key');
+
         $items = collect($page->items())
-            ->map(function (NewsHeading $item) use ($sourceCounts) {
+            ->map(function (NewsHeading $item) use ($sourceCounts, $sourceSlugs) {
                 return [
                     'id' => $item->id,
                     'title' => $item->title,
@@ -101,10 +111,11 @@ class NewsController extends Controller
                     'source_url' => $item->source_link,
                     'source_name' => $item->source_name,
                     'source_key' => $item->source_key,
+                    'source_slug' => $sourceSlugs->get($item->source_key),
                     'category' => $item->category,
                     'language' => $item->language,
                     'published_at' => $item->published_at?->toIso8601String(),
-                    'image_url' => $this->safeImageUrl($item->image_url, $item->source_key),
+                    'image_url' => $this->safeImageUrl($item->image_url),
                     'story_group' => $item->story_group,
                     'coverage_count' => $item->story_group
                         ? ($sourceCounts->get($item->story_group) ?? 1)
@@ -129,30 +140,30 @@ class NewsController extends Controller
 
     public function sources()
     {
-        $data = Cache::remember('news_api_sources_v1', now()->addMinutes(5), function () {
-            $configured = collect(config('news_sources', []))
-            ->sortBy(fn (array $source) => sprintf('%s-%03d', $source['language'], $source['order']))
-            ->values();
+        $data = Cache::remember('news_api_sources_v2', now()->addMinute(), function () {
+            $sources = NewsSource::query()
+                ->where('is_active', true)
+                ->withCount('headlines')
+                ->orderBy('language')
+                ->orderBy('position')
+                ->get()
+                ->map(fn (NewsSource $source) => [
+                    'key' => $source->source_key,
+                    'slug' => $source->slug,
+                    'name' => $source->name,
+                    'language' => $source->language,
+                    'home_url' => $source->home_url,
+                    'total' => (int) $source->headlines_count,
+                ]);
 
-            $counts = NewsHeading::query()
-                ->selectRaw('source_key, COUNT(*) as total')
-                ->groupBy('source_key')
-                ->pluck('total', 'source_key');
-
-            $result = $configured->map(function (array $source) use ($counts) {
-                return [
-                    'key' => $source['key'],
-                    'name' => $source['name'],
-                    'language' => $source['language'],
-                    'home_url' => $source['home_url'],
-                    'total' => (int) ($counts[$source['key']] ?? 0),
-                ];
-            });
-
-            return $result->groupBy('language');
+            return [
+                'bn' => $sources->where('language', 'bn')->values(),
+                'en' => $sources->where('language', 'en')->values(),
+            ];
         });
 
-        return response()->json($data)->header('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+        return response()->json($data)
+            ->header('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
     }
 
     public function show(string $slug)
@@ -204,6 +215,7 @@ class NewsController extends Controller
                     'source_url' => $news->source_link,
                     'source_name' => $news->source_name,
                     'source_key' => $news->source_key,
+                    'source_slug' => NewsSource::query()->where('source_key', $news->source_key)->value('slug'),
                     'category' => $news->category,
                     'language' => $news->language,
                     'published_at' => $news->published_at?->toIso8601String(),
@@ -219,9 +231,11 @@ class NewsController extends Controller
                 'source_url' => $item->source_link,
                 'source_name' => $item->source_name,
                 'source_key' => $item->source_key,
+                'source_slug' => NewsSource::query()->where('source_key', $item->source_key)->value('slug'),
                 'category' => $item->category,
                 'language' => $item->language,
                 'published_at' => $item->published_at?->toIso8601String(),
+                'image_url' => $this->safeImageUrl($item->image_url),
                 'story_group' => $item->story_group,
                 'coverage' => $coverage,
             ],
@@ -229,11 +243,11 @@ class NewsController extends Controller
     }
 
     /**
-     * Expose only absolute HTTP(S) thumbnails hosted by the configured publisher
-     * or one of its subdomains. Headlines remain links to the original source;
-     * article bodies and summaries are never included in this discovery API.
+     * Return only valid absolute HTTP(S) image URLs stored by the scraper.
+     * Publishers frequently host images on separate CDN domains, so requiring
+     * the article's domain here incorrectly hid otherwise valid thumbnails.
      */
-    private function safeImageUrl(?string $url, string $sourceKey): ?string
+    private function safeImageUrl(?string $url): ?string
     {
         if (! $url || strlen($url) > 2048 || ! filter_var($url, FILTER_VALIDATE_URL)) {
             return null;
@@ -241,19 +255,18 @@ class NewsController extends Controller
 
         $image = parse_url($url);
         $scheme = strtolower((string) ($image['scheme'] ?? ''));
-        $imageHost = strtolower(rtrim((string) ($image['host'] ?? ''), '.'));
+        $host = strtolower(rtrim((string) ($image['host'] ?? ''), '.'));
 
-        if (! in_array($scheme, ['http', 'https'], true) || $imageHost === '' || isset($image['user']) || isset($image['pass'])) {
+        if (! in_array($scheme, ['http', 'https'], true)
+            || $host === ''
+            || isset($image['user'])
+            || isset($image['pass'])) {
             return null;
         }
 
-        $source = collect(config('news_sources', []))->firstWhere('key', $sourceKey);
-        $sourceHost = strtolower(rtrim((string) parse_url($source['home_url'] ?? '', PHP_URL_HOST), '.'));
-
-        $imageHost = preg_replace('/^www\\./i', '', $imageHost) ?? $imageHost;
-        $sourceHost = preg_replace('/^www\\./i', '', $sourceHost) ?? $sourceHost;
-
-        if ($sourceHost === '' || ($imageHost !== $sourceHost && ! str_ends_with($imageHost, '.'.$sourceHost))) {
+        // Do not emit local/private IP addresses as image destinations.
+        if (filter_var($host, FILTER_VALIDATE_IP)
+            && ! filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
             return null;
         }
 
