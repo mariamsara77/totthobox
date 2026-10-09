@@ -36,33 +36,19 @@ class NewsHeading extends Model
     protected static function booted(): void
     {
         $clearNewsCaches = static function (): void {
-            cache()->forget('news_sidebar_sources_v1');
-            cache()->forget('news_sidebar_sources_v2');
-            cache()->forget('news_sidebar_counts_v1');
-            cache()->forget('news_api_sources_v1');
-            cache()->forget('news_api_sources_v2');
+            foreach ([
+                'news_sidebar_sources_v1', 'news_sidebar_sources_v2',
+                'news_sidebar_counts_v1', 'news_api_sources_v1', 'news_api_sources_v2',
+            ] as $key) {
+                cache()->forget($key);
+            }
             try {
                 Cache::tags(['news_headlines', 'news_coverage'])->flush();
-            } catch (\Throwable) {
+            } catch (\\Throwable) {
                 // Cache tags are not supported by every Laravel cache driver.
                 // A cache backend limitation must never block headline persistence.
             }
-        });
-
-        static::deleted(function () {
-            cache()->forget('news_sidebar_sources_v1');
-            cache()->forget('news_sidebar_sources_v2');
-            cache()->forget('news_sidebar_counts_v1');
-            cache()->forget('news_api_sources_v1');
-            cache()->forget('news_api_sources_v2');
-            try {
-                Cache::tags(['news_headlines', 'news_coverage'])->flush();
-            } catch (\Throwable) {
-                // Cache tags are not supported by every Laravel cache driver.
-                // A cache backend limitation must never block headline persistence.
-            }
-        });
-
+        };
         static::saved($clearNewsCaches);
         static::deleted($clearNewsCaches);
         static::restored($clearNewsCaches);
@@ -146,20 +132,24 @@ class NewsHeading extends Model
     public static function availableSources(): Collection
     {
         return Cache::remember('news_sidebar_sources_v1', now()->addMinutes(10), function () {
-            $counts = self::selectRaw('source_key, COUNT(*) as count')
-                ->groupBy('source_key')
-                ->pluck('count', 'source_key');
+            $catalog = collect(config('news_sources', []))
+                ->filter(fn ($source) => is_array($source) && ! empty($source['key']) && ! empty($source['name']))
+                ->values();
 
-            return NewsSource::query()
-                ->active()
-                ->ordered()
-                ->get()
-                ->map(fn (NewsSource $source) => [
-                    'key' => $source->source_key,
-                    'slug' => $source->slug,
-                    'name' => $source->name,
-                    'count' => (int) ($counts[$source->source_key] ?? 0),
-                ]);
+            return $catalog->map(function (array $source) {
+                $query = self::query()->where(function (Builder $match) use ($source) {
+                    $match->where('source_key', $source['key'])->orWhere('source_name', $source['name']);
+                    $host = strtolower((string) parse_url((string) ($source['home_url'] ?? ''), PHP_URL_HOST));
+                    $host = preg_replace('/^www\\./i', '', $host) ?? $host;
+                    if ($host !== '') $match->orWhere('source_link', 'like', '%'.$host.'/%');
+                });
+                return [
+                    'key' => (string) $source['key'],
+                    'slug' => (string) ($source['slug'] ?? \\Illuminate\\Support\\Str::slug((string) $source['name'])),
+                    'name' => (string) $source['name'],
+                    'count' => $query->count(),
+                ];
+            });
         });
     }
 
