@@ -38,6 +38,12 @@ class AuthController extends Controller
             ]);
         }
 
+        if (! empty($user->status) && $user->status !== 'active') {
+            return response()->json([
+                'message' => 'আপনার অ্যাকাউন্ট বর্তমানে সক্রিয় নয়।',
+            ], 403);
+        }
+
         return $this->issueTokenResponse($user, $request);
     }
 
@@ -58,6 +64,14 @@ class AuthController extends Controller
         }
 
         $user = $rt->user;
+
+        if (! $user || (! empty($user->status) && $user->status !== 'active')) {
+            $rt->delete();
+
+            return response()->json([
+                'message' => 'আপনার অ্যাকাউন্ট বর্তমানে সক্রিয় নয়।',
+            ], 403);
+        }
 
         // Refresh token rotate করো (security best practice)
         $rt->delete();

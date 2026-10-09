@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Models\User;
+use App\Listeners\LogWebPushFailure;
+use NotificationChannels\WebPush\Events\NotificationSendingFailed;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;

@@ -1,66 +1,63 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\\Http\\Controllers\\Api;
 
-use App\Http\Controllers\Controller;
-use App\Models\NewsHeading;
-use App\Models\BuySellCategory;
-use App\Models\ContactCategory;
-use App\Models\SignCategory;
-use App\Models\ExcelTutorial;
-use App\Models\AppResource;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
+use App\\Http\\Controllers\\Controller;
+use App\\Models\\NewsHeading;
+use App\\Models\\NewsSource;
+use App\\Models\\BuySellCategory;
+use App\\Models\\ContactCategory;
+use App\\Models\\SignCategory;
+use App\\Models\\ExcelTutorial;
+use App\\Models\\AppResource;
+use Illuminate\\Support\\Facades\\Cache;
 
 class SidebarController extends Controller
 {
     /**
-     * News Sources (Livewire-এর newsSources এর exact copy)
+     * Configured newspaper sources for the dynamic sidebar.
      */
     public function newsSources()
     {
-        $data = Cache::remember('news_sidebar_grouped_v4', now()->addMinutes(30), function () {
+        $counts = Cache::remember('news_sidebar_counts_v1', now()->addMinutes(5), function () {
             return NewsHeading::query()
-                ->select('source_name', 'source_key', 'language', DB::raw('COUNT(*) as total'))
-                ->groupBy('source_key', 'source_name', 'language')
-                ->get()
-                ->sortBy('source_name')
-                ->groupBy('language');
+                ->selectRaw('source_key, COUNT(*) as total')
+                ->groupBy('source_key')
+                ->pluck('total', 'source_key');
         });
 
-        return response()->json($data);
+        $data = NewsSource::query()
+            ->active()
+            ->ordered()
+            ->get()
+            ->map(fn (NewsSource $source) => [
+                'source_name' => $source->name,
+                'source_key' => $source->source_key,
+                'slug' => $source->slug,
+                'language' => $source->language,
+                'home_url' => $source->home_url,
+                'total' => (int) ($counts[$source->source_key] ?? 0),
+            ])
+            ->groupBy('language');
+
+        return response()->json($data)->header('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
     }
 
-    /**
-     * BuySell Categories
-     */
     public function buysellCategories()
     {
-        $categories = BuySellCategory::all();
-        return response()->json($categories);
+        return response()->json(BuySellCategory::all());
     }
 
-    /**
-     * Contact Categories
-     */
     public function contactCategories()
     {
-        $categories = ContactCategory::all();
-        return response()->json($categories);
+        return response()->json(ContactCategory::all());
     }
 
-    /**
-     * Sign Categories
-     */
     public function signCategories()
     {
-        $categories = SignCategory::all();
-        return response()->json($categories);
+        return response()->json(SignCategory::all());
     }
 
-    /**
-     * Excel Chapters (grouped by chapter_name)
-     */
     public function excelChapters()
     {
         $chapters = ExcelTutorial::query()
@@ -72,9 +69,6 @@ class SidebarController extends Controller
         return response()->json($chapters);
     }
 
-    /**
-     * Software Platforms
-     */
     public function softwarePlatforms()
     {
         $platforms = AppResource::query()

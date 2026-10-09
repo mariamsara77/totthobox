@@ -91,12 +91,21 @@ class VisitorTrackingService
         try {
             $session = $this->resolveActiveSession($visitor);
 
+            $eventUuid = isset($payload['event_uuid']) && Str::isUuid((string) $payload['event_uuid'])
+                ? (string) $payload['event_uuid']
+                : (string) Str::uuid();
+
+            if (VisitorEvent::where('event_uuid', $eventUuid)->exists()) {
+                return;
+            }
+
             VisitorEvent::create([
                 'session_id'     => $session?->id,
                 'visitor_id'     => $visitor->id,
-                'event_category' => $category,
-                'event_action'   => $action,
-                'event_label'    => $label,
+                'event_uuid'     => $eventUuid,
+                'event_category' => Str::limit($category, 50, ''),
+                'event_action'   => Str::limit($action, 50, ''),
+                'event_label'    => $label ? Str::limit($label, 100, '') : null,
                 'payload'        => $payload,
                 'created_at'     => now(),
             ]);
