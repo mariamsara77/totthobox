@@ -268,19 +268,25 @@ class NewsController extends Controller
     }
 
     /**
-     * Prefer a managed local thumbnail when it exists, then use the publisher
-     * URL. When both exist, send the publisher URL as a client-side fallback so
-     * a stale local file does not leave a blank card. Filesystem paths stay private.
+     * Resolve image URLs for a frontend with local-first rendering and a
+     * publisher-hosted fallback. Relative publisher URLs are resolved against
+     * the article URL, while local disk paths are kept private.
      *
      * @return array{image_url: ?string, image_fallback_url: ?string}
      */
     private function resolveImagePayload(NewsHeading $item): array
     {
-        $remoteUrl = $this->validHttpUrl($item->image_url);
-        $localCandidates = [
-            trim((string) $item->local_image_path),
-            $remoteUrl === null ? trim((string) $item->image_url) : '',
-        ];
+        $imageValue = trim((string) $item->image_url);
+        $publisherUrl = $this->validHttpUrl($imageValue)
+            ?? $this->resolveRelativePublisherUrl($imageValue, $item->source_link);
+
+        $localCandidates = [trim((string) $item->local_image_path)];
+
+        // Older RSS rows sometimes store relative publisher URLs. Check whether
+        // the same value is actually a managed path before treating it as a URL.
+        if ($imageValue !== '' && $this->validHttpUrl($imageValue) === null) {
+            $localCandidates[] = $imageValue;
+        }
 
         foreach (array_unique($localCandidates) as $path) {
             if ($path === '') {
@@ -291,19 +297,86 @@ class NewsController extends Controller
             if ($localUrl !== null) {
                 return [
                     'image_url' => $localUrl,
-                    'image_fallback_url' => $remoteUrl !== null && $remoteUrl !== $localUrl
-                        ? $remoteUrl
+                    'image_fallback_url' => $publisherUrl !== null && $publisherUrl !== $localUrl
+                        ? $publisherUrl
                         : null,
                 ];
             }
         }
 
         return [
-            'image_url' => $remoteUrl,
+            'image_url' => $publisherUrl,
             'image_fallback_url' => null,
         ];
     }
 
+    /**
+     * Resolve root-relative and path-relative image URLs using the publisher's
+     * article URL. Only HTTP(S) origins are accepted.
+     */
+    private function resolveRelativePublisherUrl(string $value, ?string $articleUrl): ?string
+    {
+        $value = trim($value);
+
+        if ($value === '' || preg_match('/^[a-z][a-z0-9+.-]*:/i', $value)) {
+            return null;
+        }
+
+        $article = $this->validHttpUrl($articleUrl);
+        if ($article === null) {
+            return null;
+        }
+
+        $articleParts = parse_url($article);
+        if (empty($articleParts['scheme']) || empty($articleParts['host'])) {
+            return null;
+        }
+
+        $origin = strtolower($articleParts['scheme']).'://'.$articleParts['host'];
+        if (str_starts_with($value, '//')) {
+            return strtolower($articleParts['scheme']).':'.$value;
+        }
+
+        $relativeParts = parse_url($value);
+        $relativePath = (string) ($relativeParts['path'] ?? '');
+        if ($relativePath === '') {
+            return null;
+        }
+
+        if (str_starts_with($relativePath, '/')) {
+            $path = $relativePath;
+        } else {
+            $basePath = (string) ($articleParts['path'] ?? '/');
+            $directory = rtrim(str_replace(chr(92), '/', dirname($basePath)), '/');
+            $combined = ($directory !== '' ? $directory.'/' : '/').$relativePath;
+            $segments = [];
+
+            foreach (explode('/', $combined) as $segment) {
+                if ($segment === '' || $segment === '.') {
+                    continue;
+                }
+
+                if ($segment === '..') {
+                    array_pop($segments);
+                    continue;
+                }
+
+                $segments[] = $segment;
+            }
+
+            $path = '/'.implode('/', $segments);
+        }
+
+        $url = $origin.$path;
+        if (! empty($relativeParts['query'])) {
+            $url .= '?'.$relativeParts['query'];
+        }
+        if (! empty($relativeParts['fragment'])) {
+            $url .= '#'.$relativeParts['fragment'];
+        }
+
+        return $this->validHttpUrl($url);
+    }
     private function validHttpUrl(?string $value): ?string
     {
         $value = trim((string) $value);

@@ -749,8 +749,7 @@ class NewsScraperService
 
         $link = $this->normalizeUrl($data['link']);
 
-        // ── In-run dedup ─────────────────────────────────────────────────────
-        // Prevents the same URL being persisted twice when RSS + HTML both find it.
+        // Avoid duplicating the same article when RSS and HTML both find it.
         if (isset($this->seenUrls[$link])) {
             return false;
         }
@@ -759,26 +758,59 @@ class NewsScraperService
             return false;
         }
 
-        // ── Skip articles already in DB to prevent re-touching updated_at ────
-        // wasRecentlyCreated is only true for INSERT; UPDATE returns false.
-        // But we also need to avoid getMetaImage() on existing records.
         $sourceHash = hash('sha256', $link);
+        $image = $data['image'] ?? null;
 
-        $exists = NewsHeading::where('source_hash', $sourceHash)->exists();
-        if ($exists) {
+        // RSS feeds often provide relative image URLs. Normalize them before
+        // saving so the API does not mistake them for local storage paths.
+        if (is_string($image) && trim($image) !== '') {
+            $image = trim($image);
+            $scheme = strtolower((string) parse_url($image, PHP_URL_SCHEME));
+
+            if ($scheme !== '' && ! in_array($scheme, ['http', 'https'], true)) {
+                $image = null;
+            } else {
+                $image = $this->makeAbsolute($image, $link);
+                if ($this->isPlaceholderImage($image)) {
+                    $image = null;
+                }
+            }
+        } else {
+            $image = null;
+        }
+
+        $existing = NewsHeading::query()
+            ->where('source_hash', $sourceHash)
+            ->first();
+
+        if (! $existing) {
+            $existing = NewsHeading::query()
+                ->where('source_link', $link)
+                ->first();
+        }
+
+        if ($existing) {
+            // Backfill an image only when the existing row lacks a usable one.
+            // Do not overwrite editorial metadata or the original publication time.
+            $currentImage = trim((string) $existing->image_url);
+            $missingImage = $currentImage === '' || $this->isPlaceholderImage($currentImage);
+            $hasLocalImage = trim((string) $existing->local_image_path) !== '';
+
+            if ($missingImage && ! $hasLocalImage && $image !== null) {
+                $existing->forceFill(['image_url' => $image])->save();
+            }
+
             $this->seenUrls[$link] = true;
 
             return false;
         }
 
-        // ── OG image fallback — only for genuinely new articles ───────────────
-        $image = $data['image'] ?? null;
-        if (empty($image) && $this->metaImageLookups < $this->maxMetaImageLookupsPerRun) {
+        // Open Graph fallback is bounded and only used for genuinely new stories.
+        if ($image === null && $this->metaImageLookups < $this->maxMetaImageLookupsPerRun) {
             $image = $this->getMetaImage($link);
             $this->metaImageLookups++;
         }
 
-        // ── Slug ─────────────────────────────────────────────────────────────
         $slug = Str::slug(Str::limit($data['title'], 100));
         if (empty($slug)) {
             $slug = 'news-'.md5($data['title']);
@@ -786,6 +818,7 @@ class NewsScraperService
 
         $baseSlug = $slug;
         $attempt = 0;
+
         while (
             NewsHeading::where('slug', $slug)
                 ->where('source_link', '!=', $link)
@@ -798,9 +831,6 @@ class NewsScraperService
             }
         }
 
-        // ── Insert only — never overwrite published_at / image on updates ─────
-        // Using firstOrCreate instead of updateOrCreate means existing rows
-        // keep their original published_at, so they never float to the top.
         $record = NewsHeading::firstOrCreate(
             ['source_link' => $link],
             [
@@ -820,7 +850,6 @@ class NewsScraperService
 
         return $record->wasRecentlyCreated;
     }
-
     // ─────────────────────────────────────────────────────────────────────────
     // HTTP — Retry with exponential backoff + rotating User-Agent
     // ─────────────────────────────────────────────────────────────────────────

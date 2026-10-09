@@ -2,6 +2,7 @@
 
 use App\Models\NewsHeading;
 use App\Models\NewsSource;
+use App\Services\NewsScraperService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 
@@ -149,4 +150,62 @@ it('prefers a managed local thumbnail and includes the publisher URL as fallback
         ->toEndWith('/storage/news-thumbs/local-first.jpg')
         ->and($response->json('data.0.image_fallback_url'))
         ->toBe('https://images.example.com/local-first.jpg');
+});
+
+
+it('resolves root-relative publisher image URLs for legacy RSS headlines', function () {
+    NewsHeading::factory()->create([
+        'title' => 'Legacy relative image headline',
+        'source_key' => 'prothom_alo',
+        'source_name' => 'Prothom Alo',
+        'language' => 'bn',
+        'source_link' => 'https://www.prothomalo.com/bangladesh/relative-image',
+        'image_url' => '/media/news/relative-image.webp',
+        'local_image_path' => null,
+    ]);
+
+    $response = $this->getJson('/api/news?source=prothom_alo&per_page=10')->assertOk();
+
+    expect($response->json('data.0.image_url'))
+        ->toBe('https://www.prothomalo.com/media/news/relative-image.webp');
+});
+
+it('backfills missing images on existing headlines without promoting them', function () {
+    $link = 'https://www.prothomalo.com/bangladesh/existing-image-backfill';
+
+    $headline = NewsHeading::factory()->create([
+        'title' => 'Existing headline without an image',
+        'source_key' => 'prothom_alo',
+        'source_name' => 'Prothom Alo',
+        'language' => 'bn',
+        'source_link' => $link,
+        'source_hash' => hash('sha256', $link),
+        'image_url' => null,
+        'local_image_path' => null,
+        'published_at' => now()->subDays(2),
+    ]);
+
+    $service = new class extends NewsScraperService {
+        public function storeHeadline(array $source, array $data): bool
+        {
+            return $this->persistNews($source, $data);
+        }
+    };
+
+    $created = $service->storeHeadline(
+        ['key' => 'prothom_alo', 'name' => 'Prothom Alo', 'language' => 'bn'],
+        [
+            'title' => 'Existing headline without an image',
+            'link' => $link,
+            'image' => '/media/news/existing-image.webp',
+            'date' => now(),
+            'category' => 'National',
+        ]
+    );
+
+    $headline->refresh();
+
+    expect($created)->toBeFalse()
+        ->and($headline->image_url)->toBe('https://www.prothomalo.com/media/news/existing-image.webp')
+        ->and($headline->published_at->toDateString())->toBe(now()->subDays(2)->toDateString());
 });
