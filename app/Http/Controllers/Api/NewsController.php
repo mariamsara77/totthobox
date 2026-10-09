@@ -43,6 +43,7 @@ class NewsController extends Controller
                 'language',
                 'published_at',
                 'story_group',
+                'image_url',
             ])
             ->where(function ($query) {
                 $query->where('source_link', 'like', 'https://%')
@@ -103,6 +104,7 @@ class NewsController extends Controller
                     'category' => $item->category,
                     'language' => $item->language,
                     'published_at' => $item->published_at?->toIso8601String(),
+                    'image_url' => $this->safeImageUrl($item->image_url, $item->source_key),
                     'story_group' => $item->story_group,
                     'coverage_count' => $item->story_group
                         ? ($sourceCounts->get($item->story_group) ?? 1)
@@ -224,5 +226,37 @@ class NewsController extends Controller
                 'coverage' => $coverage,
             ],
         ]);
+    }
+
+    /**
+     * Expose only absolute HTTP(S) thumbnails hosted by the configured publisher
+     * or one of its subdomains. Headlines remain links to the original source;
+     * article bodies and summaries are never included in this discovery API.
+     */
+    private function safeImageUrl(?string $url, string $sourceKey): ?string
+    {
+        if (! $url || strlen($url) > 2048 || ! filter_var($url, FILTER_VALIDATE_URL)) {
+            return null;
+        }
+
+        $image = parse_url($url);
+        $scheme = strtolower((string) ($image['scheme'] ?? ''));
+        $imageHost = strtolower(rtrim((string) ($image['host'] ?? ''), '.'));
+
+        if (! in_array($scheme, ['http', 'https'], true) || $imageHost === '' || isset($image['user']) || isset($image['pass'])) {
+            return null;
+        }
+
+        $source = collect(config('news_sources', []))->firstWhere('key', $sourceKey);
+        $sourceHost = strtolower(rtrim((string) parse_url($source['home_url'] ?? '', PHP_URL_HOST), '.'));
+
+        $imageHost = preg_replace('/^www\\./i', '', $imageHost) ?? $imageHost;
+        $sourceHost = preg_replace('/^www\\./i', '', $sourceHost) ?? $sourceHost;
+
+        if ($sourceHost === '' || ($imageHost !== $sourceHost && ! str_ends_with($imageHost, '.'.$sourceHost))) {
+            return null;
+        }
+
+        return $url;
     }
 }
