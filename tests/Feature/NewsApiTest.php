@@ -59,6 +59,18 @@ it('uses database-managed slugs in both the news API and sidebar menu API', func
 
     expect(collect($sidebarSources['bn'])->firstWhere('source_key', 'prothom_alo')['slug'])
         ->toBe('prothom-alo-latest');
+
+    NewsHeading::factory()->create([
+        'title' => 'Database slug headline',
+        'source_key' => 'prothom_alo',
+        'source_name' => 'Prothom Alo',
+        'language' => 'bn',
+        'source_link' => 'https://www.prothomalo.com/database-slug-headline',
+    ]);
+
+    $news = $this->getJson('/api/news?source=prothom_alo')->assertOk();
+
+    expect($news->json('data.0.source_slug'))->toBe('prothom-alo-latest');
 });
 
 it('returns discovery-safe fields, images and source slugs for the news frontend', function () {
