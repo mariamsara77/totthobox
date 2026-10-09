@@ -63,6 +63,10 @@ it('uses database source slugs and live headline counts for sidebar links', func
         ->and($ittefaq['source_name'])->toBe('Daily Ittefaq')
         ->and($ittefaq['total'])->toBe(1);
 
+    $catalog = $this->getJson('/api/news/sources')->assertOk();
+    $catalogIttefaq = collect($catalog->json('bn'))->firstWhere('key', 'ittefaq');
+    expect($catalogIttefaq['total'])->toBe(1);
+
     $this->getJson('/api/news?source=ittefaq')
         ->assertOk()
         ->assertJsonPath('data.0.title', 'Sidebar count headline sample')
