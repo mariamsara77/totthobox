@@ -49,6 +49,27 @@ class SidebarController extends Controller
     }
 
     /**
+     * Count headlines from the original news_headings table. Match legacy
+     * source keys/names by the publisher host so older saved rows still count.
+     */
+    private function countHeadlinesForSource(array $source): int
+    {
+        $host = strtolower(rtrim((string) parse_url((string) ($source['home_url'] ?? ''), PHP_URL_HOST), '.'));
+        $host = preg_replace('/^www\\./i', '', $host) ?? $host;
+
+        return NewsHeading::query()
+            ->where(function ($match) use ($source, $host) {
+                $match->where('source_key', $source['key'])
+                    ->orWhere('source_name', $source['name']);
+
+                if ($host !== '') {
+                    $match->orWhere('source_link', 'like', '%'.$host.'/%');
+                }
+            })
+            ->count();
+    }
+
+    /**
      * BuySell Categories
      */
     public function buysellCategories()
