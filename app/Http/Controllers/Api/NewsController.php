@@ -303,16 +303,27 @@ class NewsController extends Controller
             return null;
         }
 
-        if (! Storage::disk('public')->exists($path)) {
-            return null;
+        if (Storage::disk('public')->exists($path)) {
+            $url = Storage::disk('public')->url($path);
+
+            if (filter_var($url, FILTER_VALIDATE_URL) !== false) {
+                return $url;
+            }
+
+            return url('/'.ltrim($url, '/'));
         }
 
-        $url = Storage::disk('public')->url($path);
-
-        if (filter_var($url, FILTER_VALIDATE_URL) !== false) {
-            return $url;
+        // Support legacy files stored directly in Laravel's public directory
+        // while still returning a public URL, never an absolute server path.
+        $publicPath = ltrim($path, '/');
+        if (str_starts_with($publicPath, 'public/')) {
+            $publicPath = substr($publicPath, strlen('public/'));
         }
 
-        return url('/'.ltrim($url, '/'));
+        if ($publicPath !== '' && file_exists(public_path($publicPath))) {
+            return url('/'.ltrim($publicPath, '/'));
+        }
+
+        return null;
     }
 }
