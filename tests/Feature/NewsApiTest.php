@@ -38,8 +38,9 @@ it('returns every configured newspaper even when it has zero headlines', functio
 });
 
 it('returns only discovery-safe fields and supports source filtering', function () {
-    NewsHeading::factory()->create([
+    NewsHeading::create([
         'title' => 'Sample headline for filtering',
+        'slug' => 'sample-headline-for-filtering',
         'source_key' => 'prothom_alo',
         'source_name' => 'Prothom Alo',
         'language' => 'bn',
@@ -47,8 +48,9 @@ it('returns only discovery-safe fields and supports source filtering', function 
         'image_url' => 'https://www.prothomalo.com/images/sample.jpg',
     ]);
 
-    NewsHeading::factory()->create([
+    NewsHeading::create([
         'title' => 'Another outlet headline',
+        'slug' => 'another-outlet-headline',
         'source_key' => 'daily_star',
         'source_name' => 'The Daily Star',
         'language' => 'en',
@@ -69,8 +71,9 @@ it('returns only discovery-safe fields and supports source filtering', function 
 });
 
 it('allows valid CDN thumbnails while keeping article content out of the public feed', function () {
-    NewsHeading::factory()->create([
-        'title' => 'Headline with untrusted thumbnail',
+    NewsHeading::create([
+        'title' => 'Headline with CDN thumbnail',
+        'slug' => 'headline-with-cdn-thumbnail',
         'source_key' => 'prothom_alo',
         'source_name' => 'Prothom Alo',
         'language' => 'bn',
@@ -84,8 +87,9 @@ it('allows valid CDN thumbnails while keeping article content out of the public 
 });
 
 it('returns saved headlines older than seven days unless the visitor chooses a time filter', function () {
-    NewsHeading::factory()->create([
+    NewsHeading::create([
         'title' => 'Older saved headline should remain visible',
+        'slug' => 'older-saved-headline-should-remain-visible',
         'source_key' => 'prothom_alo',
         'source_name' => 'Prothom Alo',
         'language' => 'bn',
