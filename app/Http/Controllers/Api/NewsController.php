@@ -320,7 +320,15 @@ class NewsController extends Controller
                 $disk = Storage::disk('public');
 
                 if ($disk->exists($localPath)) {
-                    return $disk->url($localPath);
+                    $url = $disk->url($localPath);
+
+                    // Public disk URLs can be relative in custom filesystems. The
+                    // frontend lives on a different origin, so make them absolute.
+                    if (str_starts_with($url, '/')) {
+                        $url = rtrim((string) config('app.url'), '/').$url;
+                    }
+
+                    return $url;
                 }
             } catch (\Throwable) {
                 // A storage-driver failure should not prevent using a safe remote image.
@@ -337,7 +345,20 @@ class NewsController extends Controller
      */
     private function safeImageUrl(?string $url): ?string
     {
-        if (! $url || strlen($url) > 2048 || ! filter_var($url, FILTER_VALIDATE_URL)) {
+        if (! $url || strlen($url) > 2048) {
+            return null;
+        }
+
+        $url = trim($url);
+
+        // Normalize legacy protocol-relative and backend-relative image paths.
+        if (str_starts_with($url, '//')) {
+            $url = 'https:'.$url;
+        } elseif (str_starts_with($url, '/')) {
+            $url = rtrim((string) config('app.url'), '/').$url;
+        }
+
+        if (! filter_var($url, FILTER_VALIDATE_URL)) {
             return null;
         }
 
