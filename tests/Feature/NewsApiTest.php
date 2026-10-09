@@ -145,6 +145,24 @@ it('allows valid CDN thumbnails while keeping article content out of the public 
         ->assertJsonPath('data.0.image_url', 'https://img.publisher-cdn.example/image.jpg');
 });
 
+it('normalizes legacy relative thumbnail paths to the backend origin', function () {
+    NewsHeading::create([
+        'title' => 'Headline with relative thumbnail',
+        'slug' => 'headline-with-relative-thumbnail',
+        'source_key' => 'prothom_alo',
+        'source_name' => 'Prothom Alo',
+        'language' => 'bn',
+        'source_link' => 'https://www.prothomalo.com/relative-image-test',
+        'image_url' => '/storage/news-images/legacy-thumbnail.jpg',
+    ]);
+
+    $expectedUrl = rtrim((string) config('app.url'), '/').'/storage/news-images/legacy-thumbnail.jpg';
+
+    $this->getJson('/api/news?source=prothom_alo')
+        ->assertOk()
+        ->assertJsonPath('data.0.image_url', $expectedUrl);
+});
+
 it('returns saved headlines older than seven days unless the visitor chooses a time filter', function () {
     NewsHeading::create([
         'title' => 'Older saved headline should remain visible',
