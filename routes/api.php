@@ -34,6 +34,7 @@ use App\Http\Controllers\Api\Auth\SwitchProfileController;
 use App\Http\Controllers\Api\Auth\ProfileController;
 use App\Http\Controllers\Api\Auth\PasswordController;
 use App\Http\Controllers\Api\Auth\AccountController;
+use App\Http\Controllers\Api\Auth\SocialAuthController;
 use App\Http\Controllers\Api\PublicProfileController;
 use Illuminate\Support\Facades\Broadcast;
 use App\Http\Controllers\Api\ContactUsController;
@@ -48,7 +49,12 @@ Route::prefix('v1')->group(function () {
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
     Route::post('/auth/google', [GoogleAuthController::class, 'login'])->middleware('throttle:10,1');
     Route::post('/auth/google/exchange', [GoogleAuthController::class, 'exchange'])->middleware('throttle:10,1');
-    
+
+    Route::post('/auth/{provider}/login', [SocialAuthController::class, 'login'])
+        ->whereIn('provider', ['google', 'github', 'facebook', 'twitter']);
+    // routes/api.php
+    Route::post('/auth/github/callback', [SocialAuthController::class, 'githubCallback']);
+
     Route::prefix('auth')->group(function () {
         Route::post('/register/send-otp', [RegisterController::class, 'sendOtp'])->middleware('throttle:5,1');
         Route::post('/register/verify', [RegisterController::class, 'verifyAndRegister'])->middleware('throttle:10,1');
@@ -297,18 +303,14 @@ Route::prefix('signs')->group(function () {
 
 Route::prefix('ai')->group(function () {
 
-    // ✅ Public routes — guest এবং logged-in উভয়ের জন্য
+    // ✅ Guest এবং Auth উভয়ের জন্য উন্মুক্ত রুট
     Route::get('/guest-usage', [ChatController::class, 'guestUsage']);
-    Route::post('/ask', [ChatController::class, 'ask']); // middleware নেই — controller-এ auth('sanctum')->user() দিয়ে check হচ্ছে
-
-    // ✅ Auth-only routes
-    Route::middleware('auth:sanctum')->group(function () {
-        Route::get('/sessions', [ChatController::class, 'sessions']);
-        Route::get('/sessions/{uuid}', [ChatController::class, 'show']);
-        Route::delete('/sessions/{id}', [ChatController::class, 'destroy'])->whereNumber('id');
-        Route::post('/regenerate', [ChatController::class, 'regenerate']);
-        Route::post('/edit-regenerate', [ChatController::class, 'editAndRegenerate']);
-    });
+    Route::post('/ask', [ChatController::class, 'ask']);
+    Route::get('/sessions', [ChatController::class, 'sessions']);
+    Route::get('/sessions/{uuid}', [ChatController::class, 'show']);
+    Route::delete('/sessions/{id}', [ChatController::class, 'destroy'])->whereNumber('id');
+    Route::post('/regenerate', [ChatController::class, 'regenerate']);
+    Route::post('/edit-regenerate', [ChatController::class, 'editAndRegenerate']);
 });
 Route::middleware(['throttle:120,1'])->prefix('news')->group(function () {
     Route::get('/sources', [NewsController::class, 'sources']);
@@ -415,8 +417,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/users/{user}/block', [UserController::class, 'toggleBlock']);
     Route::get('/users/{user}/block-status', [UserController::class, 'blockStatus']);
 
-     Route::get('/users/search', [UserController::class, 'search'])
-         ->name('api.users.search');
+    Route::get('/users/search', [UserController::class, 'search'])
+        ->name('api.users.search');
 });
 
 Route::middleware('auth:sanctum')->group(function () {

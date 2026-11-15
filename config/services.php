@@ -39,17 +39,41 @@ return [
         'key' => env('HOLIDAY_API_KEY'),
     ],
 
+
     'google' => [
-        'client_id'     => env('GOOGLE_CLIENT_ID'),
-    'client_secret' => env('GOOGLE_CLIENT_SECRET'),
-    'redirect'      => env('GOOGLE_REDIRECT_URI'),
-        // 'client_id' => env('GOOGLE_CLIENT_ID'),
-        // 'client_secret' => env('GOOGLE_CLIENT_SECRET'),
-        // 'redirect' => env('GOOGLE_REDIRECT'),
-        'indexing_key' => env('GOOGLE_INDEXING_CREDENTIALS_PATH', 'storage/app/google-credentials.json'),
-        'indexing_credentials' => env('GOOGLE_INDEXING_CREDENTIALS_PATH'),
-        'indexing_daily_quota' => env('GOOGLE_INDEXING_DAILY_QUOTA', 200),
+        // Existing Google OAuth configuration
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI'),
+
+        // Google Indexing API
+        'indexing_key' => env(
+            'GOOGLE_INDEXING_CREDENTIALS_PATH',
+            'storage/app/google-credentials.json'
+        ),
+
+        'indexing_credentials' => env(
+            'GOOGLE_INDEXING_CREDENTIALS_PATH',
+            'storage/app/google-credentials.json'
+        ),
+
+        'indexing_daily_quota' => (int) env(
+            'GOOGLE_INDEXING_DAILY_QUOTA',
+            200
+        ),
+
+        'indexing_allowed_hosts' => array_values(array_filter(array_map(
+            'trim',
+            explode(
+                ',',
+                env(
+                    'GOOGLE_INDEXING_ALLOWED_HOSTS',
+                    'totthobox.com,www.totthobox.com'
+                )
+            )
+        ))),
     ],
+
 
     'facebook' => [
         'client_id' => env('FACEBOOK_CLIENT_ID'),
@@ -59,8 +83,8 @@ return [
     ],
 
     'news_scraper' => [
-    'proxy' => env('NEWS_SCRAPER_PROXY'),
-],
+        'proxy' => env('NEWS_SCRAPER_PROXY'),
+    ],
 
     'groq' => [
         'api_key' => env('GROQ_API_KEY'),

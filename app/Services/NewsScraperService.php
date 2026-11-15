@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\NewsHeading;
 use Carbon\Carbon;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -16,59 +17,46 @@ class NewsScraperService
 
     protected int $retryDelay = 2;
 
-    /**
-     * URLs already persisted in this scrape run.
-     * Prevents RSS + HTML scrape of the same URL being counted twice
-     * and avoids redundant getMetaImage() HTTP calls.
-     */
+    /** Default HTTP timeout (seconds); a source can override with 'timeout'. */
+    protected int $currentTimeout = 20;
+
+    /** URLs already handled in this scrape run. */
     protected array $seenUrls = [];
 
-    protected int $metaImageLookups = 0;
-
-    protected int $maxMetaImageLookupsPerRun = 60;
-
-    protected int $maxResponseBytes = 4194304;
+    /** Number of valid items (title+link) seen for the source being processed. */
+    protected int $itemsSeen = 0;
 
     protected array $userAgents = [
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
         'Mozilla/5.0 (X11; Linux x86_64; rv:125.0) Gecko/20100101 Firefox/125.0',
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edge/124.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 Edg/123.0.0.0',
     ];
 
-    /**
-     * Junk URL fragments — "/category/" intentionally excluded because
-     * several sources (Somoy, Prothom Alo, etc.) use it as a valid path.
-     */
-    private const JUNK_URL_FRAGMENTS = [
-        '/page/',
-        '/tag/',
-        '/author/',
-        '/search/',
-        '/login',
-        '/register',
-        '/subscribe',
-        '/contact',
-        '/about',
-        '/privacy',
-        '/terms',
-        'javascript:',
-        'mailto:',
-        '#',
+    /** Exact path segments that mark a non-article URL. */
+    private const JUNK_PATH_SEGMENTS = [
+        'page',
+        'tag',
+        'tags',
+        'author',
+        'search',
+        'login',
+        'register',
+        'subscribe',
+        'contact',
+        'about',
+        'privacy',
+        'terms',
     ];
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // SOURCE DEFINITIONS
-    // ─────────────────────────────────────────────────────────────────────────
 
     protected array $sources = [
 
-        // ── 1. Prothom Alo (বাংলা) ───────────────────────────────────────────
-        // RSS verified working.
+        // ── 1. Prothom Alo ───────────────────────────────────────────────────
         [
             'key' => 'prothom_alo',
             'name' => 'Prothom Alo',
             'language' => 'bn',
+            'timeout' => 45, // pages are large/slow (cURL 28 before)
             'rss' => [
                 'https://www.prothomalo.com/feed',
                 'https://www.prothomalo.com/stories.rss',
@@ -76,9 +64,10 @@ class NewsScraperService
             'channels' => [
                 'https://www.prothomalo.com/bangladesh',
                 'https://www.prothomalo.com/politics',
-                'https://www.prothomalo.com/economy',
-                'https://www.prothomalo.com/international',
+                'https://www.prothomalo.com/business', // /economy redirects here
+                'https://www.prothomalo.com/world',
             ],
+            'fallback_rss' => null,
             'selectors' => [
                 ['item' => 'article', 'title' => 'h2,h3', 'link' => 'a', 'image' => 'img,picture source'],
                 ['item' => '.story-card', 'title' => '.title', 'link' => 'a', 'image' => 'img'],
@@ -88,26 +77,26 @@ class NewsScraperService
             'category_map' => [
                 'bangladesh' => 'National',
                 'politics' => 'Politics',
+                'business' => 'Economy',
                 'economy' => 'Economy',
+                'world' => 'International',
                 'international' => 'International',
             ],
         ],
 
-        // ── 2. The Daily Star (English) ───────────────────────────────────────
-        // RSS verified working.
+        // ── 2. The Daily Star ────────────────────────────────────────────────
         [
             'key' => 'daily_star',
             'name' => 'The Daily Star',
             'language' => 'en',
-            'rss' => [
-                'https://www.thedailystar.net/rss.xml',
-            ],
+            'rss' => ['https://www.thedailystar.net/rss.xml'],
             'channels' => [
                 'https://www.thedailystar.net/top-news',
                 'https://www.thedailystar.net/news/bangladesh',
                 'https://www.thedailystar.net/business',
                 'https://www.thedailystar.net/sports',
             ],
+            'fallback_rss' => null,
             'selectors' => [
                 ['item' => '.card-content', 'title' => 'h3,h4', 'link' => 'a', 'image' => 'img'],
                 ['item' => 'article', 'title' => 'h2,h3', 'link' => 'a', 'image' => 'img'],
@@ -122,21 +111,19 @@ class NewsScraperService
             ],
         ],
 
-        // ── 3. bdnews24 (English) ───────────────────────────────────────────────
-        // RSS verified working.
+        // ── 3. bdnews24 ──────────────────────────────────────────────────────
         [
             'key' => 'bdnews24',
             'name' => 'bdnews24',
             'language' => 'en',
-            'rss' => [
-                'https://bdnews24.com/stories.rss',
-            ],
+            'rss' => ['https://bdnews24.com/stories.rss'],
             'channels' => [
                 'https://bdnews24.com/bangladesh',
                 'https://bdnews24.com/world',
                 'https://bdnews24.com/economy',
                 'https://bdnews24.com/sports',
             ],
+            'fallback_rss' => null,
             'selectors' => [
                 ['item' => '.news-item', 'title' => 'h3,h2', 'link' => 'a', 'image' => 'img'],
                 ['item' => 'article', 'title' => 'h2,h3', 'link' => 'a', 'image' => 'img'],
@@ -151,14 +138,12 @@ class NewsScraperService
             ],
         ],
 
-        // ── 4. Kaler Kantho (বাংলা) ─────────────────────────────────────────────
-        // rss.xml confirmed 404 — RSS removed. Relies on channel scraping only.
-        // NOTE: channel/selector accuracy not verified live; re-check periodically.
+        // ── 4. Kaler Kantho (403 → Google News fallback) ─────────────────────
         [
             'key' => 'kalerkantho',
             'name' => 'Kaler Kantho',
             'language' => 'bn',
-            'rss' => [], // no working feed found
+            'rss' => [],
             'channels' => [
                 'https://www.kalerkantho.com/online/national',
                 'https://www.kalerkantho.com/special/recent',
@@ -167,6 +152,7 @@ class NewsScraperService
                 'https://www.kalerkantho.com/online/entertainment',
                 'https://www.kalerkantho.com/online/business',
             ],
+            'fallback_rss' => 'https://news.google.com/rss/search?q=site:kalerkantho.com+when:1d&hl=bn&gl=BD&ceid=BD:bn',
             'selectors' => [
                 [
                     'item' => '.col-sm-6.col-md-4, .col-lg-3, .col-xs-12.col-sm-6',
@@ -191,20 +177,19 @@ class NewsScraperService
             ],
         ],
 
-        // ── 5. Samakal (বাংলা) ────────────────────────────────────────────────
-        // /feed confirmed 404, /rss blocked by bot-detection (no evidence it works).
-        // RSS removed. Channels verified valid against current site nav.
+        // ── 5. Samakal (0 items → Google News fallback) ──────────────────────
         [
             'key' => 'samakal',
             'name' => 'Samakal',
             'language' => 'bn',
-            'rss' => [], // no confirmed working feed
+            'rss' => [],
             'channels' => [
                 'https://samakal.com/whole-country',
                 'https://samakal.com/politics',
                 'https://samakal.com/economics',
                 'https://samakal.com/sports',
             ],
+            'fallback_rss' => 'https://news.google.com/rss/search?q=site:samakal.com+when:1d&hl=bn&gl=BD&ceid=BD:bn',
             'selectors' => [
                 ['item' => '.news-title-list', 'title' => 'h2,h3', 'link' => 'a', 'image' => 'img'],
                 ['item' => 'article', 'title' => 'h2,h3', 'link' => 'a', 'image' => 'img'],
@@ -219,20 +204,19 @@ class NewsScraperService
             ],
         ],
 
-        // ── 6. Jugantor (বাংলা) ───────────────────────────────────────────────
-        // ALL RSS candidates (rss.xml, feed, feed/rss, feed/rss.xml) confirmed
-        // 404 / access denied. RSS fully removed — scraping only.
+        // ── 6. Jugantor (403 → Google News fallback) ─────────────────────────
         [
             'key' => 'jugantor',
             'name' => 'Jugantor',
             'language' => 'bn',
-            'rss' => [], // no working feed — site has dropped RSS entirely
+            'rss' => [],
             'channels' => [
                 'https://www.jugantor.com/national',
                 'https://www.jugantor.com/politics',
                 'https://www.jugantor.com/economics',
                 'https://www.jugantor.com/country',
             ],
+            'fallback_rss' => 'https://news.google.com/rss/search?q=site:jugantor.com+when:1d&hl=bn&gl=BD&ceid=BD:bn',
             'selectors' => [
                 [
                     'item' => '.jeg_post, .jeg_block_module_3, .jeg_block_module_6',
@@ -268,16 +252,14 @@ class NewsScraperService
             ],
         ],
 
-        // ── 7. Daily Ittefaq (বাংলা) ──────────────────────────────────────────
-        // /feed and /rss.xml both confirmed 404. RSS removed.
+        // ── 7. Daily Ittefaq ─────────────────────────────────────────────────
         [
             'key' => 'ittefaq',
             'name' => 'Daily Ittefaq',
             'language' => 'bn',
-            'rss' => [], // no working feed found
-            'channels' => [
-                'https://www.ittefaq.com.bd/latest-news',
-            ],
+            'rss' => [],
+            'channels' => ['https://www.ittefaq.com.bd/latest-news'],
+            'fallback_rss' => 'https://news.google.com/rss/search?q=site:ittefaq.com.bd+when:1d&hl=bn&gl=BD&ceid=BD:bn',
             'selectors' => [
                 [
                     'item' => '.each_news, .d_news_list, .post_list, article',
@@ -300,24 +282,20 @@ class NewsScraperService
             ],
         ],
 
-        // ── 8. Manabzamin (বাংলা) ─────────────────────────────────────────────
-        // /feed and /rss.xml both confirmed 404 — RSS removed.
-        // Old `category.php?cat=X` URLs now redirect to `/category/<bangla-slug>`.
-        // Updated to the real current URLs (confirmed live) instead of relying
-        // on the redirect.
+        // ── 8. Manabzamin ────────────────────────────────────────────────────
         [
             'key' => 'manabzamin',
             'name' => 'Manabzamin',
             'language' => 'bn',
-            'rss' => [], // no working feed found
+            'rss' => [],
             'channels' => [
-                'https://www.mzamin.com/category/বিশ্বজমিন',      // World (was cat=5)
-                'https://www.mzamin.com/category/অর্থ-বাণিজ্য',    // Economy (was cat=1)
-                'https://www.mzamin.com/category/বাংলারজমিন',      // National (was cat=2)
-                'https://www.mzamin.com/category/খেলা',            // Sports (was cat=3)
+                'https://www.mzamin.com/category/বিশ্বজমিন',
+                'https://www.mzamin.com/category/অর্থ-বাণিজ্য',
+                'https://www.mzamin.com/category/বাংলারজমিন',
+                'https://www.mzamin.com/category/খেলা',
             ],
+            'fallback_rss' => 'https://news.google.com/rss/search?q=site:mzamin.com+when:1d&hl=bn&gl=BD&ceid=BD:bn',
             'selectors' => [
-                // Site now renders as headline cards under h2/h4 with figure/img
                 ['item' => 'article, .news-item, [class*="card"]', 'title' => 'h2,h3,h4', 'link' => 'a', 'image' => 'img'],
                 ['item' => 'li', 'title' => 'h3,a', 'link' => 'a', 'image' => 'img'],
             ],
@@ -329,21 +307,19 @@ class NewsScraperService
             ],
         ],
 
-        // ── 9. The Financial Express (English) ────────────────────────────────
-        // /feed no longer serves RSS (returns homepage HTML — site rebuilt on
-        // Next.js). RSS removed. Channels rewritten to match the current
-        // /category/* structure; old 'trade-market' slug doesn't exist anymore.
+        // ── 9. The Financial Express ─────────────────────────────────────────
         [
             'key' => 'financial_express',
             'name' => 'The Financial Express',
             'language' => 'en',
-            'rss' => [], // site no longer serves RSS at /feed
+            'rss' => [],
             'channels' => [
                 'https://thefinancialexpress.com.bd/category/latest',
                 'https://thefinancialexpress.com.bd/category/economy',
-                'https://thefinancialexpress.com.bd/category/trade', // was 'trade-market' — wrong slug
+                'https://thefinancialexpress.com.bd/category/trade',
                 'https://thefinancialexpress.com.bd/category/national',
             ],
+            'fallback_rss' => 'https://news.google.com/rss/search?q=site:thefinancialexpress.com.bd+when:1d&hl=en&gl=BD&ceid=BD:en',
             'selectors' => [
                 ['item' => '.single-news', 'title' => 'h4,h3', 'link' => 'a', 'image' => 'img'],
                 ['item' => 'article', 'title' => 'h2,h3', 'link' => 'a', 'image' => 'img'],
@@ -358,23 +334,14 @@ class NewsScraperService
             ],
         ],
 
-        // ── 10. New Age (English) ──────────────────────────────────────────────
-        // rss.xml could not be confirmed — request was blocked by bot-detection
-        // (not a 404, so it may still work from a normal server IP). Left in
-        // place but flagged; test directly from your production server.
+        // ── 10. New Age (only /latest exists; other URLs were 404) ───────────
         [
             'key' => 'new_age',
             'name' => 'New Age',
             'language' => 'en',
-            'rss' => [
-                'https://www.newagebd.net/rss.xml', // UNVERIFIED — bot-blocked during check, re-test from your server
-            ],
-            'channels' => [
-                'https://www.newagebd.net/latest',
-                'https://www.newagebd.net/national',
-                'https://www.newagebd.net/business',
-                'https://www.newagebd.net/sports',
-            ],
+            'rss' => [],
+            'channels' => ['https://www.newagebd.net/latest'],
+            'fallback_rss' => 'https://news.google.com/rss/search?q=site:newagebd.net+when:1d&hl=en&gl=BD&ceid=BD:en',
             'selectors' => [
                 ['item' => '.news-item', 'title' => 'h3,h2', 'link' => 'a', 'image' => 'img'],
                 ['item' => 'article', 'title' => 'h2,h3', 'link' => 'a', 'image' => 'img'],
@@ -389,13 +356,12 @@ class NewsScraperService
             ],
         ],
 
-        // ── 11. Somoy News (বাংলা) ─────────────────────────────────────────────
-        // /feed and /rss/national both confirmed 404. RSS removed.
+        // ── 11. Somoy News (403 → Google News fallback) ──────────────────────
         [
             'key' => 'somoy_news',
             'name' => 'Somoy News',
             'language' => 'bn',
-            'rss' => [], // no working feed found
+            'rss' => [],
             'channels' => [
                 'https://www.somoynews.tv/pages/all-news',
                 'https://www.somoynews.tv/category/bangladesh',
@@ -403,6 +369,7 @@ class NewsScraperService
                 'https://www.somoynews.tv/category/international',
                 'https://www.somoynews.tv/category/economy',
             ],
+            'fallback_rss' => 'https://news.google.com/rss/search?q=site:somoynews.tv+when:1d&hl=bn&gl=BD&ceid=BD:bn',
             'selectors' => [
                 [
                     'item' => '.col-md-4.col-sm-6, .card',
@@ -437,7 +404,6 @@ class NewsScraperService
                 'economy' => 'Economy',
             ],
         ],
-
     ];
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -446,18 +412,23 @@ class NewsScraperService
 
     public function scrapeAll(): void
     {
-        $this->seenUrls = []; // Reset dedup map for this run
-        $this->metaImageLookups = 0;
+        $this->seenUrls = [];
 
         foreach ($this->sources as $source) {
-            $this->processSource($source);
+            // One broken source must never stop the others.
+            try {
+                $this->processSource($source);
+            } catch (\Throwable $e) {
+                Log::error("[{$source['key']}] Source failed: " . $e->getMessage());
+            }
         }
+
+        $this->refreshNewsCaches();
     }
 
     public function scrapeByKey(string $key): void
     {
         $this->seenUrls = [];
-        $this->metaImageLookups = 0;
 
         $source = collect($this->sources)->firstWhere('key', $key);
 
@@ -468,6 +439,54 @@ class NewsScraperService
         }
 
         $this->processSource($source);
+        $this->refreshNewsCaches();
+    }
+
+    /**
+     * Refresh caches used by Sidebar + News API.
+     */
+    protected function refreshNewsCaches(): void
+    {
+        try {
+            $counts = NewsHeading::query()
+                ->selectRaw('source_key, COUNT(*) as total')
+                ->groupBy('source_key')
+                ->pluck('total', 'source_key')
+                ->toArray();
+
+            Cache::put('news_source_counts_v1', $counts, now()->addHours(6));
+
+            Cache::forget('sidebar_news_sources_v5');
+            Cache::forget('news_api_sources_v5');
+
+            try {
+                $store = Cache::getStore();
+                if (method_exists($store, 'getRedis')) {
+                    $redis = $store->getRedis();
+                    $keys = $redis->keys('*news_index_v1:*');
+
+                    if (! empty($keys)) {
+                        // keys() returns prefixed names, del() prefixes again → strip first.
+                        $prefix = (string) config('database.redis.options.prefix', '');
+                        if ($prefix !== '') {
+                            $keys = array_map(
+                                fn($k) => str_starts_with($k, $prefix) ? substr($k, strlen($prefix)) : $k,
+                                $keys
+                            );
+                        }
+                        $redis->del($keys);
+                    }
+                }
+            } catch (\Throwable $e) {
+                // ignore — index cache TTL will expire it
+            }
+
+            Log::info('[NewsScraperService] News caches refreshed', [
+                'sources' => count($counts),
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('[NewsScraperService] Cache refresh failed: ' . $e->getMessage());
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -477,6 +496,8 @@ class NewsScraperService
     protected function processSource(array $source): void
     {
         $persisted = 0;
+        $this->itemsSeen = 0;
+        $this->currentTimeout = (int) ($source['timeout'] ?? 20);
 
         // Layer 1 — RSS
         foreach ($source['rss'] as $rssUrl) {
@@ -493,24 +514,23 @@ class NewsScraperService
             $persisted += $this->scrapeHtml($source, $channelUrl);
         }
 
-        Log::info("[{$source['key']}] Total persisted this run: {$persisted}");
-
-        // ক্যাশ ক্লিয়ার করার লজিক এখানে
-        if ($persisted > 0) {
-            Cache::forget('news_sidebar_counts_v1');
-            Cache::forget('news_sidebar_grouped_v4');
-            Cache::forget('news_sidebar_sources_v1');
-            Cache::forget('news_api_sources_v1');
-
-            Log::info("[{$source['key']}] News sidebar caches cleared.");
+        // Layer 3 — fallback feed, only if the site gave us nothing at all
+        // (blocked with 403, 404, JS-rendered, timeouts...).
+        if ($this->itemsSeen === 0 && ! empty($source['fallback_rss'])) {
+            $this->currentTimeout = 30;
+            $count = $this->scrapeRss($source, $source['fallback_rss'], true);
+            $persisted += $count;
+            Log::info("[{$source['key']}] Fallback feed used: {$count} new items");
         }
+
+        Log::info("[{$source['key']}] Total persisted this run: {$persisted}");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // RSS SCRAPER
+    // RSS SCRAPER (RSS 2.0, RDF and Atom)
     // ─────────────────────────────────────────────────────────────────────────
 
-    protected function scrapeRss(array $source, string $url): int
+    protected function scrapeRss(array $source, string $url, bool $isGoogleNews = false): int
     {
         $response = $this->fetchWithRetry($url);
         if (! $response) {
@@ -520,25 +540,50 @@ class NewsScraperService
         libxml_use_internal_errors(true);
         $rss = simplexml_load_string($response, 'SimpleXMLElement', LIBXML_NOCDATA | LIBXML_NOERROR);
 
-        if (! $rss || ! isset($rss->channel->item)) {
+        if (! $rss) {
+            Log::warning("[{$source['key']}] Feed is not valid XML: {$url}");
+
+            return 0;
+        }
+
+        if (isset($rss->channel->item)) {
+            $items = $rss->channel->item;      // RSS 2.0
+        } elseif (isset($rss->item)) {
+            $items = $rss->item;               // RDF / RSS 1.0
+        } elseif (isset($rss->entry)) {
+            $items = $rss->entry;              // Atom
+        } else {
+            Log::warning("[{$source['key']}] Feed has no items: {$url}");
+
             return 0;
         }
 
         $count = 0;
 
-        foreach ($rss->channel->item as $item) {
+        foreach ($items as $item) {
             $title = $this->cleanText((string) $item->title);
-            $link = trim((string) $item->link);
 
-            if (empty($title) || empty($link)) {
+            $link = trim((string) $item->link);
+            if ($link === '' && isset($item->link)) {
+                $link = trim((string) ($item->link->attributes()['href'] ?? ''));
+            }
+
+            if ($title === '' || $link === '') {
                 continue;
             }
+
+            // Google News appends " - Publisher" to every title.
+            if ($isGoogleNews) {
+                $title = trim(preg_replace('/\s+-\s+[^-]+$/u', '', $title));
+            }
+
+            $date = (string) ($item->pubDate ?? $item->published ?? $item->updated ?? '');
 
             $persisted = $this->persistNews($source, [
                 'title' => $title,
                 'link' => $link,
                 'image' => $this->extractRssImage($item),
-                'date' => $this->parseDate((string) $item->pubDate),
+                'date' => $this->parseDate($date),
                 'category' => $this->detectCategory((string) ($item->category ?? ''), $source, $link),
             ]);
 
@@ -563,43 +608,59 @@ class NewsScraperService
 
         $category = $this->detectCategory('', $source, $url);
         $count = 0;
+        $matched = false;
 
         foreach ($source['selectors'] as $selectorSet) {
-            $found = $this->extractFromHtml($html, $source, $url, $category, $selectorSet);
-            if ($found > 0) {
-                $count += $found;
-                break; // First working selector set wins
+            [$parsed, $created] = $this->extractFromHtml($html, $source, $url, $category, $selectorSet);
+
+            // Stop at the first selector that finds real items — even if they
+            // all already exist (created = 0). Otherwise loose selectors would
+            // start saving navigation links.
+            if ($parsed > 0) {
+                $count += $created;
+                $matched = true;
+                break;
             }
         }
 
-        // Generic <hN> link fallback
-        if ($count === 0) {
-            $count += $this->genericExtract($html, $source, $url, $category);
+        if (! $matched) {
+            [$parsed, $created] = $this->genericExtract($html, $source, $url, $category);
+            $count += $created;
+
+            if ($parsed === 0) {
+                Log::warning("[{$source['key']}] No articles found (page may be JS-rendered or a block page)", [
+                    'url' => $url,
+                    'html_bytes' => strlen($html),
+                ]);
+            }
         }
 
         return $count;
     }
 
+    /**
+     * @return array{0:int,1:int} [items parsed, items newly created]
+     */
     protected function extractFromHtml(
         string $html,
         array $source,
         string $baseUrl,
         string $category,
         array $s,
-    ): int {
+    ): array {
+        $parsed = 0;
+        $created = 0;
+
         try {
             $crawler = new Crawler($html);
             $items = $crawler->filter($s['item']);
 
             if (! $items->count()) {
-                return 0;
+                return [0, 0];
             }
 
-            $count = 0;
-
-            $items->slice(0, 25)->each(function (Crawler $node) use ($source, $baseUrl, $category, $s, &$count) {
+            $items->slice(0, 25)->each(function (Crawler $node) use ($source, $baseUrl, $category, $s, &$parsed, &$created) {
                 try {
-                    // ── Title ─────────────────────────────────────────────
                     $titleNode = null;
                     foreach (explode(',', $s['title']) as $sel) {
                         $sel = trim($sel);
@@ -613,27 +674,25 @@ class NewsScraperService
                     }
 
                     $title = $this->cleanText($titleNode->text());
-                    if (empty($title) || mb_strlen($title) < 10) {
+                    if ($title === '' || mb_strlen($title) < 10) {
                         return;
                     }
 
-                    // ── Link ──────────────────────────────────────────────
                     $link = null;
                     try {
                         $link = $node->filter('a')->first()->attr('href');
                     } catch (\Throwable) {
                     }
 
-                    if (! $link) {
-                        return;
-                    }
-
                     $link = $this->makeAbsolute($link, $baseUrl);
-                    if (! filter_var($link, FILTER_VALIDATE_URL)) {
+                    if (! $link || ! filter_var($link, FILTER_VALIDATE_URL)) {
                         return;
                     }
 
-                    // ── Image (6-layer with lazy-load attrs) ──────────────
+                    if (! $this->isSameSite($link, $baseUrl) || $this->normalizeUrl($link) === $this->normalizeUrl($baseUrl)) {
+                        return;
+                    }
+
                     $image = null;
                     foreach (explode(',', $s['image']) as $imgSel) {
                         $imgSel = trim($imgSel);
@@ -650,7 +709,6 @@ class NewsScraperService
                             ?? $imgNode->attr('srcset')
                             ?? $imgNode->attr('src');
 
-                        // Take first URL from srcset
                         if ($image && str_contains($image, ' ')) {
                             $image = explode(' ', trim($image))[0];
                         }
@@ -659,82 +717,84 @@ class NewsScraperService
                             $image = $this->makeAbsolute($image, $baseUrl);
                             if ($this->isPlaceholderImage($image)) {
                                 $image = null;
-
                                 continue;
                             }
                             break;
                         }
                     }
 
-                    if (
-                        $this->persistNews($source, [
-                            'title' => $title,
-                            'link' => $link,
-                            'image' => $image,
-                            'date' => now(),
-                            'category' => $category,
-                        ])
-                    ) {
-                        $count++;
-                    }
+                    $parsed++;
 
+                    if ($this->persistNews($source, [
+                        'title' => $title,
+                        'link' => $link,
+                        'image' => $image,
+                        'date' => now(),
+                        'category' => $category,
+                    ])) {
+                        $created++;
+                    }
                 } catch (\Throwable) {
-                    // One bad node never kills the whole pass
+                    // skip bad node
                 }
             });
-
-            return $count;
-
         } catch (\Throwable $e) {
-            Log::warning("[{$source['key']}] extractFromHtml error: ".$e->getMessage());
-
-            return 0;
+            Log::warning("[{$source['key']}] extractFromHtml error: " . $e->getMessage());
         }
+
+        return [$parsed, $created];
     }
 
+    /**
+     * @return array{0:int,1:int} [items parsed, items newly created]
+     */
     protected function genericExtract(
         string $html,
         array $source,
         string $baseUrl,
         string $category,
-    ): int {
+    ): array {
+        $parsed = 0;
+        $created = 0;
+
         try {
             $crawler = new Crawler($html);
-            $count = 0;
 
             $crawler->filter('h1 a, h2 a, h3 a, h4 a, article a')
-                ->each(function (Crawler $node) use ($source, $baseUrl, $category, &$count) {
+                ->each(function (Crawler $node) use ($source, $baseUrl, $category, &$parsed, &$created) {
                     $title = $this->cleanText($node->text());
                     $link = $this->makeAbsolute($node->attr('href'), $baseUrl);
 
-                    if (mb_strlen($title) < 15 || ! filter_var($link, FILTER_VALIDATE_URL)) {
+                    if (mb_strlen($title) < 15 || ! $link || ! filter_var($link, FILTER_VALIDATE_URL)) {
                         return;
                     }
 
-                    if (
-                        $this->persistNews($source, [
-                            'title' => $title,
-                            'link' => $link,
-                            'image' => null,
-                            'date' => now(),
-                            'category' => $category,
-                        ])
-                    ) {
-                        $count++;
+                    // Only articles of the same site, not the channel page itself.
+                    if (! $this->isSameSite($link, $baseUrl) || $this->normalizeUrl($link) === $this->normalizeUrl($baseUrl)) {
+                        return;
+                    }
+
+                    $parsed++;
+
+                    if ($this->persistNews($source, [
+                        'title' => $title,
+                        'link' => $link,
+                        'image' => null,
+                        'date' => now(),
+                        'category' => $category,
+                    ])) {
+                        $created++;
                     }
                 });
 
-            if ($count > 0) {
-                Log::info("[{$source['key']}] Generic extract: {$count} items from {$baseUrl}");
+            if ($created > 0) {
+                Log::info("[{$source['key']}] Generic extract: {$created} items from {$baseUrl}");
             }
-
-            return $count;
-
         } catch (\Throwable $e) {
-            Log::warning("[{$source['key']}] Generic extract failed: ".$e->getMessage());
-
-            return 0;
+            Log::warning("[{$source['key']}] Generic extract failed: " . $e->getMessage());
         }
+
+        return [$parsed, $created];
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -749,86 +809,63 @@ class NewsScraperService
 
         $link = $this->normalizeUrl($data['link']);
 
-        // ── In-run dedup ─────────────────────────────────────────────────────
-        // Prevents the same URL being persisted twice when RSS + HTML both find it.
-        if (isset($this->seenUrls[$link])) {
-            return false;
-        }
-
         if ($this->isJunkUrl($link)) {
             return false;
         }
 
-        // ── Keep existing story metadata stable while filling missing images ─
-        // Never replace title/source/published_at for an already-seen article.
-        $sourceHash = hash('sha256', $link);
+        // A valid item was found (even if it already exists in the DB).
+        $this->itemsSeen++;
 
-        $existing = NewsHeading::where('source_hash', $sourceHash)->first();
-        if ($existing) {
+        if (isset($this->seenUrls[$link])) {
+            return false;
+        }
+
+        if (NewsHeading::where('source_link', $link)->exists()) {
             $this->seenUrls[$link] = true;
-
-            // Backfill missing thumbnails on old rows without touching their
-            // headline, source URL, or published_at ordering.
-            if (empty($existing->image_url)) {
-                $image = $this->normalizeImage($data['image'] ?? null, $link);
-
-                if (empty($image) && $this->metaImageLookups < $this->maxMetaImageLookupsPerRun) {
-                    $image = $this->normalizeImage($this->getMetaImage($link), $link);
-                    $this->metaImageLookups++;
-                }
-
-                if ($image) {
-                    $existing->forceFill(['image_url' => $image])->save();
-                }
-            }
 
             return false;
         }
 
-        // ── Image normalization + OG fallback for genuinely new articles ────
-        $image = $this->normalizeImage($data['image'] ?? null, $link);
-        if (empty($image) && $this->metaImageLookups < $this->maxMetaImageLookupsPerRun) {
-            $image = $this->normalizeImage($this->getMetaImage($link), $link);
-            $this->metaImageLookups++;
-        }
-
-        // ── Slug ─────────────────────────────────────────────────────────────
         $slug = Str::slug(Str::limit($data['title'], 100));
         if (empty($slug)) {
-            $slug = 'news-'.md5($data['title']);
+            $slug = 'news-' . md5($data['title']);
         }
 
         $baseSlug = $slug;
         $attempt = 0;
         while (
             NewsHeading::where('slug', $slug)
-                ->where('source_link', '!=', $link)
-                ->exists()
+            ->where('source_link', '!=', $link)
+            ->exists()
         ) {
-            $slug = $baseSlug.'-'.(++$attempt);
+            $slug = $baseSlug . '-' . (++$attempt);
             if ($attempt > 20) {
-                $slug = $baseSlug.'-'.substr(md5($link), 0, 8);
+                $slug = $baseSlug . '-' . substr(md5($link), 0, 8);
                 break;
             }
         }
 
-        // ── Insert only — never overwrite published_at / image on updates ─────
-        // Using firstOrCreate instead of updateOrCreate means existing rows
-        // keep their original published_at, so they never float to the top.
-        $record = NewsHeading::firstOrCreate(
-            ['source_link' => $link],
-            [
-                'title' => $data['title'],
-                'slug' => $slug,
-                'source_hash' => $sourceHash,
-                'source_name' => $source['name'],
-                'source_key' => $source['key'],
-                'category' => $data['category'] ?? 'National',
-                'image_url' => $image,
-                'language' => $source['language'],
-                'published_at' => $data['date'] ?? now(),
-            ]
-        );
+        try {
+            $record = NewsHeading::firstOrCreate(
+                ['source_link' => $link],
+                [
+                    'title' => $data['title'],
+                    'slug' => $slug,
+                    'source_name' => $source['name'],
+                    'source_key' => $source['key'],
+                    'category' => $data['category'] ?? 'National',
+                    'image_url' => $data['image'] ?? null,
+                    'language' => $source['language'],
+                    'published_at' => $data['date'] ?? now(),
+                ]
+            );
+        } catch (QueryException $e) {
+            // duplicate slug / link race — skip this item, keep scraping
+            Log::warning("[{$source['key']}] Persist failed: " . $e->getMessage());
+            $this->seenUrls[$link] = true;
+
+            return false;
+        }
 
         $this->seenUrls[$link] = true;
 
@@ -836,52 +873,120 @@ class NewsScraperService
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // HTTP — Retry with exponential backoff + rotating User-Agent
+    // HTTP
     // ─────────────────────────────────────────────────────────────────────────
 
-    protected function fetchWithRetry(string $url, int $timeout = 20): ?string
+    protected function fetchWithRetry(string $url, ?int $timeout = null): ?string
     {
-        $attempts = 0;
+        $timeout ??= $this->currentTimeout;
+        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
 
-        while ($attempts < $this->maxRetries) {
+        if ($host === '') {
+            Log::warning('[NewsScraperService] Invalid URL', ['url' => $url]);
+
+            return null;
+        }
+
+        $blockedKey = 'news_scraper:blocked_host:' . $host;
+
+        if (Cache::has($blockedKey)) {
+            Log::info('[NewsScraperService] Host cooldown active', ['host' => $host, 'url' => $url]);
+
+            return null;
+        }
+
+        $proxy = config('services.news_scraper.proxy');
+
+        for ($attempt = 1; $attempt <= $this->maxRetries; $attempt++) {
             try {
-                $response = Http::timeout($timeout)
+                // Rotate User-Agent on every attempt.
+                $ua = $this->userAgents[($attempt - 1) % count($this->userAgents)];
+
+                $request = Http::connectTimeout(8)
+                    ->timeout($timeout)
                     ->withHeaders([
-                        // Use the configured browser user-agent rotation. The previous
-                        // fixed bot identifier was rejected by some publisher HTML pages.
-                        'User-Agent' => $this->userAgents[$attempts % count($this->userAgents)],
-                        'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                        'Accept-Language' => 'bn-BD,bn;q=0.9,en-US;q=0.8,en;q=0.7',
-                    ])
-                    ->get($url);
+                        'User-Agent' => $ua,
+                        'Accept' => 'application/rss+xml, application/atom+xml, '
+                            . 'application/xml;q=0.9, text/html,application/xhtml+xml;q=0.9, */*;q=0.8',
+                        'Accept-Language' => 'en-US,en;q=0.9,bn;q=0.8',
+                        'Cache-Control' => 'max-age=0',
+                        'Upgrade-Insecure-Requests' => '1',
+                        'Sec-Fetch-Dest' => 'document',
+                        'Sec-Fetch-Mode' => 'navigate',
+                        'Sec-Fetch-Site' => 'none',
+                        'Sec-Fetch-User' => '?1',
+                    ]);
+
+                if ($proxy) {
+                    $request = $request->withOptions(['proxy' => $proxy]);
+                }
+
+                $response = $request->get($url);
+                $status = $response->status();
 
                 if ($response->successful()) {
-                    $contentLength = (int) ($response->header('Content-Length') ?? 0);
-                    if ($contentLength > $this->maxResponseBytes || strlen($response->body()) > $this->maxResponseBytes) {
-                        Log::warning("[NewsScraperService] Response too large — skip {$url}");
-                        return null;
-                    }
-
                     return $response->body();
                 }
 
-                // These status codes won't improve on retry
-                if (in_array($response->status(), [403, 404, 429], true)) {
-                    Log::warning("[NewsScraperService] HTTP {$response->status()} — skip {$url}");
+                if ($status === 403) {
+                    // Try once more with another User-Agent before blocking the host.
+                    if ($attempt < 2) {
+                        sleep(1);
+                        continue;
+                    }
+
+                    Cache::put($blockedKey, true, now()->addMinutes(30));
+
+                    Log::warning('[NewsScraperService] HTTP 403; host cooldown enabled', [
+                        'host' => $host,
+                        'url' => $url,
+                    ]);
 
                     return null;
                 }
 
-            } catch (\Throwable $e) {
-                Log::warning("[NewsScraperService] Attempt {$attempts} failed for {$url}: ".$e->getMessage());
-            }
+                if (in_array($status, [400, 401, 404, 410], true)) {
+                    Log::warning('[NewsScraperService] Non-retryable HTTP response', [
+                        'status' => $status,
+                        'url' => $url,
+                    ]);
 
-            $attempts++;
-            // Exponential backoff: 2s, 4s, 6s
-            sleep($this->retryDelay * $attempts);
+                    return null;
+                }
+
+                if ($status !== 429 && $status < 500) {
+                    Log::warning('[NewsScraperService] HTTP request rejected', [
+                        'status' => $status,
+                        'url' => $url,
+                    ]);
+
+                    return null;
+                }
+
+                Log::warning('[NewsScraperService] Temporary HTTP failure', [
+                    'status' => $status,
+                    'attempt' => $attempt,
+                    'url' => $url,
+                ]);
+
+                if ($attempt < $this->maxRetries) {
+                    $retryAfter = (int) $response->header('Retry-After', 0);
+                    sleep($retryAfter > 0 ? min($retryAfter, 30) : $this->retryDelay * $attempt);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('[NewsScraperService] HTTP request failed', [
+                    'attempt' => $attempt,
+                    'url' => $url,
+                    'error' => $e->getMessage(),
+                ]);
+
+                if ($attempt < $this->maxRetries) {
+                    sleep($this->retryDelay * $attempt);
+                }
+            }
         }
 
-        Log::error("[NewsScraperService] All retries exhausted for {$url}");
+        Log::error('[NewsScraperService] Retries exhausted', ['url' => $url]);
 
         return null;
     }
@@ -892,7 +997,6 @@ class NewsScraperService
 
     protected function extractRssImage(\SimpleXMLElement $item): ?string
     {
-        // 1. media:content
         $media = $item->children('media', true);
         if (isset($media->content)) {
             $url = (string) ($media->content->attributes()['url'] ?? '');
@@ -901,7 +1005,6 @@ class NewsScraperService
             }
         }
 
-        // 2. media:thumbnail
         if (isset($media->thumbnail)) {
             $url = (string) ($media->thumbnail->attributes()['url'] ?? '');
             if ($url) {
@@ -909,7 +1012,6 @@ class NewsScraperService
             }
         }
 
-        // 3. enclosure
         if (isset($item->enclosure)) {
             $attr = $item->enclosure->attributes();
             $type = (string) ($attr['type'] ?? '');
@@ -921,17 +1023,14 @@ class NewsScraperService
             }
         }
 
-        // 4. <img> inside <description>
         $desc = (string) $item->description;
         if (preg_match('/<img[^>]+src=[\'"]([^\'"]+)[\'"][^>]*>/i', $desc, $m)) {
             return $m[1];
         }
 
-        // 5. content:encoded
         $content = $item->children('content', true);
         if (isset($content->encoded)) {
-            $encoded = (string) $content->encoded;
-            if (preg_match('/<img[^>]+src=[\'"]([^\'"]+)[\'"][^>]*>/i', $encoded, $m)) {
+            if (preg_match('/<img[^>]+src=[\'"]([^\'"]+)[\'"][^>]*>/i', (string) $content->encoded, $m)) {
                 return $m[1];
             }
         }
@@ -939,31 +1038,26 @@ class NewsScraperService
         return null;
     }
 
-    /**
-     * Fetch og:image / twitter:image from the article's <head> only.
-     * Reads only the first 8 KB of the returned document head to keep parsing lightweight.
-     * Only called for genuinely new articles (not existing DB records).
-     */
     protected function getMetaImage(string $url): ?string
     {
         try {
-            $html = $this->fetchWithRetry($url, timeout: 10);
+            $html = $this->fetchWithRetry($url, 10);
             if (! $html) {
                 return null;
             }
 
-            // Only parse the first 8 KB — the <head> is always there
-            $head = substr($html, 0, 8000);
-            $crawler = new Crawler($head);
+            $crawler = new Crawler(substr($html, 0, 8000));
 
-            foreach ([
-                'meta[property="og:image"]',
-                'meta[name="og:image"]',
-                'meta[name="twitter:image"]',
-                'meta[property="twitter:image"]',
-                'meta[itemprop="image"]',
-                'link[rel="image_src"]',
-            ] as $selector) {
+            foreach (
+                [
+                    'meta[property="og:image"]',
+                    'meta[name="og:image"]',
+                    'meta[name="twitter:image"]',
+                    'meta[property="twitter:image"]',
+                    'meta[itemprop="image"]',
+                    'link[rel="image_src"]',
+                ] as $selector
+            ) {
                 try {
                     $node = $crawler->filter($selector);
                     if ($node->count()) {
@@ -977,45 +1071,9 @@ class NewsScraperService
             }
 
             return null;
-
         } catch (\Throwable) {
             return null;
         }
-    }
-
-    protected function normalizeImage(?string $url, string $articleUrl): ?string
-    {
-        if (! $url) {
-            return null;
-        }
-
-        $url = $this->makeAbsolute($url, $articleUrl);
-        if (! $url || $this->isPlaceholderImage($url) || ! filter_var($url, FILTER_VALIDATE_URL)) {
-            return null;
-        }
-
-        $image = parse_url($url);
-        $scheme = strtolower((string) ($image['scheme'] ?? ''));
-        $host = strtolower(rtrim((string) ($image['host'] ?? ''), '.'));
-
-        // Publisher thumbnails may live on a dedicated image CDN. Do not require
-        // the thumbnail host to match the article host; only accept safe web URLs.
-        if (
-            ! in_array($scheme, ['http', 'https'], true)
-            || $host === ''
-            || isset($image['user'])
-            || isset($image['pass'])
-        ) {
-            return null;
-        }
-
-        // Reject loopback/private/reserved IP hosts.
-        if (filter_var($host, FILTER_VALIDATE_IP)
-            && ! filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
-            return null;
-        }
-
-        return $url;
     }
 
     protected function isPlaceholderImage(?string $url): bool
@@ -1039,10 +1097,6 @@ class NewsScraperService
     // UTILITIES
     // ─────────────────────────────────────────────────────────────────────────
 
-    /**
-     * Strip UTM/tracking params and trailing slashes so that
-     * "article?utm_source=rss" and "article" don't create two DB rows.
-     */
     protected function normalizeUrl(string $url): string
     {
         $parsed = parse_url($url);
@@ -1053,32 +1107,20 @@ class NewsScraperService
         $query = [];
         if (! empty($parsed['query'])) {
             parse_str($parsed['query'], $params);
-            // Strip common tracking parameters
-            $tracking = [
-                'utm_source',
-                'utm_medium',
-                'utm_campaign',
-                'utm_term',
-                'utm_content',
-                'fbclid',
-                'gclid',
-                'ref',
-                'referrer',
-            ];
-            foreach ($tracking as $key) {
+            foreach (['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'fbclid', 'gclid', 'ref', 'referrer'] as $key) {
                 unset($params[$key]);
             }
             $query = $params;
         }
 
-        $normalized = ($parsed['scheme'] ?? 'https').'://'.($parsed['host'] ?? '');
+        $normalized = ($parsed['scheme'] ?? 'https') . '://' . ($parsed['host'] ?? '');
 
         if (! empty($parsed['path'])) {
             $normalized .= rtrim($parsed['path'], '/');
         }
 
         if (! empty($query)) {
-            $normalized .= '?'.http_build_query($query);
+            $normalized .= '?' . http_build_query($query);
         }
 
         return $normalized;
@@ -1086,47 +1128,40 @@ class NewsScraperService
 
     protected function makeAbsolute(?string $url, string $baseUrl): ?string
     {
-        if (! $url || trim($url) === '' || $url === '#') {
+        if (! $url) {
             return null;
         }
 
         $url = trim($url);
 
+        if (
+            $url === '' || str_starts_with($url, '#')
+            || str_starts_with($url, 'javascript:')
+            || str_starts_with($url, 'mailto:')
+            || str_starts_with($url, 'tel:')
+        ) {
+            return null;
+        }
+
         if (str_starts_with($url, '//')) {
-            return 'https:'.$url;
+            return 'https:' . $url;
         }
         if (str_starts_with($url, 'http')) {
             return $url;
         }
 
         $parsed = parse_url($baseUrl);
-        $root = ($parsed['scheme'] ?? 'https').'://'.($parsed['host'] ?? '');
+        $root = ($parsed['scheme'] ?? 'https') . '://' . ($parsed['host'] ?? '');
 
-        if (str_starts_with($url, '?')) {
-            return $root.($parsed['path'] ?? '/').$url;
-        }
+        return $root . '/' . ltrim($url, '/');
+    }
 
-        if (str_starts_with($url, '/')) {
-            return $root.$url;
-        }
+    protected function isSameSite(string $url, string $baseUrl): bool
+    {
+        $a = preg_replace('/^www\./', '', strtolower((string) parse_url($url, PHP_URL_HOST)));
+        $b = preg_replace('/^www\./', '', strtolower((string) parse_url($baseUrl, PHP_URL_HOST)));
 
-        $basePath = $parsed['path'] ?? '/';
-        $directory = rtrim(str_replace('\\', '/', dirname($basePath)), '/');
-        $combined = ($directory ? $directory.'/' : '/').ltrim($url, '/');
-
-        $segments = [];
-        foreach (explode('/', $combined) as $segment) {
-            if ($segment === '' || $segment === '.') {
-                continue;
-            }
-            if ($segment === '..') {
-                array_pop($segments);
-                continue;
-            }
-            $segments[] = $segment;
-        }
-
-        return $root.'/'.implode('/', $segments);
+        return $a !== '' && $a === $b;
     }
 
     protected function detectCategory(string $rssCat, array $source, string $url): string
@@ -1151,16 +1186,23 @@ class NewsScraperService
 
     protected function cleanText(string $text): string
     {
-        $text = preg_replace('/\s+/u', ' ', $text);
-        $text = preg_replace('/[\x00-\x1F\x7F]/u', '', $text);
+        $text = preg_replace('/\s+/u', ' ', $text) ?? $text;
+        $text = preg_replace('/[\x00-\x1F\x7F]/u', '', $text) ?? $text;
 
         return trim($text);
     }
 
+    /**
+     * Junk = URL path contains a whole junk segment (not a substring match),
+     * so articles like "/about-the-budget-2026" are no longer dropped.
+     */
     protected function isJunkUrl(string $url): bool
     {
-        foreach (self::JUNK_URL_FRAGMENTS as $fragment) {
-            if (str_contains($url, $fragment)) {
+        $path = (string) parse_url($url, PHP_URL_PATH);
+        $segments = array_filter(explode('/', strtolower(urldecode($path))));
+
+        foreach ($segments as $segment) {
+            if (in_array($segment, self::JUNK_PATH_SEGMENTS, true)) {
                 return true;
             }
         }
@@ -1179,10 +1221,5 @@ class NewsScraperService
         } catch (\Throwable) {
             return null;
         }
-    }
-
-    protected function randomUserAgent(): string
-    {
-        return $this->userAgents[array_rand($this->userAgents)];
     }
 }

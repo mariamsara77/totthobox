@@ -12,7 +12,7 @@ class ChatSession extends Model
 {
     use SoftDeletes;
 
-    protected $fillable = ['uuid', 'title', 'user_id'];
+    protected $fillable = ['uuid', 'title', 'user_id', 'visitor_id'];
 
     protected static function boot()
     {
@@ -22,6 +22,11 @@ class ChatSession extends Model
                 $model->uuid = (string) Str::uuid();
             }
         });
+    }
+
+    public function visitor(): BelongsTo
+    {
+        return $this->belongsTo(Visitor::class);
     }
 
     public function user(): BelongsTo

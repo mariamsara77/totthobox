@@ -1,13 +1,13 @@
 <?php
 
-namespace App\\Models;
+namespace App\Models;
 
-use Carbon\\Carbon;
-use Illuminate\\Database\\Eloquent\\Builder;
-use Illuminate\\Database\\Eloquent\\Model;
-use Illuminate\\Database\\Eloquent\\SoftDeletes;
-use Illuminate\\Support\\Collection;
-use Illuminate\\Support\\Facades\\Cache;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 
 class NewsHeading extends Model
 {
@@ -15,18 +15,17 @@ class NewsHeading extends Model
 
     protected $fillable = [
         'title',
-        'summary', // Optional editorial summary, written and reviewed by the editorial team.
+        'summary',
         'slug',
         'source_link',
-        'source_hash',
         'source_name',
         'source_key',
         'category',
-        'story_group', // Cross-source coverage cluster.
+        'story_group',
         'image_url',
+        'local_image_path',
         'language',
         'published_at',
-        'local_image_path',
     ];
 
     protected $casts = [
@@ -35,50 +34,26 @@ class NewsHeading extends Model
 
     protected static function booted(): void
     {
-        $clearNewsCaches = static function (): void {
-            cache()->forget('news_sidebar_sources_v1');
-            cache()->forget('news_sidebar_sources_v2');
-            cache()->forget('news_sidebar_counts_v1');
-            cache()->forget('news_api_sources_v1');
-            cache()->forget('news_api_sources_v2');
+        $clear = function () {
+            Cache::forget('news_sidebar_sources_v1');
+            Cache::forget('news_api_sources_v3');
+            // tag support থাকলে
             try {
-                Cache::tags(['news_headlines', 'news_coverage'])->flush();
+                Cache::tags(['news_sidebar', 'news_headlines', 'news_coverage'])->flush();
             } catch (\Throwable) {
-                // Cache tags are not supported by every Laravel cache driver.
-                // A cache backend limitation must never block headline persistence.
+                // tag driver না থাকলে ignore
             }
-        });
+        };
 
-        static::deleted(function () {
-            cache()->forget('news_sidebar_sources_v1');
-            cache()->forget('news_sidebar_sources_v2');
-            cache()->forget('news_sidebar_counts_v1');
-            cache()->forget('news_api_sources_v1');
-            cache()->forget('news_api_sources_v2');
-            try {
-                Cache::tags(['news_headlines', 'news_coverage'])->flush();
-            } catch (\Throwable) {
-                // Cache tags are not supported by every Laravel cache driver.
-                // A cache backend limitation must never block headline persistence.
-            }
-        });
-
-        static::saved($clearNewsCaches);
-        static::deleted($clearNewsCaches);
-        static::restored($clearNewsCaches);
+        static::saved($clear);
+        static::deleted($clear);
     }
 
-    /**
-     * Best available timestamp for display purposes.
-     */
     public function getEffectiveDateAttribute(): Carbon
     {
         return $this->published_at ?? $this->created_at;
     }
 
-    /**
-     * Published-time ordering prevents edits from promoting old stories.
-     */
     public function scopeLatestPublished(Builder $query): Builder
     {
         return $query->orderByRaw('COALESCE(published_at, created_at) DESC');
@@ -119,9 +94,6 @@ class NewsHeading extends Model
         });
     }
 
-    /**
-     * Limit each source in a diversified feed. Requires MySQL 8+ window support.
-     */
     public function scopeDiversified(Builder $query, int $perSource = 5): Builder
     {
         $sub = self::selectRaw('
@@ -138,34 +110,21 @@ class NewsHeading extends Model
             ->select('news_headings.*');
     }
 
-    /**
-     * Sources available for sidebar/filter UI.
-     *
-     * @return Collection<int, array{key: string, name: string, count: int}>
-     */
     public static function availableSources(): Collection
     {
         return Cache::remember('news_sidebar_sources_v1', now()->addMinutes(10), function () {
-            $counts = self::selectRaw('source_key, COUNT(*) as count')
-                ->groupBy('source_key')
-                ->pluck('count', 'source_key');
-
-            return NewsSource::query()
-                ->active()
-                ->ordered()
+            return self::selectRaw('source_key, source_name, COUNT(*) as count')
+                ->groupBy('source_key', 'source_name')
+                ->orderByDesc('count')
                 ->get()
-                ->map(fn (NewsSource $source) => [
-                    'key' => $source->source_key,
-                    'slug' => $source->slug,
-                    'name' => $source->name,
-                    'count' => (int) ($counts[$source->source_key] ?? 0),
+                ->map(fn($row) => [
+                    'key'   => $row->source_key,
+                    'name'  => $row->source_name,
+                    'count' => (int) $row->count,
                 ]);
         });
     }
 
-    /**
-     * Articles from other sources covering the same grouped story.
-     */
     public function relatedCoverage(): Collection
     {
         if (empty($this->story_group)) {
@@ -179,12 +138,6 @@ class NewsHeading extends Model
             ->get();
     }
 
-    /**
-     * Load related coverage for a group of stories without N+1 queries.
-     *
-     * @param  Collection<int, self>  $headlines
-     * @return array<int, Collection<int, self>>
-     */
     public static function loadCoverageMap(Collection $headlines): array
     {
         $groups = $headlines->pluck('story_group')->filter()->unique()->values();

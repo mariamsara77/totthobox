@@ -47,6 +47,8 @@
         "spatie/laravel-sitemap": "^7.4",
         "stevebauman/location": "^7.6",
         "stichoza/google-translate-php": "^5.3",
+        "symfony/css-selector": "^8.1",
+        "symfony/dom-crawler": "^8.1",
         "symfony/yaml": "^8.1",
         "tonysm/rich-text-laravel": "^3.4",
         "ueberdosis/tiptap-php": "^2.0"

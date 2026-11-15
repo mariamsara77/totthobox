@@ -31,8 +31,8 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->web(append: [
-            TrackVisitors::class,
-            UpdateLastActive::class,
+            // TrackVisitors::class,
+            // UpdateLastActive::class,
             // AdminDebugbar::class,
         ]);
     })

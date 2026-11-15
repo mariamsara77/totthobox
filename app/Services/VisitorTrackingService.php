@@ -342,8 +342,15 @@ class VisitorTrackingService
         }
 
         $socialDomains = [
-            'facebook', 't.co', 'twitter', 'x.com',
-            'instagram', 'linkedin', 'tiktok', 'youtube', 'pinterest',
+            'facebook',
+            't.co',
+            'twitter',
+            'x.com',
+            'instagram',
+            'linkedin',
+            'tiktok',
+            'youtube',
+            'pinterest',
         ];
         foreach ($socialDomains as $social) {
             if (str_contains($host, $social)) {
@@ -379,6 +386,59 @@ class VisitorTrackingService
         Cache::forget("visitor:{$hash}");
         Cache::forget("visitor:active:{$hash}");
         Cache::forget("visitor_v3_{$hash}");
+    }
+
+    public function getOrCreateAiChatVisitor(Request $request): ?Visitor
+    {
+        $clientId = trim((string) (
+            $request->header('X-Visitor-Id')
+            ?: $request->query('visitor_id')
+            ?: $request->input('visitor_id')
+        ));
+
+        if (! preg_match('/^visitor_[A-Za-z0-9_-]{8,100}$/D', $clientId)) {
+            return null;
+        }
+
+        $ip = (string) $request->ip();
+        $ua = (string) $request->userAgent();
+
+        // একই browser visitor ID = একই database Visitor record
+        $hash = hash('sha256', 'ai-chat-visitor:' . $clientId);
+        $cacheKey = "visitor:{$hash}";
+
+        $visitor = Visitor::where('hash', $hash)->first();
+
+        if ($visitor) {
+            Cache::put($cacheKey, $visitor, now()->addMinutes(30));
+            return $visitor;
+        }
+
+        // পুরোনো IP + User-Agent record থাকলে সেটিই reuse করুন,
+        // যাতে আগের ChatSession-এর visitor_id নষ্ট না হয়।
+        $legacyHash = $this->makeHash($ip, $ua);
+        $visitor = Visitor::where('hash', $legacyHash)->first();
+
+        if ($visitor) {
+            $visitor->forceFill([
+                'hash' => $hash,
+                'ip_address' => $ip,
+                'last_seen_at' => now(),
+            ])->saveQuietly();
+
+            $this->bustVisitorCache($legacyHash);
+            Cache::put($cacheKey, $visitor, now()->addMinutes(30));
+
+            return $visitor;
+        }
+
+        return $this->getOrCreateVisitorFromData([
+            'ip' => $ip,
+            'user_agent' => $ua,
+            'user_id' => Auth::id(),
+            'is_pwa' => $this->resolveIsPwa($request),
+            'hash' => $hash,
+        ]);
     }
 
     public function resolveIsPwa(Request $request): bool

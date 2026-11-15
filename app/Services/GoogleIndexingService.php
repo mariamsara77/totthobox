@@ -13,14 +13,11 @@ use Google\Service\SearchConsole\InspectUrlIndexRequest;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
+use RuntimeException;
+use Throwable;
 
 class GoogleIndexingService
 {
-    /**
-     * এই নামেই app/Providers/GoogleIndexingServiceProvider-এ RateLimiter::for() ডিফাইন করা আছে।
-     * Job middleware আর এই সার্ভিস — দুই জায়গাতেই একই key ব্যবহার হচ্ছে, যাতে কোটার হিসাব
-     * সবসময় এক জায়গা থেকেই (single source of truth) আসে, আলাদা Cache counter লাগে না।
-     */
     public const RATE_LIMITER_NAME = 'google-indexing';
 
     public const RATE_LIMITER_BY_KEY = 'google-indexing-api';
@@ -35,155 +32,403 @@ class GoogleIndexingService
 
     public function __construct()
     {
-        // GoogleIndexingServiceProvider-এর RateLimiter definition-এর সাথে এই বাফার মিলিয়ে রাখা
-        // জরুরি, নাহলে remainingQuota() ভুল সংখ্যা দেখাবে।
-        $this->dailyQuota = max(1, (int) config('services.google.indexing_daily_quota', 200) - 10);
+        // Keep a safety buffer below the configured Google daily quota.
+        $this->dailyQuota = max(
+            1,
+            (int) config('services.google.indexing_daily_quota', 200) - 10
+        );
 
-        $credentialsPath = config('services.google.indexing_credentials');
+        $this->loadGoogleCredentials();
+    }
 
-        if (! $credentialsPath || ! file_exists(base_path($credentialsPath))) {
-            Log::warning('GoogleIndexingService: credentials ফাইল পাওয়া যায়নি।', [
-                'path' => $credentialsPath,
-            ]);
+    /**
+     * Load and initialize Google API credentials.
+     */
+    private function loadGoogleCredentials(): void
+    {
+        $credentialsPath =
+            config('services.google.indexing_credentials')
+            ?: config('services.google.indexing_key');
+
+        if (! $credentialsPath) {
+            Log::warning(
+                'Google Indexing: credentials path is not configured.'
+            );
+
+            return;
+        }
+
+        $credentialsPath = (string) $credentialsPath;
+
+        // Support both absolute and Laravel-relative paths.
+        if (! str_starts_with($credentialsPath, DIRECTORY_SEPARATOR)) {
+            $credentialsPath = base_path($credentialsPath);
+        }
+
+        if (
+            ! is_file($credentialsPath) ||
+            ! is_readable($credentialsPath)
+        ) {
+            Log::warning(
+                'Google Indexing: credentials file not found.',
+                [
+                    'path' => $credentialsPath,
+                ]
+            );
 
             return;
         }
 
         try {
-            $jsonContent = json_decode(file_get_contents(base_path($credentialsPath)), true, 512, JSON_THROW_ON_ERROR);
-            $this->serviceAccountEmail = $jsonContent['client_email'] ?? null;
+            $credentialsContent = file_get_contents(
+                $credentialsPath
+            );
 
-            $client = new Client;
-            $client->setAuthConfig(base_path($credentialsPath));
-            $client->setHttpClient(new \GuzzleHttp\Client(['timeout' => 15]));
+            if ($credentialsContent === false) {
+                throw new RuntimeException(
+                    'Unable to read Google credentials.'
+                );
+            }
+
+            $credentials = json_decode(
+                $credentialsContent,
+                true,
+                512,
+                JSON_THROW_ON_ERROR
+            );
+
+            if (
+                ! is_array($credentials) ||
+                empty($credentials['client_email']) ||
+                empty($credentials['private_key']) ||
+                ($credentials['type'] ?? null) !== 'service_account'
+            ) {
+                throw new RuntimeException(
+                    'Invalid Google service account credentials.'
+                );
+            }
+
+            $this->serviceAccountEmail =
+                $credentials['client_email'];
+
+            $client = new Client();
+
+            $client->setAuthConfig($credentialsPath);
+
+            $client->setHttpClient(
+                new \GuzzleHttp\Client([
+                    'timeout' => 20,
+                    'connect_timeout' => 10,
+                ])
+            );
+
             $client->addScope([
                 Indexing::INDEXING,
                 SearchConsole::WEBMASTERS_READONLY,
             ]);
 
             $this->indexingService = new Indexing($client);
+
             $this->searchConsoleService = new SearchConsole($client);
-        } catch (\Throwable $e) {
-            Log::error('GoogleIndexingService: credentials লোড করতে ব্যর্থ।', ['error' => $e->getMessage()]);
+        } catch (Throwable $e) {
+            $this->indexingService = null;
+            $this->searchConsoleService = null;
+
+            Log::error(
+                'Google Indexing: credential initialization failed.',
+                [
+                    'error' => $e->getMessage(),
+                ]
+            );
         }
     }
 
+    /**
+     * Check whether Google API is configured.
+     */
     public function isConfigured(): bool
     {
         return $this->indexingService !== null;
     }
 
     /**
-     * আজকের বাকি কোটা কত — এখন RateLimiter থেকে সরাসরি পড়া হচ্ছে, যেটা IndexUrlJob-এর
-     * RateLimited middleware প্রতিটা প্রসেসড অ্যাটেম্পটে hit করে। তাই এখানে আলাদা করে
-     * Cache::increment() রাখার দরকার নেই — race condition এর সুযোগও নেই।
+     * Return configured service account email.
+     */
+    public function getServiceAccountEmail(): ?string
+    {
+        return $this->serviceAccountEmail;
+    }
+
+    /**
+     * Return remaining daily indexing quota.
+     *
+     * Uses the same rate limiter key as the existing
+     * IndexUrlJob middleware.
      */
     public function remainingQuota(): int
     {
-        $key = self::RATE_LIMITER_NAME.':'.self::RATE_LIMITER_BY_KEY;
+        $key = self::RATE_LIMITER_NAME . ':' .
+            self::RATE_LIMITER_BY_KEY;
 
-        return max(0, RateLimiter::remaining($key, $this->dailyQuota));
+        return max(
+            0,
+            RateLimiter::remaining(
+                $key,
+                $this->dailyQuota
+            )
+        );
     }
 
-    public function isIndexed(string $url, string $siteUrl): bool
-    {
+    /**
+     * Check Google Search Console indexing status.
+     */
+    public function isIndexed(
+        string $url,
+        string $siteUrl
+    ): bool {
         if (! $this->searchConsoleService) {
             return false;
         }
 
-        $cacheKey = 'google-indexing:is-indexed:'.md5($siteUrl.'|'.$url);
+        $cacheKey = 'google-indexing:is-indexed:' .
+            md5($siteUrl . '|' . $url);
 
-        return Cache::remember($cacheKey, now()->addMinutes(30), function () use ($url, $siteUrl) {
-            try {
-                $request = new InspectUrlIndexRequest;
-                $request->setInspectionUrl($url);
-                $request->setSiteUrl($siteUrl);
+        return Cache::remember(
+            $cacheKey,
+            now()->addMinutes(30),
+            function () use ($url, $siteUrl) {
+                try {
+                    $request = new InspectUrlIndexRequest();
 
-                $response = $this->searchConsoleService->urlInspection_index->inspect($request);
-                $result = $response->getInspectionResult();
+                    $request->setInspectionUrl($url);
 
-                if (! $result) {
+                    $request->setSiteUrl($siteUrl);
+
+                    $response = $this->searchConsoleService
+                        ->urlInspection_index
+                        ->inspect($request);
+
+                    $result = $response->getInspectionResult();
+
+                    if (! $result) {
+                        return false;
+                    }
+
+                    $statusResult = $result->getIndexStatusResult();
+
+                    if (! $statusResult) {
+                        return false;
+                    }
+
+                    $verdict = $statusResult->getVerdict();
+
+                    return in_array(
+                        $verdict,
+                        ['PASS', 'NEUTRAL'],
+                        true
+                    );
+                } catch (GoogleServiceException $e) {
+                    Log::warning(
+                        'Google Search Console inspection failed.',
+                        [
+                            'url' => $url,
+                            'site_url' => $siteUrl,
+                            'code' => $e->getCode(),
+                            'error' => $e->getMessage(),
+                        ]
+                    );
+
+                    return false;
+                } catch (Throwable $e) {
+                    Log::error(
+                        'Google indexing status check failed.',
+                        [
+                            'url' => $url,
+                            'error' => $e->getMessage(),
+                        ]
+                    );
+
                     return false;
                 }
-
-                $verdict = $result->getIndexStatusResult()->getVerdict();
-
-                return in_array($verdict, ['PASS', 'NEUTRAL'], true);
-            } catch (GoogleServiceException $e) {
-                Log::warning('GoogleIndexingService: isIndexed চেক ব্যর্থ।', [
-                    'url' => $url,
-                    'code' => $e->getCode(),
-                    'error' => $e->getMessage(),
-                ]);
-
-                return false;
             }
-        });
+        );
     }
 
     /**
-     * একটি URL গুগলে ইনডেক্সিং-এর জন্য পুশ করে।
+     * Submit a URL to Google Indexing API.
      *
-     * নোট: এই মেথড শুধুমাত্র IndexUrlJob-এর ভেতর থেকে কল হওয়া উচিত, যাতে জবের
-     * RateLimited + WithoutOverlapping middleware প্রকৃত থ্রটলিং handle করতে পারে।
-     * নিচের quota-চেক শুধু ডিফেন্সিভ সেফটি-নেট (কেউ যদি সরাসরি সার্ভিস কল করে বসে)।
+     * Supported notification types:
+     * URL_UPDATED
+     * URL_DELETED
      *
-     * @throws GoogleIndexingQuotaExceededException
+     * Normally this method should be called through IndexUrlJob,
+     * where the existing queue middleware controls API rate limits.
+     *
      * @throws GoogleIndexingException
+     * @throws GoogleIndexingQuotaExceededException
      */
-    public function indexUrl(string $url, string $type = 'URL_UPDATED'): void
-    {
+    public function indexUrl(
+        string $url,
+        string $type = 'URL_UPDATED'
+    ): void {
         if (! $this->indexingService) {
             throw new GoogleIndexingException(
-                'গুগল এপিআই ক্রেডেনশিয়াল সেটআপ করা নেই।',
+                'Google Indexing API credentials are not configured.',
+                isRetryable: false
+            );
+        }
+
+        // Validate supported notification types.
+        if (! in_array(
+            $type,
+            ['URL_UPDATED', 'URL_DELETED'],
+            true
+        )) {
+            throw new GoogleIndexingException(
+                'Unsupported Google Indexing notification type.',
+                isRetryable: false
+            );
+        }
+
+        // Validate URL format.
+        if (! filter_var($url, FILTER_VALIDATE_URL)) {
+            throw new GoogleIndexingException(
+                'Invalid URL supplied to Google Indexing API.',
+                isRetryable: false
+            );
+        }
+
+        $parts = parse_url($url);
+
+        if (
+            ! is_array($parts) ||
+            strtolower($parts['scheme'] ?? '') !== 'https' ||
+            empty($parts['host']) ||
+            isset($parts['user']) ||
+            isset($parts['pass']) ||
+            (isset($parts['port']) && (int) $parts['port'] !== 443)
+        ) {
+            throw new GoogleIndexingException(
+                'Only valid public HTTPS URLs are allowed.',
+                isRetryable: false
+            );
+        }
+
+        // Only allow explicitly configured public domains.
+        $allowedHosts = config(
+            'services.google.indexing_allowed_hosts',
+            []
+        );
+
+        if (is_string($allowedHosts)) {
+            $allowedHosts = explode(',', $allowedHosts);
+        }
+
+        $allowedHosts = array_map(
+            fn($host) => strtolower(
+                rtrim(trim((string) $host), '.')
+            ),
+            is_array($allowedHosts) ? $allowedHosts : []
+        );
+
+        $host = strtolower(rtrim($parts['host'], '.'));
+
+        if (
+            ! empty($allowedHosts) &&
+            ! in_array($host, $allowedHosts, true)
+        ) {
+            throw new GoogleIndexingException(
+                'URL domain is not in the configured Google indexing allowlist.',
                 isRetryable: false
             );
         }
 
         if ($this->remainingQuota() <= 0) {
-            throw new GoogleIndexingQuotaExceededException;
+            throw new GoogleIndexingQuotaExceededException();
         }
 
         try {
-            $notification = new UrlNotification;
+            $notification = new UrlNotification();
+
             $notification->setUrl($url);
+
             $notification->setType($type);
 
-            $this->indexingService->urlNotifications->publish($notification);
+            $this->indexingService
+                ->urlNotifications
+                ->publish($notification);
+
+            Log::info(
+                'Google Indexing API notification submitted.',
+                [
+                    'url' => $url,
+                    'type' => $type,
+                ]
+            );
         } catch (GoogleServiceException $e) {
             $code = (int) $e->getCode();
+
             $message = $e->getMessage();
 
-            // 429 বা explicit quota message
-            if ($code === 429 || str_contains(strtolower($message), 'quota')) {
-                throw new GoogleIndexingQuotaExceededException;
+            $lowerMessage = strtolower($message);
+
+            // Handle Google quota errors.
+            if (
+                $code === 429 ||
+                str_contains($lowerMessage, 'quota') ||
+                str_contains($lowerMessage, 'rate limit')
+            ) {
+                Log::warning(
+                    'Google Indexing API quota exceeded.',
+                    [
+                        'url' => $url,
+                        'code' => $code,
+                        'error' => $message,
+                    ]
+                );
+
+                throw new GoogleIndexingQuotaExceededException();
             }
 
-            // Ownership / permission সমস্যা সাধারণত permanent
-            $isPermanent = in_array($code, [400, 401, 403, 404], true)
-                || str_contains(strtolower($message), 'permission')
-                || str_contains(strtolower($message), 'ownership')
-                || str_contains(strtolower($message), 'not found');
+            // Authentication, ownership and permission errors.
+            $isPermanent =
+                in_array($code, [400, 401, 403, 404], true) ||
+                str_contains($lowerMessage, 'permission') ||
+                str_contains($lowerMessage, 'ownership') ||
+                str_contains($lowerMessage, 'not authorized');
 
-            Log::error('GoogleIndexingService: ইনডেক্সিং ব্যর্থ', [
-                'url' => $url,
-                'code' => $code,
-                'error' => $message,
-            ]);
+            $isRetryable = ! $isPermanent && (
+                $code >= 500 ||
+                $code === 0
+            );
+
+            Log::error(
+                'Google Indexing API request failed.',
+                [
+                    'url' => $url,
+                    'code' => $code,
+                    'retryable' => $isRetryable,
+                    'error' => $message,
+                ]
+            );
 
             throw new GoogleIndexingException(
-                message: "গুগল এপিআই এরর ({$code}): {$message}",
-                isRetryable: ! $isPermanent && $code >= 500,
+                message: "Google API error ({$code}): {$message}",
+                isRetryable: $isRetryable,
                 previous: $e
             );
-        } catch (\Throwable $e) {
-            Log::error('GoogleIndexingService: অপ্রত্যাশিত এরর', [
-                'url' => $url,
-                'error' => $e->getMessage(),
-            ]);
+        } catch (Throwable $e) {
+            Log::error(
+                'Google Indexing API unexpected error.',
+                [
+                    'url' => $url,
+                    'error' => $e->getMessage(),
+                ]
+            );
 
             throw new GoogleIndexingException(
-                message: 'অপ্রত্যাশিত এরর: '.$e->getMessage(),
+                message: 'Unexpected Google API error: ' .
+                    $e->getMessage(),
                 isRetryable: true,
                 previous: $e
             );

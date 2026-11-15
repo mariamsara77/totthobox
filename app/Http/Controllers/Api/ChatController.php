@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ChatSession;
 use App\Services\AiService;
+use App\Services\VisitorTrackingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
@@ -14,43 +15,110 @@ use Illuminate\Support\Str;
 class ChatController extends Controller
 {
     private const USER_RATE_LIMIT = 100;
-    private const USER_RATE_WINDOW = 3600;
+    private const USER_RATE_WINDOW = 3600; // 1 hour
     private const MAX_IMAGE_BASE64_CHARS = 6_000_000;
     private const MAX_IMAGE_BYTES = 4_500_000;
 
-    public function __construct(private AiService $ai) {}
+    public function __construct(
+        private readonly AiService $ai,
+        private readonly VisitorTrackingService $trackingService
+    ) {}
+
+    /**
+     * Helper: Resolve Visitor ID from Backend Tracking Service
+     */
+    /**
+     * Helper: Track and resolve Visitor Model Primary Key
+     */
+    private function resolveVisitorId(Request $request): ?int
+    {
+        try {
+            if (! auth('sanctum')->check()) {
+                $clientId = trim((string) (
+                    $request->header('X-Visitor-Id')
+                    ?: $request->query('visitor_id')
+                    ?: $request->input('visitor_id')
+                ));
+
+                if ($clientId !== '') {
+                    $visitor = $this->trackingService
+                        ->getOrCreateAiChatVisitor($request);
+
+                    return $visitor ? (int) $visitor->id : null;
+                }
+            }
+
+            $visitor = $request->attributes->get('current_visitor')
+                ?? $this->trackingService->getOrCreateVisitor($request);
+
+            return $visitor ? (int) $visitor->id : null;
+        } catch (\Throwable $e) {
+            Log::warning('Failed to resolve AI chat visitor', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
 
     // =========================================================
-    // GET /api/ai/sessions  (auth:sanctum)
+    // GET /api/ai/sessions  (auth:sanctum OR visitor_id)
     // =========================================================
-public function sessions(Request $request)
-{
-    // সরাসরি আইডি ফিল্টার করে শেষ ১০টি ডেটা নিয়ে আসুন
-    $sessions = ChatSession::where('user_id', $request->user()->id)
-        ->orderBy('id', 'desc')
-        ->get(['id', 'uuid', 'title', 'created_at', 'updated_at']);
+    public function sessions(Request $request)
+    {
+        $user = auth('sanctum')->user();
+        $visitorId = $this->resolveVisitorId($request);
 
-    return response()->json([
-        'success' => true,
-        'debug_total' => $sessions->count(), // এখানে মোট কয়টি আসছে দেখতে পাবেন
-        'data'    => $sessions,
-])->withHeaders([
-    'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
-    'Pragma'        => 'no-cache',
-]);
-}
+        $query = ChatSession::query();
+
+        if ($user) {
+            $query->where('user_id', $user->id);
+        } elseif ($visitorId) {
+            $query->where('visitor_id', $visitorId);
+        } else {
+            return response()->json([
+                'success' => true,
+                'data'    => [],
+            ]);
+        }
+
+        $sessions = $query->orderByDesc('id')
+            ->get(['id', 'uuid', 'title', 'created_at', 'updated_at']);
+
+        return response()->json([
+            'success' => true,
+            'data'    => $sessions,
+        ])->withHeaders([
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma'        => 'no-cache',
+        ]);
+    }
+
     // =========================================================
-    // GET /api/ai/sessions/{uuid}  (auth:sanctum)
+    // GET /api/ai/sessions/{uuid}
     // =========================================================
     public function show(Request $request, string $uuid)
     {
-        $session = ChatSession::withTrashed()
-            ->where('uuid', $uuid)
-            ->where('user_id', $request->user()->id)
-            ->firstOrFail();
+        $user = auth('sanctum')->user();
+        $visitorId = $this->resolveVisitorId($request);
+
+        $sessionQuery = ChatSession::withTrashed()->where('uuid', $uuid);
+
+        if ($user) {
+            $sessionQuery->where('user_id', $user->id);
+        } elseif ($visitorId) {
+            $sessionQuery->where('visitor_id', $visitorId);
+        } else {
+            abort(403, 'Unauthorized');
+        }
+
+        $session = $sessionQuery->firstOrFail();
 
         if ($session->trashed()) {
-            return response()->json(['success' => false, 'message' => 'Session deleted'], 410);
+            return response()->json([
+                'success' => false,
+                'message' => 'Session deleted',
+            ], 410);
         }
 
         $messages = $session->messages()
@@ -80,33 +148,45 @@ public function sessions(Request $request)
     }
 
     // =========================================================
-    // DELETE /api/ai/sessions/{id}  (auth:sanctum)
+    // DELETE /api/ai/sessions/{id}
     // =========================================================
     public function destroy(Request $request, int $id)
     {
-        $session = ChatSession::where('user_id', $request->user()->id)
-            ->findOrFail($id);
+        $user = auth('sanctum')->user();
+        $visitorId = $this->resolveVisitorId($request);
 
+        $query = ChatSession::query();
+        if ($user) {
+            $query->where('user_id', $user->id);
+        } else {
+            $query->where('visitor_id', $visitorId);
+        }
+
+        $session = $query->findOrFail($id);
         $session->delete();
 
-        return response()->json(['success' => true]);
+        return response()->json([
+            'success' => true,
+            'message' => 'Session deleted successfully',
+        ]);
     }
 
     // =========================================================
-    // GET /api/ai/guest-usage  (public)
+    // GET /api/ai/guest-usage
     // =========================================================
     public function guestUsage(Request $request)
     {
-        $stats = $this->ai->getGuestUsage($request->ip());
+        $visitorId = $this->resolveVisitorId($request);
+        $stats = $this->ai->getGuestUsage($visitorId ?: $request->ip());
 
-        return response()->json(['success' => true, 'data' => $stats]);
+        return response()->json([
+            'success' => true,
+            'data'    => $stats,
+        ]);
     }
 
     // =========================================================
-    // POST /api/ai/ask  (public — guest + auth উভয়ের জন্য)
-    //
-    // Route এ middleware নেই, তাই auth('sanctum')->user()
-    // দিয়ে manually check করা হচ্ছে।
+    // POST /api/ai/ask  (Guest + Auth)
     // =========================================================
     public function ask(Request $request)
     {
@@ -115,13 +195,14 @@ public function sessions(Request $request)
             'image'      => 'nullable|string|max:6000000',
             'image_mime' => 'nullable|string|in:image/jpeg,image/png,image/gif,image/webp',
             'uuid'       => 'nullable|uuid',
-            'history'    => 'nullable|array',
+            'visitor_id' => 'nullable|string',
         ]);
 
         $content     = trim((string) $request->input('question', ''));
         $imageBase64 = $request->input('image');
         $imageMime   = $request->input('image_mime');
 
+        // Image validation...
         if (is_string($imageBase64) && strlen($imageBase64) > self::MAX_IMAGE_BASE64_CHARS) {
             return response()->json([
                 'success' => false,
@@ -131,7 +212,6 @@ public function sessions(Request $request)
 
         if ($imageBase64) {
             $decoded = base64_decode($imageBase64, true);
-
             if ($decoded === false || strlen($decoded) > self::MAX_IMAGE_BYTES) {
                 return response()->json([
                     'success' => false,
@@ -140,17 +220,16 @@ public function sessions(Request $request)
             }
         }
 
-        if ($content === '' && !$imageBase64) {
+        if ($content === '' && ! $imageBase64) {
             return response()->json([
                 'success' => false,
                 'message' => 'প্রশ্ন বা ছবি দিন',
             ], 422);
         }
 
-        // Sanctum token দিয়ে user চেনার চেষ্টা (middleware ছাড়া)
         $user = auth('sanctum')->user();
 
-        if (!$user) {
+        if (! $user) {
             return $this->handleGuestAsk($request, $content, $imageBase64, $imageMime);
         }
 
@@ -167,34 +246,36 @@ public function sessions(Request $request)
     }
 
     // =========================================================
-    // POST /api/ai/regenerate  (auth:sanctum)
+    // POST /api/ai/regenerate  (auth:sanctum OR visitor)
     // =========================================================
     public function regenerate(Request $request)
     {
-        $request->validate(['uuid' => 'required|uuid']);
+        $request->validate([
+            'uuid' => 'required|uuid',
+        ]);
 
-        if (! $this->allowUserRequest($request->user()->id)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'প্রতি ঘণ্টায় সর্বোচ্চ ১০০টি AI অনুরোধ করা যায়। কিছুক্ষণ পরে আবার চেষ্টা করুন।',
-            ], 429, [
-                'Retry-After' => (string) RateLimiter::availableIn($this->userRateKey($request->user()->id)),
-            ]);
+        $user = auth('sanctum')->user();
+        $visitorId = $this->resolveVisitorId($request);
+
+        $sessionQuery = ChatSession::where('uuid', $request->input('uuid'));
+        if ($user) {
+            $sessionQuery->where('user_id', $user->id);
+        } else {
+            $sessionQuery->where('visitor_id', $visitorId);
         }
 
-        $uuid = $request->input('uuid'); // ✅ $request->uuid নয়
-
-        $session = ChatSession::where('uuid', $uuid)
-            ->where('user_id', $request->user()->id)
-            ->firstOrFail();
+        $session = $sessionQuery->firstOrFail();
 
         $lastUser = $session->messages()
             ->where('role', 'user')
             ->latest()
             ->first();
 
-        if (!$lastUser) {
-            return response()->json(['success' => false, 'message' => 'কোনো বার্তা নেই'], 404);
+        if (! $lastUser) {
+            return response()->json([
+                'success' => false,
+                'message' => 'কোনো বার্তা নেই',
+            ], 404);
         }
 
         // শেষ user message-এর পরের সব message মুছে ফেলা
@@ -206,12 +287,16 @@ public function sessions(Request $request)
             ->orderBy('created_at')
             ->get()
             ->slice(-12)
-            ->map(fn($m) => ['role' => $m->role, 'content' => $m->content])
+            ->map(fn($m) => [
+                'role'    => $m->role,
+                'content' => $m->content,
+            ])
             ->values()
             ->toArray();
 
         try {
-            $response  = $this->ai->askAi($lastUser->content, $context);
+            $response = $this->ai->askAi($lastUser->content, $context);
+
             $aiMessage = $session->messages()->create([
                 'role'    => 'model',
                 'content' => $response,
@@ -242,7 +327,7 @@ public function sessions(Request $request)
     }
 
     // =========================================================
-    // POST /api/ai/edit-regenerate  (auth:sanctum)
+    // POST /api/ai/edit-regenerate  (auth:sanctum OR visitor)
     // =========================================================
     public function editAndRegenerate(Request $request)
     {
@@ -252,18 +337,17 @@ public function sessions(Request $request)
             'content'    => 'required|string|max:8000',
         ]);
 
-        if (! $this->allowUserRequest($request->user()->id)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'প্রতি ঘণ্টায় সর্বোচ্চ ১০০টি AI অনুরোধ করা যায়। কিছুক্ষণ পরে আবার চেষ্টা করুন।',
-            ], 429, [
-                'Retry-After' => (string) RateLimiter::availableIn($this->userRateKey($request->user()->id)),
-            ]);
+        $user = auth('sanctum')->user();
+        $visitorId = $this->resolveVisitorId($request);
+
+        $sessionQuery = ChatSession::where('uuid', $request->input('uuid'));
+        if ($user) {
+            $sessionQuery->where('user_id', $user->id);
+        } else {
+            $sessionQuery->where('visitor_id', $visitorId);
         }
 
-        $session = ChatSession::where('uuid', $request->input('uuid'))
-            ->where('user_id', $request->user()->id)
-            ->firstOrFail();
+        $session = $sessionQuery->firstOrFail();
 
         $message = $session->messages()->findOrFail($request->input('message_id'));
 
@@ -277,6 +361,7 @@ public function sessions(Request $request)
         $newContent = trim($request->input('content'));
         $message->update(['content' => $newContent]);
 
+        // পরবর্তী সব message মুছে ফেলা
         $session->messages()
             ->where('created_at', '>', $message->created_at)
             ->delete();
@@ -285,12 +370,16 @@ public function sessions(Request $request)
             ->orderBy('created_at')
             ->get()
             ->slice(-12)
-            ->map(fn($m) => ['role' => $m->role, 'content' => $m->content])
+            ->map(fn($m) => [
+                'role'    => $m->role,
+                'content' => $m->content,
+            ])
             ->values()
             ->toArray();
 
         try {
-            $response  = $this->ai->askAi($newContent, $context);
+            $response = $this->ai->askAi($newContent, $context);
+
             $aiMessage = $session->messages()->create([
                 'role'    => 'model',
                 'content' => $response,
@@ -304,7 +393,7 @@ public function sessions(Request $request)
                         'role'    => 'user',
                         'content' => $newContent,
                     ],
-                    'ai_message'   => [
+                    'ai_message' => [
                         'id'         => $aiMessage->id,
                         'role'       => 'model',
                         'content'    => $response,
@@ -313,7 +402,10 @@ public function sessions(Request $request)
                 ],
             ]);
         } catch (\Throwable $e) {
-            Log::error('EditRegenerate error', ['message' => $e->getMessage()]);
+            Log::error('EditRegenerate error', [
+                'message' => $e->getMessage(),
+                'session' => $session->uuid,
+            ]);
 
             return response()->json([
                 'success' => false,
@@ -323,8 +415,9 @@ public function sessions(Request $request)
     }
 
     // =========================================================
-    // Private helpers
+    // Private Helpers
     // =========================================================
+
     private function userRateKey(int $userId): string
     {
         return 'ai_user:' . $userId;
@@ -333,16 +426,12 @@ public function sessions(Request $request)
     private function allowUserRequest(int $userId): bool
     {
         $key = $this->userRateKey($userId);
-
         if (RateLimiter::tooManyAttempts($key, self::USER_RATE_LIMIT)) {
             return false;
         }
-
         RateLimiter::hit($key, self::USER_RATE_WINDOW);
-
         return true;
     }
-
 
     private function handleGuestAsk(
         Request $request,
@@ -350,41 +439,116 @@ public function sessions(Request $request)
         ?string $imageBase64,
         ?string $imageMime
     ) {
-        $usage = $this->ai->getGuestUsage($request->ip());
+        $visitorId = $this->resolveVisitorId($request);
 
-        if ($usage['remaining'] <= 0) {
+        if (! $visitorId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Visitor ID could not be resolved',
+            ], 422);
+        }
+
+        // ২০টি লিমিট চেক
+        $usage = $this->ai->getGuestUsage($visitorId);
+
+        if (isset($usage['remaining']) && $usage['remaining'] <= 0) {
             return response()->json([
                 'success'     => false,
-                'message'     => 'আপনার বিনামূল্যে সীমা শেষ। আরও ব্যবহারের জন্য লগইন করুন।',
+                'message'     => 'আপনার বিনামূল্যে সীমা (২০টি মেসেজ) শেষ। আরও ব্যবহারের জন্য লগইন করুন।',
                 'guest_usage' => $usage,
             ], 429);
         }
 
-        $history = $request->input('history', []);
-        if (!is_array($history)) {
-            $history = [];
+        $uuid = $request->input('uuid');
+        $session = null;
+
+        if ($uuid) {
+            $session = ChatSession::where('uuid', $uuid)
+                ->where('visitor_id', $visitorId)
+                ->first();
         }
 
+        $isNew = ! $session;
+
+        if ($isNew && isset($usage['remaining']) && $usage['remaining'] <= 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'আপনার ফ্রি লিমিট শেষ হয়েছে। নতুন চ্যাট শুরু করতে লগইন করুন।',
+            ], 429);
+        }
+
+        if ($isNew) {
+            $session = ChatSession::create([
+                'uuid'       => $uuid ?: (string) Str::uuid(),
+                'visitor_id' => $visitorId,
+                'title'      => $this->generateSessionTitle($content),
+            ]);
+        }
+
+        $imageStoredPath = null;
+        if ($imageBase64 && $imageMime) {
+            $ext = match ($imageMime) {
+                'image/png'  => 'png',
+                'image/gif'  => 'gif',
+                'image/webp' => 'webp',
+                default      => 'jpg',
+            };
+            $path = 'chat-images/guest/' . $visitorId . '/' . Str::uuid() . '.' . $ext;
+            Storage::disk('public')->put($path, base64_decode($imageBase64));
+            $imageStoredPath = $path;
+        }
+
+        $userMessage = $session->messages()->create([
+            'role'       => 'user',
+            'content'    => $content ?: '🖼️ ছবি পাঠানো হয়েছে',
+            'image_path' => $imageStoredPath,
+        ]);
+
+        $context = $session->messages()
+            ->orderBy('created_at')
+            ->get()
+            ->slice(-12)
+            ->map(fn($m) => [
+                'role'    => $m->role,
+                'content' => $m->content,
+            ])
+            ->values()
+            ->toArray();
+
         try {
-            $response = $this->ai->askAi($content, $history, $imageBase64, $imageMime, $request->ip());
-            $usage    = $this->ai->getGuestUsage($request->ip());
+            $response = $this->ai->askAi($content, $context, $imageBase64, $imageMime, $visitorId);
+
+            $aiMessage = $session->messages()->create([
+                'role'    => 'model',
+                'content' => $response,
+            ]);
+
+            $updatedUsage = $this->ai->getGuestUsage($visitorId);
 
             return response()->json([
                 'success' => true,
                 'data'    => [
-                    'user_message' => [
-                        'id'         => 'guest_' . uniqid(),
-                        'role'       => 'user',
-                        'content'    => $content ?: '🖼️ ছবি পাঠানো হয়েছে',
-                        'image_path' => null,
+                    'session' => [
+                        'id'     => $session->id,
+                        'uuid'   => $session->uuid,
+                        'title'  => $session->title,
+                        'is_new' => $isNew,
                     ],
-                    'ai_message'   => [
-                        'id'         => 'guest_' . uniqid(),
+                    'user_message' => [
+                        'id'         => $userMessage->id,
+                        'role'       => 'user',
+                        'content'    => $userMessage->content,
+                        'image_path' => $imageStoredPath
+                            ? Storage::disk('public')->url($imageStoredPath)
+                            : null,
+                    ],
+                    'ai_message' => [
+                        'id'         => $aiMessage->id,
                         'role'       => 'model',
                         'content'    => $response,
                         'image_path' => null,
                     ],
-                    'guest_usage'  => $usage,
+                    'guest_usage' => $updatedUsage,
                 ],
             ]);
         } catch (\Throwable $e) {
@@ -392,6 +556,8 @@ public function sessions(Request $request)
                 'message' => $e->getMessage(),
                 'trace'   => $e->getTraceAsString(),
             ]);
+
+            $userMessage->delete();
 
             return response()->json([
                 'success' => false,
@@ -407,7 +573,7 @@ public function sessions(Request $request)
         ?string $imageBase64,
         ?string $imageMime
     ) {
-        $uuid    = $request->input('uuid');
+        $uuid = $request->input('uuid');
         $session = null;
 
         if ($uuid) {
@@ -416,17 +582,16 @@ public function sessions(Request $request)
                 ->first();
         }
 
-        $isNew = !$session;
+        $isNew = ! $session;
 
         if ($isNew) {
             $session = ChatSession::create([
                 'uuid'    => $uuid ?: (string) Str::uuid(),
                 'user_id' => $user->id,
-                'title'   => Str::limit($content ?: 'ছবি সহ কথোপকথন', 50),
+                'title'   => $this->generateSessionTitle($content),
             ]);
         }
 
-        // ছবি সেভ করা
         $imageStoredPath = null;
         if ($imageBase64 && $imageMime) {
             $ext = match ($imageMime) {
@@ -435,24 +600,26 @@ public function sessions(Request $request)
                 'image/webp' => 'webp',
                 default      => 'jpg',
             };
+
             $path = 'chat-images/' . $user->id . '/' . Str::uuid() . '.' . $ext;
             Storage::disk('public')->put($path, base64_decode($imageBase64));
             $imageStoredPath = $path;
         }
 
-        // User message সেভ
         $userMessage = $session->messages()->create([
             'role'       => 'user',
             'content'    => $content ?: '🖼️ ছবি পাঠানো হয়েছে',
             'image_path' => $imageStoredPath,
         ]);
 
-        // AI-এর জন্য context
         $context = $session->messages()
             ->orderBy('created_at')
             ->get()
             ->slice(-12)
-            ->map(fn($m) => ['role' => $m->role, 'content' => $m->content])
+            ->map(fn($m) => [
+                'role'    => $m->role,
+                'content' => $m->content,
+            ])
             ->values()
             ->toArray();
 
@@ -467,7 +634,7 @@ public function sessions(Request $request)
             return response()->json([
                 'success' => true,
                 'data'    => [
-                    'session'      => [
+                    'session' => [
                         'id'     => $session->id,
                         'uuid'   => $session->uuid,
                         'title'  => $session->title,
@@ -481,7 +648,7 @@ public function sessions(Request $request)
                             ? Storage::disk('public')->url($imageStoredPath)
                             : null,
                     ],
-                    'ai_message'   => [
+                    'ai_message' => [
                         'id'         => $aiMessage->id,
                         'role'       => 'model',
                         'content'    => $response,
@@ -503,5 +670,14 @@ public function sessions(Request $request)
                 'message' => 'উত্তর পেতে সমস্যা হচ্ছে — আবার চেষ্টা করুন।',
             ], 500);
         }
+    }
+
+    private function generateSessionTitle(string $content): string
+    {
+        $content = trim($content);
+        if ($content === '') {
+            return 'ছবি সহ কথোপকথন';
+        }
+        return Str::limit($content, 50, '...');
     }
 }

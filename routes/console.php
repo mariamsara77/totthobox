@@ -12,56 +12,69 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schedule;
 
+/*
+|--------------------------------------------------------------------------
+| Stream Refresh
+|--------------------------------------------------------------------------
+*/
+
 Schedule::call(function () {
     (new StreamService)->refreshAllStreams();
-})->hourly();
+})->hourly()->name('refresh-all-streams')->withoutOverlapping(10);
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  CHANNEL SYNC SCHEDULE
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+/*
+|--------------------------------------------------------------------------
+| Channel Sync Schedule
+|--------------------------------------------------------------------------
+*/
 
-// 🔴 Health-check — দিনে ১ বার রাত ১২:০০ টায় হবে
+// Health-check — প্রতিদিন রাত 12:00
 Schedule::command('channels:sync-all --type=all --health-only --chunk=30')
     ->dailyAt('00:00')
     ->withoutOverlapping(60)
     ->runInBackground()
     ->appendOutputTo(storage_path('logs/channel-health.log'));
 
-// 🏆 FIFA World Cup channels — দিনে ১ বার রাত ০১:০০ টায় হবে
+// FIFA World Cup channels — রাত 01:00
 Schedule::command('channels:sync-all --type=worldcup --force --chunk=30')
     ->dailyAt('01:00')
     ->withoutOverlapping(60)
     ->runInBackground()
     ->appendOutputTo(storage_path('logs/worldcup-sync.log'));
 
-// ⚽ Full new-channel fetch — দিনে ১ বার রাত ০২:০০ টায় হবে
+// Full new-channel fetch — রাত 02:00
 Schedule::command('channels:sync-all --type=all --force --chunk=30')
     ->dailyAt('02:00')
     ->withoutOverlapping(60)
     ->runInBackground()
     ->appendOutputTo(storage_path('logs/channel-sync.log'));
 
-// 🌙 Nightly deep full sync — দিনে ১ বার রাত ০৩:৩০ AM এ হবে
+// Nightly deep full sync — রাত 03:30
 Schedule::command('channels:sync-all --type=all --chunk=50')
     ->dailyAt('03:30')
     ->withoutOverlapping(120)
     ->runInBackground()
     ->appendOutputTo(storage_path('logs/channel-full-sync.log'));
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  OTHER SCHEDULED JOBS (NOW PROPERLY LOGGED)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+/*
+|--------------------------------------------------------------------------
+| Sitemap & Google Indexing
+|--------------------------------------------------------------------------
+*/
 
-// Sitemap regeneration — once daily at midnight
+// Sitemap regeneration — রাত 00:15
 Schedule::command('sitemap:generate')
-    ->dailyAt('00:10')
+    ->dailyAt('00:15')
+    ->withoutOverlapping(30)
     ->appendOutputTo(storage_path('logs/sitemap-generate.log'));
 
-// Google Auto Indexing — Daily at 01:00 AM (1 hour after sitemap)
+// Google Auto Indexing — রাত 01:15 (sitemap এর পরে)
 Schedule::command('google:auto-index-sitemap')
-    ->dailyAt('01:00')
+    ->dailyAt('01:15')
+    ->withoutOverlapping(30)
     ->appendOutputTo(storage_path('logs/google-indexing.log'));
 
+// Google Indexing Daily Retry — রাত 00:05
 Schedule::call(function () {
     $service = app(GoogleIndexingService::class);
 
@@ -75,7 +88,6 @@ Schedule::call(function () {
         return;
     }
 
-    // আগে QuotaExceeded, তারপর পুরনো Failed (সর্বোচ্চ remaining সংখ্যক)
     $records = IndexedUrl::query()
         ->whereIn('status', [
             IndexingStatus::QuotaExceeded,
@@ -107,17 +119,11 @@ Schedule::call(function () {
     ->withoutOverlapping(30)
     ->onOneServer();
 
-// AI Content Auto-Improve — Daily at 04:00 AM
-// Schedule::command('content:auto-improve')
-//     ->dailyAt('04:00')
-//     ->withoutOverlapping()
-//     ->runInBackground()
-//     ->appendOutputTo(storage_path('logs/auto-improve.log'));
-
-// AI Content Stats — Weekly (Dry run)
-// Schedule::command('content:auto-improve --dry-run')
-//     ->weekly()
-//     ->appendOutputTo(storage_path('logs/auto-improve-stats.log'));
+/*
+|--------------------------------------------------------------------------
+| News Related Jobs
+|--------------------------------------------------------------------------
+*/
 
 // Scrape all news sources every 30 minutes
 Schedule::command('news:scrape')
@@ -126,24 +132,25 @@ Schedule::command('news:scrape')
     ->runInBackground()
     ->appendOutputTo(storage_path('logs/news-scraper.log'));
 
-// Telescope Prune Logs — Daily
+// Cross-source story clustering (AdSense value-add)
+Schedule::command('news:cluster-stories --hours=48')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping(12)
+    ->runInBackground()
+    ->appendOutputTo(storage_path('logs/news-cluster.log'));
+
+/*
+|--------------------------------------------------------------------------
+| Cleanup & Maintenance
+|--------------------------------------------------------------------------
+*/
+
+// Telescope Prune
 Schedule::command('telescope:prune --hours=24')
     ->daily()
     ->appendOutputTo(storage_path('logs/telescope-prune.log'));
 
-// Pulse Prune Logs — Daily (pulse_entries ক্লিয়ার রাখার জন্য)
-// Schedule::command('pulse:clear')
-//     ->daily()
-//     ->appendOutputTo(storage_path('logs/pulse-trim.log'));
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  ARTISAN COMMANDS
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
-
+// Cleanup expired conversion tasks
 Schedule::call(function (): void {
     ConversionTask::withTrashed()
         ->where('created_at', '<', now()->subHours(2))
@@ -154,6 +161,30 @@ Schedule::call(function (): void {
             $task->forceDelete();
         });
 })->hourly()->name('cleanup-expired-conversion-tasks')->withoutOverlapping()->onOneServer();
+
+
+/*
+|--------------------------------------------------------------------------
+| Website Knowledge Base Crawl (AI এর জন্য)
+|--------------------------------------------------------------------------
+*/
+
+Schedule::command('website:crawl')
+    ->cron('0 4 */15 * *')
+    ->withoutOverlapping(120)
+    ->runInBackground()
+    ->appendOutputTo(storage_path('logs/website-crawl.log'))
+    ->onOneServer();
+
+/*
+|--------------------------------------------------------------------------
+| Custom Artisan Commands
+|--------------------------------------------------------------------------
+*/
+
+Artisan::command('inspire', function () {
+    $this->comment(Inspiring::quote());
+})->purpose('Display an inspiring quote');
 
 /**
  * Super-clean: clears all caches then re-caches for production.
@@ -177,13 +208,6 @@ Artisan::command('super:clean {--prod : Also rebuild config/route/view caches}',
     $this->newLine();
     $this->info('✅ Project optimized successfully.');
 })->purpose('Clear caches and optionally rebuild for production (--prod)');
-
-// Cross-source story clustering (AdSense value-add)
-Schedule::command('news:cluster-stories --hours=48')
-    ->everyFifteenMinutes()
-    ->withoutOverlapping(12)
-    ->runInBackground()
-    ->appendOutputTo(storage_path('logs/news-cluster.log'));
 
 /**
  * Scrape news on demand.
