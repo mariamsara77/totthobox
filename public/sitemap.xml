@@ -2,7 +2,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">
     <url>
     <loc>https://admin.totthobox.com</loc>
-    <lastmod>2026-11-15T00:15:02+06:00</lastmod>
+    <lastmod>2026-11-25T00:15:03+06:00</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
             </url>
@@ -580,6 +580,18 @@
     <url>
     <loc>https://admin.totthobox.com/users/miroman-khan-xkrdbc</loc>
     <lastmod>2026-11-05T15:26:39+06:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+            </url>
+    <url>
+    <loc>https://admin.totthobox.com/users/md-sagor-khan-c58opv</loc>
+    <lastmod>2026-11-15T20:45:32+06:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+            </url>
+    <url>
+    <loc>https://admin.totthobox.com/users/trisha-tasmi-o25sdx</loc>
+    <lastmod>2026-11-18T19:24:59+06:00</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
             </url>
@@ -1863,7 +1875,7 @@
             </url>
     <url>
     <loc>https://admin.totthobox.com/software/bijoy-bayanno</loc>
-    <lastmod>2026-11-14T16:38:38+06:00</lastmod>
+    <lastmod>2026-11-23T19:51:02+06:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
             </url>
@@ -1875,7 +1887,7 @@
             </url>
     <url>
     <loc>https://admin.totthobox.com/software/proshika-shabda</loc>
-    <lastmod>2026-11-14T15:56:11+06:00</lastmod>
+    <lastmod>2026-11-19T12:39:26+06:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
             </url>
@@ -1911,7 +1923,7 @@
             </url>
     <url>
     <loc>https://admin.totthobox.com/software/kalpurush-bangla-font</loc>
-    <lastmod>2026-11-12T14:21:27+06:00</lastmod>
+    <lastmod>2026-11-23T16:31:18+06:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
             </url>
@@ -1923,7 +1935,7 @@
             </url>
     <url>
     <loc>https://admin.totthobox.com/software/hind-siliguri-bangla-font</loc>
-    <lastmod>2026-11-01T13:22:49+06:00</lastmod>
+    <lastmod>2026-11-23T13:48:31+06:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
             </url>
